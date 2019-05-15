@@ -1,0 +1,33 @@
+1、首先我们先添加jar包
+
+	 <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+
+        <!--添加松校验-->
+        <dependency>
+            <groupId>net.sourceforge.nekohtml</groupId>
+            <artifactId>nekohtml</artifactId>
+	    <version>1.9.20</version>
+        </dependency>
+        <dependency>
+            <groupId>xml-apis</groupId>
+            <artifactId>xml-apis</artifactId>
+	    <version>1.4.01</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.xmlgraphics</groupId>
+            <artifactId>batik-ext</artifactId>
+	    <version>1.9.1</version>
+        </dependency>
+
+
+2、然后编写配置文件
+
+
+	关闭缓存
+	spring.thymeleaf.cache=false
+
+	开启Thymeleaf的松校验
+	spring.thymeleaf.mode=LEGACYHTML5

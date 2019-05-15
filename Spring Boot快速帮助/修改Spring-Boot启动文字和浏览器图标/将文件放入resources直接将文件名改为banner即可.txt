@@ -1,0 +1,1 @@
+将文件放入resources直接将文件名改为banner即可，例如asd.txt    改成banner.txt

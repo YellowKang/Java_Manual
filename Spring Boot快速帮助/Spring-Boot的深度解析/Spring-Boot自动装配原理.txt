@@ -1,0 +1,4 @@
+1、Spring-Boot的自动装备原理？
+
+	Spring-Boot的自动装配原理是通过@EnableAutoConfiguration去激活的，这个注解在我们的@SpringBootApplication中点进去，
+	会发现它默认就添加了@EnableAutoConfiguration这个注解，所以他实现了自动装配

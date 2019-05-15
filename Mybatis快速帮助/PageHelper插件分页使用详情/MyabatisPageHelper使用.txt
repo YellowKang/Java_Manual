@@ -1,0 +1,172 @@
+1、首先我们先把依赖引入
+
+
+	<dependency>
+	
+	  	<!-- groupId配置地址 -->
+      		<groupId>com.github.pagehelper</groupId>
+	  
+	  	<!-- artifactId插件 -->
+      		<artifactId>pagehelper</artifactId>
+	  
+	  	<!-- 版本 -->
+      		<version>5.1.2</version>
+	  
+	  
+    	</dependency>
+	
+代码块
+---------------------------------------------------------------------
+
+    <dependency>
+      <groupId>com.github.pagehelper</groupId>
+      <artifactId>pagehelper</artifactId>
+      <version>5.1.2</version>
+    </dependency>
+
+
+---------------------------------------------------------------------
+
+
+
+2、然后配置我们的插件
+		
+	
+	1)：纯mybatis不整合的情况下配置mybatis-config
+	
+		<plugins>
+		
+			<!-- com.github.pagehelper为PageHelper类所在包名 -->
+			
+			<plugin interceptor="com.github.pagehelper.PageInterceptor">
+			
+				<!-- 使用下面的方式配置参数，后面会有所有的参数介绍 -->
+				
+				<property name="param1" value="value1"/>
+				
+			</plugin>
+			
+		</plugins>
+		
+		
+		
+代码块
+---------------------------------------------------------------------
+
+<plugins>
+	<plugin interceptor="com.github.pagehelper.PageInterceptor">
+		<property name="param1" value="value1"/>
+	</plugin>
+</plugins>
+
+---------------------------------------------------------------------
+
+
+
+	2)：使用mybatis的整合情况下配置spring-mybatis
+	
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		  <!-- 注意其他配置 -->
+		  <property name="plugins">
+			<array>
+			  <bean class="com.github.pagehelper.PageInterceptor">
+				<property name="properties">
+				  <!--使用下面的方式配置参数，一行配置一个 -->
+				  <value>
+					params=value1
+				  </value>
+				</property>
+			  </bean>
+			</array>
+		  </property>
+	</bean>
+
+	
+代码块
+---------------------------------------------------------------------
+
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+		  <property name="plugins">
+			<array>
+			  <bean class="com.github.pagehelper.PageInterceptor">
+				<property name="properties">
+				  <value>
+					params=value1
+				  </value>
+				</property>
+			  </bean>
+			</array>
+		  </property>
+	</bean>
+
+---------------------------------------------------------------------
+
+3、然后开始使用我们的MybatisPageHelper吧
+
+
+	1)：在我们的SQLSession对象上直接使用插件
+	
+		List<Country> list = sqlSession.selectList("x.y.selectIf", null, new RowBounds(0, 10));
+		
+	2)：使用Mapper映射的接口直接调用（强烈推荐）
+		
+		PageHelper.startPage(1, 10);
+		List<Country> list = countryMapper.selectIf(1);
+		
+	3)：还是使用Mapper映射的接口直接调用
+	
+		PageHelper.offsetPage(1, 10);
+		List<Country> list = countryMapper.selectIf(1);
+		
+	还有其他更多方法不推荐使用可自查
+	
+
+		
+		
+PageHelper的使用的更多的拓展
+
+
+	PageInfo<User> pageinfo = 
+
+
+  	System.out.println(pageInfo.getPageNum());
+
+	表示打印查询到的数据库的所有的行数
+        System.out.println(pageInfo.getSize());
+
+        System.out.println(pageInfo.getStartRow());
+
+        System.out.println(pageInfo.getEndRow());
+
+        System.out.println(pageInfo.getTotal());
+
+        System.out.println(pageInfo.getPages());
+
+        System.out.println(pageInfo.getNavigateLastPage());
+
+        System.out.println(pageInfo.getNavigateFirstPage());
+
+	判断这一页是不是第一页页码
+        System.out.println(pageInfo.isIsFirstPage());
+
+	判断这一页是不是最后一页页码
+        System.out.println(pageInfo.isIsLastPage());
+
+        System.out.println(pageInfo.isHasPreviousPage());
+
+        System.out.println(pageInfo.isHasNextPage());
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+	

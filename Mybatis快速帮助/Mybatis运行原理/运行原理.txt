@@ -1,0 +1,26 @@
+//        定义一个需要反转的字符串内容
+        String stringof = "abcdefg";
+
+
+        int valueOne = 2;
+//        下标按照第7个在6的后面才能包含到6
+        int valueTwo = 6;
+
+//        将字符串分成3份
+
+//        第一份从0开始到第一个反转的光标
+        String stringOne = stringof.substring(0,valueOne);
+
+//        第二份需要反转的内容的部分选中
+        String stringTwo = stringof.substring(valueOne,valueTwo);
+
+//        第三份选择从结束的一部分到最后结尾
+        String stringThrre = stringof.substring(valueTwo,stringof.length());
+
+        String one = "";
+        for(int i = stringTwo.length() - 1; i >= 0 ;i--){
+            one += stringTwo.charAt(i);
+        }
+//        将字符串重新赋值
+        stringof =  stringOne +  one + stringThrre;
+        System.out.println(stringof);

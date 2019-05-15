@@ -1,0 +1,174 @@
+反射就是我们自己获取到类模板自己加载和设置
+
+	下面是使用方法
+
+	首先：
+		我们都要先创建一个类加载的Class对象
+
+
+		Class classas = Class.forName("类的包名");
+
+		例如:
+			
+            	Class classas = Class.forName("com.web.entity.Student");
+
+		然后创建一个Object对象用来作为类模板加载的创建
+		
+		创建了一个新的对象
+		
+            	Object object = classas.newInstance();
+				
+		上面这两个基本固定了，中间会出现很多的异常try  catch一下就好了
+		
+		下面是对他们的操作
+		
+		成员变量
+			成员变量是Field
+			
+					我们先获取一个单个公共成员叫做name的
+					Field field = classas.getField("name");
+					
+					
+					我们就获取到了他的成员然后我们来设置成员的值
+					因为我们需要对哪一个类模板进行设置所以需要创建一个object对象表示设置这个object的成员变量name的值为“张三”
+					field.set(object,"张三");
+					
+					
+					
+					这是拿到这个成员的值
+					field.get(object);
+					这样就完成了对一个公共成员的值的设置和修改
+					
+					
+					
+					
+					下面我们来获取到所有的公共成员
+					 他是一个成员数组
+					Field[] fields = classas.getFields();
+					里面包含了所有的公共成员
+					
+					
+					
+					
+					
+					
+					然后我们来获取所有修饰和属性的成员（包含私有和其他的，以及静态的等等等）
+					
+					单个
+					Field field = classas.getDeclaredField(“name”);
+					
+					全部的所有成员
+					Field[] declaredFields = classas.getDeclaredFields();
+		
+					反射中是可以对private私有的进行修改的只需要在设置值前面加上一个
+					
+					field.setAccessible(true);就可以暴力的破解private私有的成员
+					
+					
+					直接打印field对象就可以直接查看到他了
+					记住在设置他的私有成员的时候一定要先暴力破解在设置
+					
+					System.out.println(field);
+					
+					也可以调用他的getName方法获取到成员的变量名
+					System.out.println(field.getName());
+					
+					
+		
+		方法
+		
+					我们先获取一个单个方法叫做mySystem的
+					Field field = classas.getField("name");
+					
+					
+					我们就获取到了他的成员然后我们来设置成员的值
+					因为我们需要对哪一个类模板进行设置所以需要创建一个object对象表示设置这个object的成员变量name的值为“张三”
+					field.set(object,"张三");
+					
+					
+					
+					这是拿到这个成员的值
+					field.get(object);
+					这样就完成了对一个公共成员的值的设置和修改
+					
+					
+					
+					
+					下面我们来获取到所有的公共成员
+					 他是一个成员数组
+					Field[] fields = classas.getFields();
+					里面包含了所有的公共成员
+					
+					
+					
+					
+					
+					
+					然后我们来获取所有修饰和属性的成员（包含私有和其他的，以及静态的等等等）
+					
+					单个
+					Field field = classas.getDeclaredField(“name”);
+					
+					全部的所有成员
+					Field[] declaredFields = classas.getDeclaredFields();
+		
+					反射中是可以对private私有的进行修改的只需要在设置值前面加上一个
+					
+					field.setAccessible(true);就可以暴力的破解private私有的成员
+					
+					
+					直接打印field对象就可以直接查看到他了
+					记住在设置他的私有成员的时候一定要先暴力破解在设置
+					
+					System.out.println(field);
+					
+					也可以调用他的getName方法获取到成员的变量名
+					System.out.println(field.getName());
+					
+					
+		
+		构造方法
+		    获取类模板
+            Class classas = Class.forName("club.kang.blog.web.test.TestClassMy.Student");
+//            设置构造方法的参数格式
+            Constructor constructor = classas.getConstructor(String.class, int.class, String.class);
+//            将获取到的值赋给对象
+            Object object = constructor.newInstance("张三", 18, "男");
+//            现在创建的就是有有参数的一个对象了
+		
+		父类
+		
+		  我们以HashMap为例子
+            Class classas = Class.forName("java.util.HashMap");
+//            直接调用类模板的.getSuperclass()就能调用到父类的类了，可以为所欲为的操作父类
+            Class superclass = classas.getSuperclass();
+		
+		接口
+		
+		
+		       //这里我们还是以HashMap为例子
+            Class classas = Class.forName("java.util.HashMap");
+
+            //加载对象，并初始化类模板
+            Object object = classas.newInstance();
+
+            //这里获取到的是一个Class的数组，表示他的所有的接口的类
+            Class[] interfaces = classas.getInterfaces();
+
+            for (Class cs:interfaces) {
+                System.out.println(cs);
+            }
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		

@@ -1,0 +1,10 @@
+server:
+#设置访问端口号
+  port: 80
+spring:
+  datasource:
+#  高一点的mysql版本需要设置ssl链接属性
+    url: jdbc:mysql://localhost:3306/kang?useSSL=false
+    driver-class-name: com.mysql.jdbc.Driver
+    username: root
+    password: 123

@@ -1,0 +1,51 @@
+﻿Mapper类详情
+		<?xml version="1.0" encoding="UTF-8" ?>
+		<!DOCTYPE mapper
+				PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+				"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+		<mapper namespace="">
+		
+			<select id="映射方法名" resultType="返回值类型地址">
+			</select>
+			
+			<insert id="映射方法名" >
+			</insert>
+			
+			<delete id="映射方法名" >
+			</delete>
+			
+			<update id="映射方法名" >
+			</update>
+		</mapper>
+-------------------------------------------------------------------------------------------------------
+		<?xml version="1.0" encoding="UTF-8" ?>
+		<!DOCTYPE mapper
+				PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+				"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+		<mapper namespace="">
+		
+			<select id="" resultType="">
+			</select>
+			
+			<insert id="" >
+			</insert>
+			
+			<delete id="" >
+			</delete>
+			
+			<update id="" >
+			</update>
+		</mapper>
+-------------------------------------------------------------------------------------------------------
+
+
+
+
+
+3、
+
+
+
+
+链接: https://pan.baidu.com/s/1mhJ93He 密码: vmys
+解压密码：wwWw.mukedAba.cOm/#5E83Ea低dsf9D6asdfA

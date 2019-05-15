@@ -1,0 +1,64 @@
+1、批量增加和删除？
+
+
+    mybatis中给我们提供了可拓展的方法
+
+
+    //批量增加方法
+    @InsertProvider(type = Provider.class, method = "addAssign")
+    Integer addAssignRole(@Param("userid") Integer userid,@Param("ids") Integer[] ids);
+
+
+    //批量删除方法
+    @DeleteProvider(type = Provider.class, method = "delAssign")
+    Integer delAssignRole(@Param("userid") Integer userid,@Param("ids") Integer[] ids);
+
+
+    //自定义类
+    class Provider {
+
+        public String addAssign(Map map) {
+            Integer[] integers=(Integer[])map.get("ids");
+            Integer userid = (Integer) map.get("userid");
+            StringBuilder sb = new StringBuilder();
+            sb.append("insert into t_user_role VALUES ");
+            for (int i = 0; i < integers.length; i++) {
+                if(i>0){
+                    sb.append(",");
+                }
+                sb.append("(null," + userid + "," + integers[i] + ")");
+            }
+            return sb.toString();
+        }
+
+
+
+        public String delAssign(Map map) {
+            Integer[] integers=(Integer[])map.get("ids");
+            Integer userid = (Integer) map.get("userid");
+
+            StringBuilder sb = new StringBuilder();
+
+            sb.append("DELETE FROM t_user_role where userid = " + userid + " and roleid in (");
+            for (int i = 0; i < integers.length; i++) {
+                if(i>0){
+                    sb.append(",");
+                }
+                sb.append(integers[i]);
+            }
+            sb.append(")");
+            return sb.toString();
+        }
+
+    }
+
+
+public class CitySqlProvide {
+
+	public String findByState(String state) {
+		
+		return new SQL() {{
+			this.SELECT("*").FROM("city").WHERE("state = #{state}");
+		}}.toString();
+	}
+}

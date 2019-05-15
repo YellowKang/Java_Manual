@@ -1,0 +1,52 @@
+1、什么是工作流？为什么需要工作流？
+
+	1）：工作流也就是在工作中从开始到结束的一系列的流程，例如请假，需要填请假单，然后审批，然后请假成功，这就是一个简单的请假的工作流
+
+	2）：因为在工作中的流程不同，例如请假你请假一天，可能只需要组长审批一下，3天需要项目经理，
+	     其他的年假病假等等有需要人事审批所以这个时候出现了我们的工作流来简化这些操作和，他的流程的管理等等，所以用到了工作流
+
+
+2、工作流的流程有哪些呢？
+
+	1）：流程定义		Process definition
+
+	2）：流程实例		Process instance
+
+	3）：流程变量		Process variable
+
+	4）：流程任务		task
+
+	5）：起始、结束		Start 、 end
+
+	6）：网关		Gateway
+
+3、Activiti的核心对象有哪些呢？
+
+	ProcessEngine这个类是Avtiviti的核心，所有的服务都要经过他，他是线程安全的
+
+	Avtiviti主要包括7个服务
+
+		repositoryService		持久化服务，与数据库进行交互的
+
+		runtimeService			运行时服务，与运行流程有关的
+
+		formService			表单服务
+
+		identityService			身份信息
+
+		saskService			任务服务，与流程中的每一个步骤有关
+
+		historyService			历史信息，查看历史的流程步骤
+
+		managementService		管理定时任务，在固定的时间点完成固定的任务
+
+
+4、Activiti框架表结构
+
+	Avtiviti使用到的表都是ACT_Xxx   开头的
+
+	
+
+
+
+	

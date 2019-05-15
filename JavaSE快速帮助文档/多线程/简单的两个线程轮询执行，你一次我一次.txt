@@ -1,0 +1,39 @@
+ 
+
+
+    在run方法上面添加一个线程锁
+    public void run() {
+        for (int i = 0; i < 50; i++) {
+            synchronized (""){
+                System.out.println(Thread.currentThread().getName() + "\t" + i);
+		执行之后先唤醒下一个线程让下一个线程就绪
+                "".notify();
+		因为如果我们在第49次的时候才去睡眠他的话我们第50次就换醒不了线程就会造成线程的死锁
+                if(i<=48){
+                    try {
+			然后我们来让当前执行的这个线程阻塞住，然后他就会执行"".notify后面的预加载的线程就达到了轮询的效果
+                        "".wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
+
+
+        public static void main(String[] args){
+
+        	Runnable runnable = new ThreadCom();
+
+        	Thread thread1 = new Thread(runnable);
+
+        	Thread thread2 = new Thread(runnable);
+
+        	Thread thread3 = new Thread(runnable);
+
+        	thread1.start();
+
+        	thread2.start();
+    	}

@@ -1,0 +1,2 @@
+本系列教程由浅入深讲解了在CentOS7系统下如何搭建ElasticSearch，如何使用Kibana实现各种方式的搜索
+并详细分析了搜索的原理，最后讲解了在JAVA应用中如何集成ElasticSearch并实现搜索

@@ -1,0 +1,17 @@
+1、怎么样在后台里面使用前端框架？
+
+	首先我们可以去https://www.webjars.org/
+
+	这个网站提供了很多的web的jar包的maven，右边选择maven视图然后复制就可以直接打开依赖了
+
+2、然后我们在IDEA中导入就行了？
+
+		
+<dependency>
+    <groupId>org.webjars.bower</groupId>
+    <artifactId>jquery</artifactId>
+    <version>3.3.1</version>
+</dependency>
+
+
+例如

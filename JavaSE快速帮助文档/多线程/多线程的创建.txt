@@ -1,0 +1,52 @@
+线程的两种基本使用方法
+
+	第一种，继承 Runnable 接口，
+		例如：
+
+			public class WorkThreadOne implements Runnable {
+
+				//因为接口是抽象的，需要重写接口的方法
+				@Override
+   				public void run() {
+					//Java代码
+				}	
+			}
+			
+
+
+			//然后main方法调用
+
+ 			public static void main(String[] args){
+
+        			Runnable runnable = new WorkThreadOne ();
+
+        			Thread thread1 = new Thread(runnable);
+
+        			thread1.start();
+
+    			}
+			
+
+
+	第二种：继承Thread类
+
+		public class WorkThreadOne extends Thread{
+
+				//这里也需要我们去手动重写方法，如果不写则不会调用run
+				@Override
+   				public void run() {
+					//Java代码
+				}	
+			}
+			
+
+
+			//然后main方法调用
+
+ 			public static void main(String[] args){
+
+        			Thread thread1 = new WorkThreadOne();
+
+        			thread1.start();
+
+    			}

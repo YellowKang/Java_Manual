@@ -1,0 +1,69 @@
+Spring-Boot推荐采用模板引擎
+
+1、什么是模板引擎呢？
+
+	（伪HTML）动态HTML页面
+
+		好处：
+			1、提高搜索引擎搜索
+
+			2、渲染视图操作简单
+
+2、如何使用呢？
+
+	先引入依赖
+
+		
+	然后在配置freemarker的配置文件
+	
+	yml配置格式
+
+	  freemarker:
+		template-loader-path: classpath:/static/
+		cache: false
+		charset: UTF-8
+		check-template-location: true
+		content-type: text/html
+		expose-request-attributes: true
+		expose-session-attributes: true
+		request-context-attribute:  request
+		suffix: .ftl
+		
+		
+	properties配置格式
+	
+	
+	spring.freemarker.tempalte-loader-path=classpath:/templates
+	spring.freemarker.cache=false
+	spring.freemarker.charset=UTF-8
+	spring.freemarker.check-template-location=true
+	spring.freemarker.content-type=text/html
+	spring.freemarker.expose-request-attributes=true
+	spring.freemarker.expose-session-attributes=true
+	spring.freemarker.request-context-attribute=request
+	spring.freemarker.suffix=.ftl
+
+
+
+#FREEMARKER（FreeMarkerProperties）
+spring.freemarker.allow-request-override = false 		＃是否允许HttpServletRequest属性覆盖（隐藏）控制器生成的同名模型属性。
+spring.freemarker.allow-session-override = false     		＃是否允许HttpSession属性覆盖（隐藏）控制器生成的同名模型属性。
+spring.freemarker.cache = false                                	＃是否启用模板缓存。
+spring.freemarker.charset = UTF-8                     		＃模板编码。
+spring.freemarker.check-template-location = true             	＃是否检查模板位置是否存在。
+spring.freemarker.content-type = text / html                  	＃Content-Type value。
+spring.freemarker.enabled = true                                ＃是否为此技术启用MVC视图分辨率。
+spring.freemarker.expose-request-attributes = false        	＃是否应在与模板合并之前将所有请求属性添加到模型中。
+spring.freemarker.expose-session-attributes = false      	＃是否应在与模板合并之前将所有HttpSession属性添加到模型中。
+spring.freemarker.expose-spring-macro-helpers = true         	＃是否公开一个RequestContext供Spring的宏库使用，名称为“springMacroRequestContext”。
+spring.freemarker.prefer-file-system-access = true           	＃是否更喜欢文件系统访问以进行模板加载。文件系统访问可以热检测模板更改。
+spring.freemarker.prefix =                                	＃在构建URL时添加前缀以查看名称的前缀。
+spring.freemarker.request-context-attribute =                	＃所有视图的
+RequestContext属性的名称。spring.freemarker.settings。* =      	＃众所周知的FreeMarker密钥，传递给FreeMarker的配置。
+spring.freemarker.suffix = .ftl                                	＃在构建URL时附加到视图名称的后缀。
+spring.freemarker.template-loader-path = 
+classpath：/ templates /                               		＃逗号分隔的模板路径列表。
+spring.freemarker.view-names =                                	＃可以解析的视图名称的白名单。
+
+		
+		

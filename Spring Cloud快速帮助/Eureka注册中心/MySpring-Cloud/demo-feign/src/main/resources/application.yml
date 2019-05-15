@@ -1,0 +1,14 @@
+spring:
+   application:
+    #配置客户端的项目名
+     name: My-Eureka-Registration-Fiegn
+
+server:
+  #配置客户端的端口
+  port: 899
+
+eureka:
+  client:
+    serviceUrl:
+      #配置注册中心的地址
+      defaultZone: http://127.0.0.1:8177/eureka/

@@ -1,0 +1,12 @@
+cluster.name: es-cluster
+node.name: es-node1
+network.bind_host: 0.0.0.0
+network.publish_host: 39.108.158.33
+http.port: 9200
+transport.tcp.port: 9300
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+node.master: true 
+node.data: true  
+discovery.zen.ping.unicast.hosts: ["39.108.158.33:9301","39.108.158.33:9302","39.108.158.9303"]
+discovery.zen.minimum_master_nodes: 1

@@ -1,0 +1,68 @@
+1、什么是Thymeleaf？
+
+	Thymeleaf是一款用于渲染XML/XHTML/HTML5内容的模板引擎。类似JSP，Velocity，FreeMaker等， 
+	它也可以轻易的与Spring MVC等Web框架进行集成作为Web应用的模板引擎。与其它模板引擎相比， 
+	Thymeleaf最大的特点是能够直接在浏览器中打开并正确显示模板页面，而不需要启动整个Web应用。
+
+　　 
+	
+thymeLea支持Spring Expression Language语言作为方言，也就是SpEL，在学习JSP时我们对EL表达式都有一定的认识了，
+	SpEL是可以用于Spring中的一种EL表达式。
+
+简而言之，与我们使用过的JSP不同，thymeLeaf是使用html的标签来完成逻辑和数据的传入进行渲染，
+	而且不用像jsp一样作为一个servlet被编译再生成。即便单独的thymeleaf html文件依旧可以正确打开并有少量（相对）有价值的信息，并且是可以被浏览器直接打开的。
+
+
+	可以说用thymeLeaf完全替代jsp是可行的。何况他的功能更强大。
+
+
+
+	Thymeleaf 是一种模板语言。那模板语言或模板引擎是什么？常见的模板语言都包含以下几个概念：数据（Data）、模板（Template）、模板引擎（Template Engine）
+	和结果文档（Result Documents）。
+
+
+2、如何使用Thymeleaf呢？
+
+	首先我们先引入依赖
+
+ 	<dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+	
+
+	然后再resources目录下创建一个templates目录然后把html文件放在里面就可以了
+
+	他会自动的通过boot的自动加载去适配这个路径下的html文件，还会自动配置.html后缀所以基本不用配置
+
+
+3、如何使用Thymeleaf呢？
+
+	在Thymeleaf中和jsp中的语法不一样有一些区别例如使用作用域中的对象
+
+	在他上面设置th:text="${name}"  但是和jsp不同，他设置之后原来的内容将会清空，也就是被作用域中的内容替换掉
+
+	th:任意属性    他都能替换掉原来的属性的值，例如text  class   id  等等	
+
+	<span th:text="${name}"></span>
+
+
+
+
+spring.thymeleaf.cache = true   				＃是否启用模板缓存。
+spring.thymeleaf.check-template = true        			＃在呈现模板之前是否检查模板是否存在。
+spring.thymeleaf.check-template-location = true          	＃是否检查模板位置是否存在。
+spring.thymeleaf.enabled = true                                	＃是否为Web框架启用Thymeleaf视图解析。
+spring.thymeleaf.enable-spring-el-compiler = false           	＃在SpringEL表达式中启用SpringEL编译器。
+spring.thymeleaf.encoding = UTF-8                             	＃模板文件编码。
+spring.thymeleaf.excluded-view-names =                       	＃逗号分隔的视图名称列表（允许的模式）应从分辨率中排除。
+spring.thymeleaf.mode = HTML                              	＃要应用于模板的模板模式。另请参见Thymeleaf的TemplateMode枚举。
+spring.thymeleaf.prefix = classpath：/ templates /           	＃在构建URL时添加前缀以查看名称的前缀。
+spring.thymeleaf.reactive.chunked-mode-view-names =         	＃逗号分隔的视图名称列表（允许的模式）应该是设置最大块大小时在CHUNKED模式下执行的唯一视图名称。
+spring.thymeleaf.reactive.full-mode-view-names =            	＃逗号分隔的视图名称列表（允许的模式），即使设置了最大块大小，也应该在FULL模式下执行。
+spring.thymeleaf.reactive.max-chunk-size = 0             	＃用于写入响应的数据缓冲区的最大大小（以字节为单位）。
+spring.thymeleaf.reactive.media-types =                   	＃视图技术支持的媒体类型。
+spring.thymeleaf.servlet.content-type = text / html         	＃Content-Type写入HTTP响应的值。
+spring.thymeleaf.suffix = .html                                	＃在构建URL时附加到视图名称的后缀。
+spring.thymeleaf.template-resolver-order =              	＃链中模板解析器的顺序。
+spring.thymeleaf.view-名=                                	＃逗号分隔的视图名称列表（允许的模式），可以解析。

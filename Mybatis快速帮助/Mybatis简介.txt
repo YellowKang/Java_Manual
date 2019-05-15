@@ -1,0 +1,17 @@
+Mybatis是什么？
+	
+	Mybatis是一个orm框架    对象关系映射
+
+Mybatis和Hibernate的区别
+
+	Mybatis是通过SQL语句拿到对象
+
+	Hibernate是通过对象拿到SQL语句
+
+
+
+Mybatis的参数#（）和$（）有什么区别
+
+	#（）做参数的话可以进行预编译，防止sql注入攻击
+
+	$（）做参数的话不会进行预编译，不会防止sql注入攻击，他会进行sql拼接例如我们在客户端传入 ' or 1 = 1 --的话就会查询出所有的信息 

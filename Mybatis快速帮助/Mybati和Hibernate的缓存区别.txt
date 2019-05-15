@@ -1,0 +1,13 @@
+1、Mybatis和Hibernate的默认缓存有哪些？
+
+	OScache 	（主要用于数据库访问的缓存）
+	
+		Mybatis的二级缓存采用的是Oscache也能集成Ehcache
+
+	EHcache		（主要用于Jsp页面的缓存）
+
+		Hibernate的缓存用的EHcache的缓存机制
+
+2、内存缓存有什么缺点？
+
+	对内存的消耗稍大，而且容易内存溢出，没有持久化机制，如果JVM虚拟机重启数据将会丢失，而且多台服务器之间的数据不能共享

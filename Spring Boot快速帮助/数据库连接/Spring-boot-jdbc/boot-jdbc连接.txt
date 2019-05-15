@@ -1,0 +1,284 @@
+----------------------------------------------------依赖：
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-freemarker</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-jdbc</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+		</dependency>
+
+
+
+
+----------------------------------------------------application.yml配置
+
+
+server:
+#设置访问端口号
+  port: 80
+spring:
+  datasource:
+#  高一点的mysql版本需要设置ssl链接属性
+    url: jdbc:mysql://localhost:3306/kang?useSSL=false
+    driver-class-name: com.mysql.jdbc.Driver
+    username: root
+    password: 123
+
+
+
+----------------------------------------------------业务层
+
+package com.kang.demo;
+
+import com.kang.demo.entity.Admin;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+//表示这是一个service业务层需要将他注入spring容器
+@Service
+public class UserService {
+
+//    注入jdbcTemplate获取到数据库操作对象
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+//    添加方法，设置boolean成功返回true失败返回false
+    public boolean createAdmin(Integer integer,String name){
+        return  jdbcTemplate.update("insert into admin values(?,?)",integer,name) == 1;
+    }
+
+//    单个根据id查询，这里需要指定类型转换，返回一个Admin对象
+    public Admin selectAdmin(Integer id) {
+//        设置一个Mapper类型，用于接受结果的转换
+        RowMapper<Admin> rowMapper=new BeanPropertyRowMapper<>(Admin.class);
+        return jdbcTemplate.queryForObject("select  * from admin where id =?",rowMapper,id);
+    }
+
+//    根据id来删对象
+    public int deleteAdmin(int id) {
+        return jdbcTemplate.update("delete from admin where id = ?",id);
+    }
+
+//    根据对象修改对象
+    public int updateAdmin(Admin admin){
+        return jdbcTemplate.update("update admin set name = ? where id = ?",admin.getName(),admin.getId());
+    }
+
+//    返回所有信息
+    public List<Admin> getAll(){
+        RowMapper<Admin> rowMapper=new BeanPropertyRowMapper<>(Admin.class);
+        return jdbcTemplate.query("select * from admin",rowMapper);
+    }
+}
+
+
+----------------------------------------------------控制层
+
+
+package com.kang.demo;
+
+import com.kang.demo.entity.Admin;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import java.util.List;
+
+
+//控制层，在boot中不需要配置mvc文件
+@Controller
+public class Hello {
+
+//    @GetMapping 和@RequestMapping是一样的只是直接访问get请求
+//    @ResponseBody 表示返回一串json格式的数据
+
+//    将userService业务层从容其中获取到，这就是注入
+    @Autowired
+    private UserService userService;
+
+//    访问localhost/addAdmin?id=1&name=康哥后面跟上参数，这是一个添加url
+    @GetMapping(value = "/addAdmin")
+    @ResponseBody
+    public String createAdmin(Integer id,String name) {
+//        调用业务层的添加方法
+        return userService.createAdmin(id,name) == true ? "添加成功！" : "添加失败！";
+    }
+
+
+//     访问localhost/getAdmin?id=1后面跟上参数，这是一个单个查询url
+    @GetMapping("/getAdmin")
+    @ResponseBody
+    public Admin selectAdmin(Integer id) {
+        return userService.selectAdmin(id);
+    }
+
+//     访问localhost/updateAdmin?id=1&name=Big康 后面跟上参数，这是一个修改url
+    @GetMapping("/updateAdmin")
+    @ResponseBody
+    public String updateAdmin(Integer id,String name){
+        Admin admin = new Admin(id,name);
+        return userService.updateAdmin(admin) == 1 ? "修改成功！" : "修改失败！";
+    }
+
+
+//    访问localhost/deleteAdmin?id=1 后面跟上参数，这是一个删除url
+    @GetMapping("/deleteAdmin")
+    @ResponseBody
+    public String deleteAdmin(Integer id){
+        return userService.deleteAdmin(id) == 1 ? "删除成功！" : "删除失败！";
+    }
+
+//    访问localhost/allAdmin  这是一个获取所有对象的url
+    @GetMapping("/allAdmin")
+    @ResponseBody
+    public List<Admin> allAdmin(){
+        return userService.getAll();
+    }
+}
+
+
+
+
+----------------------------------------------------实体层
+
+
+package com.kang.demo.entity;
+
+//实体类
+public class Admin {
+
+    private int id;
+    private String name;
+
+    public Admin() {
+    }
+
+    public Admin(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return "Admin{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                '}';
+    }
+}
+
+
+----------------------------------------------------数据库资源，sql语句
+
+CREATE DATABASE kang CHARACTER SET utf8;
+USE kang;
+
+CREATE TABLE admin (
+	id INT PRIMARY KEY,
+	name VARCHAR(20) NOT NULL
+);
+INSERT INTO admin VALUES(1,'黄康'),(2,'康哥'),(3,'小康'),(4,'BIg康'),(5,'豪哥'),(6,'豪猪'),(7,'大哥');
+
+
+
+----------------------------------------------------SpringBoot启动项
+package com.kang.demo;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+//自动扫面同级包及其子包
+@SpringBootApplication
+public class DemoApplication {
+
+    public static void main(String[] args) {
+//        SpringBoot启动项
+        SpringApplication.run(DemoApplication.class, args);
+    }
+}
+
+
+
+
+			注意！service注解包也需要扫描到可以配置到扫面路径，
+			也可以自动扫描同级和子包目录下的否则无法自动注入service层的数据
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

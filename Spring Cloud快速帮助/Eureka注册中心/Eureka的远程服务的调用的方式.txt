@@ -1,0 +1,17 @@
+## 1、Eureka的调用方式有哪些？
+
+
+
+### RestTemplate
+
+			@GetMapping("/getProductMsg")
+			public String getProductMsg(){
+	
+				RestTemplate restTemplate = new RestTemplate();
+				String response = restTemplate.getForObject("http://localhost:8080/getMsg",String.class);
+				log.info("response = {}" , response);
+				return response;
+			}
+
+### Feign客户端
+

@@ -1,0 +1,2 @@
+此版本采用
+	Nacos1.0.0 + SpringCloud G版 + CloudAliBaBa0.9 + SpringBoot2.1.X版本搭建

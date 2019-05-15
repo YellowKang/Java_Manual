@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:p="http://www.springframework.org/schema/p"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.0.xsd">
+	
+	<!-- 字面量 
+		 转义:  
+		 	<: &lt;
+		 	>: &gt;
+		 	": &quot;
+		 	
+		<![CDATA[ .....  ]]> 	
+	-->
+	<bean id="book" class="com.atguigu.spring.value.Book">
+		<property name="isbn" value="isbn-1001"></property>
+		<!-- <property name="bookName" value="&lt;&lt;刚哥和婷姐的故事&gt;&gt;"></property> -->
+		<property name="bookName" >
+			<value> <![CDATA[ <<>> ' " * & ^ % $  ]]>  </value>
+		</property>
+	</bean>
+	
+	
+	<!-- 引用其他的bean -->
+	<bean id ="employeeRef" class ="com.atguigu.spring.value.Employee">
+		<property name="id" value="1001"></property>
+		<property name="lastName" value="刚哥"></property>
+		<property name="desc" value="不多不少,60秒刚刚好"></property>
+		<property name="dept" ref="dept">
+			<!-- <ref bean="dept"/> -->
+		</property>
+		
+		<!-- 级联属性 -->
+		 <property name="dept.deptName" value="开发部"></property>
+	
+	</bean>
+	
+	<bean id="dept" class="com.atguigu.spring.value.Department">
+		<property name="id" value="101"></property>
+		<property name="deptName" value="影视部"></property>
+	</bean>
+	
+	<!-- 内部bean  ， 只能在内部使用.-->
+	
+	<bean id="employeeInner" class="com.atguigu.spring.value.Employee">
+		<property name="id" value="1002"></property>
+		<property name="lastName" value="婷姐姐"></property>
+		<property name="desc" value="刚哥的最爱"></property>
+		<property name="dept" >
+			<bean  class="com.atguigu.spring.value.Department">
+				<property name="id" value="102"></property>
+				<property name="deptName" value="测试部"></property>
+			</bean>
+		</property>
+	</bean>
+	
+	<!-- List Set  Array -->
+	<bean id="deptList" class="com.atguigu.spring.value.Department">
+		<property name="id" value="103"></property>
+		<property name="deptName" value="教学部"></property>
+		<property name="emps" ref="singleList" >
+			<!-- 构造List集合 -->
+			<!-- <list>
+				<ref bean="employeeRef"/>
+				<ref bean="employeeInner"/>
+			</list> -->
+			<!--
+			 <set>
+			
+			</set>
+			
+			<array>
+			
+			</array>
+			 -->
+		</property>
+	</bean>
+	
+	<!-- Map -->
+	<bean id="deptMap" class="com.atguigu.spring.value.Department">
+		<property name="id" value="103"></property>
+		<property name="deptName" value="运维部"></property>
+		<property name="empsMap">
+			<map>
+				<entry key="AA" value-ref="employeeRef"></entry>
+				<entry key="BB" value-ref="employeeInner"></entry>
+			</map>
+		</property>
+	</bean>
+	
+	<!-- 独立的集合Bean -->
+	<util:list id="singleList">
+		<ref bean="employeeInner"/>
+		<ref bean="employeeRef"/>
+	</util:list>
+	
+	
+	<!-- p名称空间 -->
+	<bean id="employeeP" class="com.atguigu.spring.value.Employee"
+		p:id="1005" p:lastName="柴老师" p:desc="刚哥的最爱"  p:dept-ref="dept">
+	</bean>
+	
+
+</beans>

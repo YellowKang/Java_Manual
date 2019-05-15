@@ -1,0 +1,49 @@
+1、如何安装docker？
+
+	首先我们先更新下我们的yum，
+
+	yum -y update
+
+	然后安装
+
+	yum install -y docker
+
+
+2、Docker的启动关闭和查看以及操作?
+
+	启动docker
+
+		systemctl start docker.service
+
+		service docker start 
+
+	重新启动
+
+
+		systemctl restart docker.service
+
+		service docker restart 
+
+	关闭docker
+
+		systemctl stop docker.service
+
+		service docker stop
+
+	查看docker状态
+
+		systemctl status docker.service
+
+		service docker status
+
+
+	然后我们来配置下他的的加速镜像地址
+
+	根据自己的阿里云配置
+
+	然后vi /etc/docker/daemon.json
+
+	把后面的那个，的逗号去掉
+
+
+	

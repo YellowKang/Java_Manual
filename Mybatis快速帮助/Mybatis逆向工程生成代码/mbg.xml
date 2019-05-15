@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration
+        PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+        "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+
+<generatorConfiguration>
+
+    <context id="DB2Tables" targetRuntime="MyBatis3">
+        <commentGenerator>
+            <property name="suppressAllComments" value="true"></property>
+        </commentGenerator>
+        <!--jdbcConnection配置我们的数据库连接-->
+        <jdbcConnection
+                        driverClass="com.mysql.cj.jdbc.Driver"
+                        connectionURL="jdbc:mysql://localhost:3306/company?useUnicode=true&amp;characterEncoding=UTF-8&amp;serverTimezone=UTC&amp;useSSL=false"
+                        userId="root"
+                        password="123">
+        </jdbcConnection>
+
+        <javaTypeResolver >
+            <property name="forceBigDecimals" value="false" />
+        </javaTypeResolver>
+
+        <!--制定实体类的生成配置-->
+        <!--targetPackage：制定java模型生成的位置-->
+        <!--targetProject：.\src表示当前项目的src目录下-->
+        <javaModelGenerator targetPackage="club.kang.blog.web.entity" targetProject=".\src\main\java">
+            <property name="enableSubPackages" value="true" />
+            <property name="trimStrings" value="true" />
+        </javaModelGenerator>
+
+        <!--指定sql mapper映射文件生成的配置-->
+        <!--targetPackage：mapper文件生成的位置-->
+        <sqlMapGenerator targetPackage="club.kang.blog.web.mapper"  targetProject=".\src\main\resources">
+            <property name="enableSubPackages" value="true" />
+        </sqlMapGenerator>
+
+
+        <!--指定Dao接口映射文件生成的配置-->
+        <javaClientGenerator type="XMLMAPPER" targetPackage="club.kang.blog.web.mapper"  targetProject=".\src\main\java">
+            <property name="enableSubPackages" value="true" />
+        </javaClientGenerator>
+
+        <!--生成的表对应的实体-->
+        <table tableName="demo02" domainObjectName="Admin" />
+        <table tableName="companyemployee" domainObjectName="Employee"/>
+    </context>
+</generatorConfiguration>

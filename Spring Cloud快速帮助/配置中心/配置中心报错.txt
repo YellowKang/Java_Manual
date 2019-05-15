@@ -1,0 +1,9 @@
+一般在新的版本报错  spring什么的  file:/C:/Users/ADMINI~1/AppData/Local/Temp/config-repo-538694959346614127/application.yml
+然后还是能运行的，这个就是没有加json的包
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.9.5</version>
+        </dependency>
+我们只要加上json的包就好了

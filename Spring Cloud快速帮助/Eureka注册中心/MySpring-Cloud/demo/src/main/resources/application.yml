@@ -1,0 +1,17 @@
+spring:
+  application:
+    #这里是设置我们的项目名
+    name: My-Eureka-Registration-Center
+
+server:
+  #设置端口号
+  port: 8177
+
+eureka:
+  client:
+    #不将自己注入注册中心，因为他就是注册中心
+    fetch-registry: false
+    register-with-eureka: false
+    serviceUrl:
+      #配置注册中心的地址
+      defaultZone: http://localhost:${server.port}/eureka/

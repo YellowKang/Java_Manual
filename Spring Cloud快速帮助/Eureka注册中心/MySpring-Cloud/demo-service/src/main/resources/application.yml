@@ -1,0 +1,16 @@
+spring:
+  application:
+    #配置服务端的项目名，记住同一个服务设置一样的项目名
+    name: My-Eureka-Registration-Server-Service
+
+
+server:
+  #配置他的端口，在本地不要把服务的端口设置一样
+  port: 2001
+
+
+eureka:
+  client:
+    serviceUrl:
+      #将他注入注册中心的地址
+      defaultZone: http://127.0.0.1:8177/eureka/

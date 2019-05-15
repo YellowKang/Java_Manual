@@ -1,0 +1,26 @@
+spring:
+    application:
+        name: user-test-server #服务名，项目名，用于区分项目
+    cloud:
+        nacos:
+            config:
+                file-extension: yml #配置文件格式，nacos中的后缀
+                group: shop #配置文件分组
+                namespace: 55b9a820-85f3-4b67-a273-694986129273 #配置文件命名空间
+                server-addr: 39.108.158.33:8848 #配置中心地址
+                prefix: UserServer #配置文件前缀
+            discovery:
+                namespace: 55b9a820-85f3-4b67-a273-694986129273 #服务发现命名空间
+                server-addr: 39.108.158.33:8848 #服务发现地址
+    profiles:
+      active: dev
+    main:
+      allow-bean-definition-overriding: true
+    jackson:
+      date-format: yyyy-MM-dd HH:mm:ss
+
+mybatis-plus:
+  global-config:
+    db-config:
+      logic-delete-value: 1 # 逻辑已删除值(默认为 1)
+      logic-not-delete-value: 0 # 逻辑未删除值(默认为 0)

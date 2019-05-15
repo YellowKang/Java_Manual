@@ -1,0 +1,26 @@
+test: Bigkang---test---deva
+oss:
+    Bucket: kang-io
+    EndPoint: oss-cn-beijing.aliyuncs.com
+    AccessKey: LTAInrb0QkFfmzfZ
+    AccessKeySecret: Ao141tMiO33PyzvEzSc6Sk4DoaULdS
+swagger:
+    title: KangShop-----用户测试服务接口文档a
+    description: KangShop-----V1.0API接口文档
+    version: 1.0
+    enable: false
+spring:
+    data:
+      mongodb:
+        uri: mongodb://root:bigkang@140.143.0.227:27017/test
+    datasource:
+      password: bigkang
+      url: jdbc:mysql://39.108.158.33:3306/test?useSSL=false&useUnicode=true&characterEncoding=utf-8
+      username: root
+      driver-class-name: com.mysql.jdbc.Driver
+    jpa:
+      database-platform: org.hibernate.dialect.MySQL5InnoDBDialect #使用innoDb引擎
+      hibernate:
+        ddl-auto: update #每次启动如果发现有实体类更新数据库
+      show-sql: true #显示sql
+      database: mysql
