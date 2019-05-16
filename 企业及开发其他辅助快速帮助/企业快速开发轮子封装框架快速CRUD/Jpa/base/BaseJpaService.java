@@ -10,6 +10,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * @Author BigKang
+ * @Date 2019/5/12 16:27
+ * 通用Service接口层，，基于Jpa快速开发
+ */
 public interface BaseJpaService<T extends BaseJpaEntity, PK extends Serializable> {
 
     List<T> findAll();
@@ -45,5 +50,7 @@ public interface BaseJpaService<T extends BaseJpaEntity, PK extends Serializable
     Page<T> findByUpdateTime(Date var1, Pageable var2);
 
     List<T> findByUpdateTime(Date var1);
+
+    Long count();
 
 }

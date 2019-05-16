@@ -22,7 +22,7 @@ public class ExampleRequest<T> {
     }
 
     public Example<T> example() {
-        ExampleMatcher matcher = ExampleMatcher.matching().withIgnoreNullValues().withIgnorePaths(new String[]{"entityName", "deleted", "id", "dateCreated", "dateModified"});
+        ExampleMatcher matcher = ExampleMatcher.matching().withIgnoreNullValues().withIgnorePaths(new String[]{"entityName", "deleted", "id", "createTime", "updateTime"});
         Example<T> example = Example.of(this.getExample(), matcher);
         return example;
     }

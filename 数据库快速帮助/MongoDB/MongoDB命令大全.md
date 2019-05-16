@@ -80,6 +80,9 @@ db.testas.insertMany([{"name":"test1"},{"name":"test2"}])
 
 ```
 db.testas.update({"nice":"123"},{$set:{"haode":"PDF"}},{multi:true})
+
+不存在isDomestic这个字段的数据添加isDomestic这个字段为true
+db.acc.update({"domestic":{$exists:false}},{$set:{"domestic":true}},{multi:true})
 ```
 
 多条件添加字段
@@ -165,4 +168,14 @@ db.testas.update({}, {$rename:{"nice":"names"}}, false, true);
 ```
 db.testas.update( { "phonename" : "小米" } , { $set : { "phonename" : "华为"} },false,true)
 ```
+
+
+
+  "parent": {"id":1},
+
+
+
+
+
+
 

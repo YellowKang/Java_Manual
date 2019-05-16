@@ -6,7 +6,9 @@ import org.springframework.data.domain.Sort;
 import java.io.Serializable;
 
 /**
- * 封装排序实体类
+ * @Author BigKang
+ * @Date 2019/5/13 9:22
+ * @Summarize spring-data排序实体类
  */
 @Data
 public class Order implements Serializable {

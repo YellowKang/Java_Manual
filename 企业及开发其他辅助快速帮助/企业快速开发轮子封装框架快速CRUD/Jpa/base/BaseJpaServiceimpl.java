@@ -98,4 +98,9 @@ public class BaseJpaServiceimpl<T extends BaseJpaEntity, PK extends Serializable
         return this.baseDao.findByUpdateTime(modifiedBy);
     }
 
+    @Override
+    public Long count() {
+        return baseDao.count();
+    }
+
 }

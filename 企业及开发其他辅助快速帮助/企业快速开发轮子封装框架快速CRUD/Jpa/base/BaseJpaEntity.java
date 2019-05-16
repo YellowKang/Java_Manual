@@ -8,6 +8,11 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
 
+/**
+ * @Author BigKang
+ * @Date 2019/5/12 16:27
+ * 通用实体父类，，基于Jpa快速开发
+ */
 @Data
 @MappedSuperclass
 public class BaseJpaEntity implements Serializable {

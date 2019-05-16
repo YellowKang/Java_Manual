@@ -10,6 +10,11 @@ import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * @Author BigKang
+ * @Date 2019/5/12 16:26
+ * 通用Dao层，基于Jpa快速开发
+ */
 @NoRepositoryBean
 public interface BaseJpaDao<T extends BaseJpaEntity, PK extends Serializable> extends JpaRepository<T, PK>, JpaSpecificationExecutor<T> {
 

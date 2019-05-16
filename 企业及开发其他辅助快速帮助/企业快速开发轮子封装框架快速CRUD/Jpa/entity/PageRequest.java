@@ -8,7 +8,9 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * 查询实体类
+ * @Author BigKang
+ * @Date 2019/5/13 9:22
+ * @Summarize 分页排序实体类
  */
 public class PageRequest {
 
@@ -74,7 +76,7 @@ public class PageRequest {
 
     public Sort sorter() {
         if (this.orders.size() == 0) {
-            this.orders.add(new Order(Sort.Direction.DESC, "dateCreated"));
+            this.orders.add(new Order(Sort.Direction.DESC, "createTime"));
         }
 
         List<Sort.Order> sorters = new ArrayList();
