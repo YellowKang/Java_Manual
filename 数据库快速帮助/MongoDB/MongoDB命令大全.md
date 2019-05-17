@@ -173,6 +173,20 @@ db.testas.update( { "phonename" : "小米" } , { $set : { "phonename" : "华为"
 
   "parent": {"id":1},
 
+、、、、、、、
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -99,8 +99,23 @@ docker images| grep rancher | grep -v grep| awk '{print "docker rmi "$3}'|sh
 
 docker ps -a| grep rancher | grep -v grep| awk '{print "docker stop "$1}'|sh
 
-docker ps -a| grep k8s| grep -v grep| awk '{print "docker stop"$1}'|sh
+docker ps -a| grep k8s | grep -v grep| awk '{print "docker kill "$1}'|sh
 
 docker ps -a| grep rancher | grep -v grep| awk '{print "docker rm "$1}'|sh
 
 docker ps -a| grep k8s| grep -v grep| awk '{print "docker rm "$1}'|sh
+
+# 排查错误
+
+## 启动服务失败
+
+使用journalctl -l -u命令查看服务日志
+
+```
+journalctl -l -u kube-apiserver
+journalctl -l -u kube-controller-manager
+journalctl -l -u kube-scheduler
+journalctl -l -u kubelet
+journalctl -l -u kube-proxy
+```
+

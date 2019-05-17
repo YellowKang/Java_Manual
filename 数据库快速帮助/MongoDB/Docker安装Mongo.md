@@ -10,6 +10,28 @@ docker pull docker.io/mongo:latest
 docker run --name mongo -p 27017:27017 -d docker.io/mongo:latest --auth
 ```
 
+## 生产环境运行
+
+```
+首先创建文件夹用于挂载目录
+
+mkdir -p /docker/mongo/conf
+mkdir -p /docker/mongo/data
+赋予权限
+chmod 777 /docker/mongo/conf
+chmod 777 /docker/mongo/data
+然后直接启动容器
+docker run --name mongo -d \
+-p 27017:27017 \
+--privileged=true \
+-v /docker/mongo/conf:/data/configdb \
+-v /docker/mongo/data:/data/db \
+docker.io/mongo:latest \
+--auth
+```
+
+
+
 # 创建用户
 
 ```
@@ -38,7 +60,7 @@ use test
 user为用户名，pwd为用户密码，role为角色，db为数据库
 
 ```
-db.createUser({user:"admin",pwd:"admin",roles:[{role:'userAdminAnyDatabase',db:'dbOwner'}]})
+db.createUser({user:"bigkang",pwd:"bigkang",roles:[{role:'dbOwner',db:'test'}]})
 ```
 
 然后需要认证登录
@@ -72,5 +94,11 @@ readWriteAnyDatabase：只在admin数据库中可用，赋予用户所有数据�
 userAdminAnyDatabase：只在admin数据库中可用，赋予用户所有数据库的userAdmin权限 
 dbAdminAnyDatabase：只在admin数据库中可用，赋予用户所有数据库的dbAdmin权限。 
 root：只在admin数据库中可用。超级账号，超级权限
+```
+
+# 创建集合
+
+```
+db.createCollection("testas");
 ```
 
