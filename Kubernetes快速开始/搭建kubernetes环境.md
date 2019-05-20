@@ -119,3 +119,11 @@ journalctl -l -u kubelet
 journalctl -l -u kube-proxy
 ```
 
+```
+kubeadm init \
+--apiserver-advertise-address=140.143.0.227 \
+--image-repository registry.aliyuncs.com/google_containers \
+--kubernetes-version v1.14.1 \
+--pod-network-cidr=10.244.0.0/16
+```
+

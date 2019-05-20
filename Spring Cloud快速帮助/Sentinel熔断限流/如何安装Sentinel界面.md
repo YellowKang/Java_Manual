@@ -27,7 +27,7 @@ yum install wget
 这里可以修改端口号
 
 ```
-java -Dserver.port=9999 -Dcsp.sentinel.dashboard.server=localhost:9999 -Dproject.name=sentinel-dashboard -jar sentinel-dashboard-1.4.2.jar
+java -Dserver.port=9999 -Dcsp.sentinel.dashboard.server=localhost:9999 -Dproject.name=sentinel-dashboard -jar sentinel-dashboard-1.6.0.jar
 ```
 
 然后我们直接访问localhost:9999就能访问了
@@ -35,9 +35,7 @@ java -Dserver.port=9999 -Dcsp.sentinel.dashboard.server=localhost:9999 -Dproject
 可以使用Linux后台启动
 
 ```
-nohup java -Dserver.port=9999 -Dcsp.sentinel.dashboard.server=111.67.198.232:9999 -Dproject.name=sentinel-dashboard -jar sentinel-dashboard-1.4.2.jar > sentinel.log &
-
-
+nohup java -Dserver.port=9999 -Dcsp.sentinel.dashboard.server=140.143.0.227:9999 -Dproject.name=sentinel-dashboard -jar sentinel-dashboard-1.6.0.jar > sentinel.log &
 ```
 
 如下图所示

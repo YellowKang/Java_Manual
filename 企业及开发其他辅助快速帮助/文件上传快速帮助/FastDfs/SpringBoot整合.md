@@ -32,9 +32,9 @@ fdfs.nginx-host=http://nginx地址ip:8080
 @Import(FdfsClientConfig.class)
 // 解决jmx重复注册bean的问题
 @EnableMBeanExport(registration = RegistrationPolicy.IGNORE_EXISTING)
-public class FastDFSClientWrapper {
+public class FastDFSUtil {
 
-    private final Logger logger = LoggerFactory.getLogger(FastDFSClientWrapper.class);
+    private final Logger logger = LoggerFactory.getLogger(FastDFSUtil.class);
 
     @Value("${fdfs.nginx-host}")
     private String nginxHost;
@@ -123,19 +123,17 @@ public class FastDFSClientWrapper {
 
 # 测试使用
 
-在SpringBoot的测试类中使用
+使用controller上传
 
 ```
-   @Resource
-    private FastDFSClientWrapper fwc;
+    @Resource
+    private FastDFSUtil fastDFSUtil;
 
-    @Test
-    public void upoad() throws IOException {
-        System.out.println(fwc.uploadFile(new File("test.java")));
+    @PostMapping("upload")
+    public String upload(MultipartFile file) throws IOException {
+        String filePath = fastDFSUtil.uploadFile(file);
+        return filePath;
     }
-    
 ```
-
-在当前项目的根目录下新建一个test.java就能实现上传了，在里面写点东西，记住当前项目的目录下，
 
 注意：（工具类必须放在能被SpringBoot扫描到的路径下）
