@@ -81,11 +81,16 @@ db.testas.insertMany([{"name":"test1"},{"name":"test2"}])
 ```
 db.testas.update({"nice":"123"},{$set:{"haode":"PDF"}},{multi:true})
 
+db.acc.update({},{$set:{"domestic":false}},{multi:true})
 不存在isDomestic这个字段的数据添加isDomestic这个字段为true
 db.acc.update({"domestic":{$exists:false}},{$set:{"domestic":true}},{multi:true})
 ```
 
 多条件添加字段
+
+db.acc.update({"province":"国外"},{$set:{"domestic":"true"}},{multi:true})
+
+db.acc.update({},{$set:{"domestic":true}},{multi:true})
 
 ```
 db.getCollection('accident').update({"hangye":{"$exists":false},"atype":"其他"},{$set:{"hangye":"其他"}},{multi:true})
@@ -171,25 +176,16 @@ db.testas.update( { "phonename" : "小米" } , { $set : { "phonename" : "华为"
 
 
 
-  "parent": {"id":1},
-
-、、、、、、、
 
 
+```
+db.getCollection('acc').update({"deleted":true},{$set:{"deleted":false}},{multi:true})
+修改删除为true的数据为false
+
+db.acc.update({"domestic":{"$exists":false}},{$set:{"domestic":true}},{multi:true})
+修改domestic不存在的字段插入domestic为true
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+```
 
 

@@ -30,6 +30,24 @@ docker ps
 
 ## 生产级启动
 
+创建挂载文件夹
+
+```
+mkdir -p /docker/elasticsearch/data
+chmod -R 777 /docker/elasticsearch/data
+```
+
+然后直接启动容器
+
+```
+docker run -d \
+-e ES_JAVA_OPTS="-Xms1g -Xmx1g" \
+-p 9200:9200 \
+-p 9300:9300 \
+-v /docker/elasticsearch/data:/usr/share/elasticsearch/data \
+--name elasticsearch6.7 docker.io/elasticsearch:6.7.0
+```
+
 
 
 # 集群版
@@ -191,7 +209,8 @@ docker pull docker.io/kibana:6.7.0
 然后我们新建一个配置文件用来存储配置文件
 
 ```
-vim /root/kibana.yml
+mkdir -p /docker/kibana/conf
+vim /docker/kibana/conf/kibana.yml
 ```
 
 然后添加以下内容，下面的hosts地址修改为es地址
@@ -199,14 +218,18 @@ vim /root/kibana.yml
 ```
 server.name: kibana
 server.host: "0"
-elasticsearch.hosts: [ "http://39.108.158.33:9200" ]
+elasticsearch.hosts: [ "http://111.67.196.127:9200" ]
 xpack.monitoring.ui.container.elasticsearch.enabled: true
 ```
 
 然后我们就能启动容器了
 
 ```
-docker run --name kibana6.7 -d -p 5601:5601 -v /root/kibana.yml:/usr/share/kibana/config/kibana.yml -e ELASTICSEARCH_URL=http://39.108.158.33:9200 docker.io/kibana:6.7.0 
+docker run -d \
+--name kibana6.7 \
+-p 5601:5601 \
+-v /docker/kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml \
+-e ELASTICSEARCH_URL=http://111.67.196.127:9200 docker.io/kibana:6.7.0 
 ```
 
 然后等待容器启动一会直接访问5601端口
@@ -272,3 +295,22 @@ ls
 ```
 
 如果有ik分词器则安装完成
+
+# 启动失败看这里
+
+我们使用docker logs -f 容器查看日志
+
+如果发现
+
+![](img\error1.png)
+
+解决方法
+
+```
+vim /etc/sysctl.conf 
+在最后一行添加
+vm.max_map_count=655360
+然后退出执行
+sysctl -p
+```
+
