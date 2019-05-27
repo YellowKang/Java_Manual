@@ -73,6 +73,21 @@ public class SendMessageController {
 }
 ```
 
+在这我们也可以使用AmqpTemplate直接向队列发送消息
+
+```
+    @Autowired
+    private AmqpTemplate amqpTemplate;
+    
+    @GetMapping("send")
+    public String send(String message){
+        amqpTemplate.convertAndSend("testOne",message);
+        return "发送成功！";
+    }
+```
+
+以下两种方法我们都可以使用，详细了解可以查看官方文档以及查看方法参数
+
 然后我们通过方法url进行发送消息
 
 <http://localhost:8080/send?message=%E4%BD%A0%E5%A5%BD> 
