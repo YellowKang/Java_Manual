@@ -284,13 +284,14 @@ docker exec -it  elasticsearch bash
 
 安装IK分词器插件
 elasticsearch-plugin install https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.7.0/elasticsearch-analysis-ik-6.7.0.zip
+
+
 ```
 
 等待下载完成然后cd，然后查看是否有ik分词器
 
 ```
 cd plugins/
-
 ls
 ```
 

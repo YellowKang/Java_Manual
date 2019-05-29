@@ -204,7 +204,59 @@ List<User> users = testMapper.selectByMap(map);
 
 # 条件构造器
 
+# 拓展操作
 
+## 返回自动递增id
+
+```
+   	@Options(useGeneratedKeys = true,keyProperty = "id")
+   	@Insert("insert into admin(name) values(#{name})")
+    int insertUser(User user);
+```
+
+## 自定义封装动态SQL批量增删
+
+```
+    //批量增加方法
+    @InsertProvider(type = Provider.class, method = "addAssign")
+    Integer addAssignRole(@Param("userid") Integer userid,@Param("ids") Integer[] ids);
+
+    //批量删除方法
+    @DeleteProvider(type = Provider.class, method = "delAssign")
+    Integer delAssignRole(@Param("userid") Integer userid,@Param("ids") Integer[] ids);
+
+    //自定义类
+    class Provider {
+        public String addAssign(Map map) {
+            Integer[] integers=(Integer[])map.get("ids");
+            Integer userid = (Integer) map.get("userid");
+            StringBuilder sb = new StringBuilder();
+            sb.append("insert into t_user_role VALUES ");
+            for (int i = 0; i < integers.length; i++) {
+                if(i>0){
+                    sb.append(",");
+                }
+                sb.append("(null," + userid + "," + integers[i] + ")");
+            }
+            return sb.toString();
+        }
+
+        public String delAssign(Map map) {
+            Integer[] integers=(Integer[])map.get("ids");
+            Integer userid = (Integer) map.get("userid");
+            StringBuilder sb = new StringBuilder();
+            sb.append("DELETE FROM t_user_role where userid = " + userid + " and roleid in (");
+            for (int i = 0; i < integers.length; i++) {
+                if(i>0){
+                    sb.append(",");
+                }
+                sb.append(integers[i]);
+            }
+            sb.append(")");
+            return sb.toString();
+        }
+    }
+```
 
 # 配置方面
 

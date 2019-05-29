@@ -1,6 +1,0 @@
-1、在springboot整合jpa中，使用spring-boot的2.0.1以上的版本中如果出现错误
-
-	Consider defining a bean named 'entityManagerFactory' in your configuration
-
-	如果出现了这个错误那么就去C:\Users\hanfuqingshi.m2\repository\org\hibernate\hibernate-core
-	也就睡maven的项目的目录将Hibernate的core   jar包给他删除掉，然后再重新更新一下就可以了

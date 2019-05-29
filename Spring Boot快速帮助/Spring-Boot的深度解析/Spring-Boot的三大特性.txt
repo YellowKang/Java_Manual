@@ -1,13 +1,13 @@
 1、Spring-Boot的三大特性？
 
-	1）：组件自动装配
+	组件自动装配
 
-		Web MVC 	Web Flux 	JDBC
+		Web MVC 	Web Flux 		JDBC
 
-	2）：嵌入式web容器
+	嵌入式web容器
 
 		Tomcat		Jetty		Undertow
 
-	3）：生产准备特性
+	生产准备特性
 
 		指标		健康检查	外部化配置
