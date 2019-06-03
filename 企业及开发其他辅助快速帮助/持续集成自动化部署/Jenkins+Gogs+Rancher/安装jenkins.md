@@ -13,7 +13,15 @@ docker pull jenkins/jenkins:lts
 mkdir -p /docker/jenkins/home
 
 启动容器
-docker run -itd -p 8888:8080 -p 50000:50000 --name jenkins --privileged=true  -v /docker/jenkins/home:/var/jenkins_home docker.io/jenkins/jenkins:lts 
+docker run -itd \
+-u root \
+-p 8888:8080 \
+-p 50000:50000 \
+--name jenkins \
+--privileged=true \
+-v /var/run/docker.sock:/var/run/docker.sock -v /docker/jenkins/home:/var/jenkins_home \
+docker.io/jenkins/jenkins:lts
+
 
 如果启动失败，docker logs jenkins查看日志
 如果是这个错误
@@ -161,4 +169,111 @@ Maven配置不用管我们找到maven安装，给他取个名字（随便取）�
 
 # 进行持续集成
 
-我们首先
+## 引入Maven插件
+
+我们首先在Java程序中引入Maven的插件，并且设置好版本，image为私有仓库地址加端口号，版本为镜像版本，并且设置一个变量叫JAR_FILE，这样我们编写dockerfile的时候就能不用自己改地址了
+
+```
+    <properties>
+        <java.version>1.8</java.version>
+        <docker.image.prefix>111.67.196.127:5000</docker.image.prefix>
+        <docker.image.version>v1.0</docker.image.version>
+    </properties>
+```
+
+```
+
+			<plugin>
+                <groupId>com.spotify</groupId>
+                <artifactId>dockerfile-maven-plugin</artifactId>
+                <version>1.3.7</version>
+                <configuration>
+                    <repository>${docker.image.prefix}/${project.artifactId}</repository>
+                    <tag>${version}</tag>
+                    <buildArgs>
+                        <JAR_FILE>target/${project.build.finalName}.jar</JAR_FILE>
+                    </buildArgs>
+                    <resources>
+                        <resource>
+                            <targetPath>/</targetPath>
+                            <directory>${project.build.directory}</directory>
+                            <include>${project.build.finalName}.jar</include>
+                        </resource>
+                    </resources>
+                </configuration>
+            </plugin>
+```
+
+## 编写Dockerfile
+
+我们在当前的项目文件中加入Dockerfile，FROM指定父镜像，因为需要jdk，然后引入参数JAR_FILE也就是maven配置的地方，我们编写jdk的环境变量，方便修改参数，再编写项目变量，用于指定项目配置，我们将JAR添加到容器内部，并且设置启动命令，，最后暴露端口
+
+```
+FROM 111.67.196.127:5000/java1.8
+ARG JAR_FILE
+ENV JAVA_OPTS=""
+ENV APP_OPTS=""
+ADD ${JAR_FILE} app.jar
+ENTRYPOINT [ "sh", "-c", "java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -Dfile.encoding=UTF8 -Duser.timezone=GMT+08 -jar /app.jar $APP_OPTS" ]
+EXPOSE 8080
+```
+
+## 修改Jenkins的Maven
+
+由于我们用到了docker的插件，我们直接下载是会出问题了，我们需要在maven的配置文件中引入
+
+```
+vim /docker/jenkins/home/maven/conf/settings.xml
+进入到我们挂载的jenkins的maven配置文件中
+添加上，（注意maven也有这个标签添加时请添加到原来标签内，或者删除原标签）
+<pluginGroups>
+    <pluginGroup>com.spotify</pluginGroup>
+</pluginGroups>
+
+```
+
+## 使用Jenkins持续集成
+
+首先我们新建任务
+
+![](img\新建任务.png)
+
+选择maven项目，然后我们新建任务为test-spider（这里我是这样取名字，其他请根据项目名称），下滑找到源码管理选中git，我们输入项目的git的url地址，并且配置用户，用户名密码或者ssh，
+
+![](img\git地址.png)
+
+
+
+
+
+这样就把项目引入了，然后我们来添加maven执行命令
+
+![](img\build脚本.png)
+
+```
+clean package dockerfile:build dockerfile:push
+```
+
+首先clean清空，然后package打包，然后构建镜像，最后push到私有仓库
+
+这些都做好了我们就来点击构建吧
+
+![](img\构建.png)
+
+然后我们来看下执行日志吧
+
+![](img\构建记录.png)
+
+我们可以看到他已经构建并且上传了，然后我们来启动容器
+
+```
+docker run ..........
+```
+
+然后我们打开rancher，就能看到新的容器再运行，我们将它克隆，然后修改容器名字，然后删除掉标签就能进行后续的自动化部署了
+
+
+
+# 问题总汇
+
+jenkins首先先检查maven的配置文件是否引入插件配置，然后jenkins的用户是否是以root启动，（不然无法使用docker），然后是docker的挂载文件以及私有仓库。（私有仓库在上面的笔记中有）

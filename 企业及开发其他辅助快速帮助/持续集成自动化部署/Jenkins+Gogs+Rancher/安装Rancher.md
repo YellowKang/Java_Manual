@@ -19,8 +19,6 @@ docker run --name rancher -d -p 8080:8080 rancher/server
 ```
 ------创建挂载文件夹
 
-
-
 mkdir -p /data/mysql/{datadir,conf.d,logs}
 docker run -d --name rancher --link=mysqldb:db \
 --restart=unless-stopped -p 8080:8080 -p 9345:9345 rancher/server:latest \
@@ -28,5 +26,7 @@ docker run -d --name rancher --link=mysqldb:db \
 --advertise-address mysql机器IP
 
 ```
+
+这里记得修改mysql，的用户名密码，以及地址，还有数据库名字，和ip（也能不使用mysql，但是每次删除容器就会丢失数据）
 
 <https://www.jianshu.com/p/b6cfd0fae18a> 博客地址
