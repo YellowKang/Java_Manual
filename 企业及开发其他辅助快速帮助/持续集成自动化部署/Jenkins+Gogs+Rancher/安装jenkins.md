@@ -246,6 +246,10 @@ vim /docker/jenkins/home/maven/conf/settings.xml
 
 
 
+### 两种方式
+
+#### 使用maven插件
+
 这样就把项目引入了，然后我们来添加maven执行命令
 
 ![](img\build脚本.png)
@@ -272,8 +276,58 @@ docker run ..........
 
 然后我们打开rancher，就能看到新的容器再运行，我们将它克隆，然后修改容器名字，然后删除掉标签就能进行后续的自动化部署了
 
+#### 使用docker插件
+
+首先修改docker配置
+
+```
+vim /usr/lib/systemd/system/docker.service
+修改为
+ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:2375 -H unix://var/run/docker.sock \
+
+systemctl daemon-reload // 1，加载docker守护线程
+systemctl restart docker // 2，重启docker
+```
+
+安装docker插件
+
+![](img\docker插件.png)
+
+在全局系统设置中配置docker地址，配置私有仓库
+
+![](img\docker设置1.png)
+
+配置docker通信地址
+
+![](img\docker设置2.png)
+
+然后进入项目中的设置
+
+![](img\项目docker配置.png)
+
+我们设置地址，首先创建构建镜像，然后配置镜像版本，然后push到私有仓库，配置镜像名以及tag版本
+
 
 
 # 问题总汇
 
 jenkins首先先检查maven的配置文件是否引入插件配置，然后jenkins的用户是否是以root启动，（不然无法使用docker），然后是docker的挂载文件以及私有仓库。（私有仓库在上面的笔记中有）
+
+# 常见帮助
+
+## none镜像
+
+再构建的过程中会有很多的none的镜像，这里推荐运行的时候的容器名称为 ：项目名-月份-日期-今日第几次构建
+
+例如：test-spider项目在6月3号中第一次构建
+
+docker run --name test-spider-6-3-1.。。。。。。。。
+
+我们启动后使用rancher进行自动化部署时按照这个格式，然后我们来编写shell脚本批量删除过期停止的镜像
+
+```
+docker ps -a| grep test-spider | grep -v grep| awk '{print "docker rm "$1}'|sh
+docker images| grep none | grep -v grep| awk '{print "docker rmi "$3}'|sh
+```
+
+docker ps -a| grep test | grep -v grep| awk '{print "docker rm "$1}'|sh

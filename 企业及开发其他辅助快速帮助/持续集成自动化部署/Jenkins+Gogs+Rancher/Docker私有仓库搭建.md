@@ -58,6 +58,46 @@ curl http://localhost:5000/v2/_catalog
 
 如果出现nginx则成功
 
+# 删除仓库镜像
+
+注意docker v2 的版本默认是不开启删除的我们需要先开启
+
+```
+#查看默认配置
+docker exec -it  registry sh -c 'cat /etc/docker/registry/config.yml'
+#开启删除(添加  delete: enabled: true)
+docker exec -it  registry sh -c "sed -i '/storage:/a\  delete:' /etc/docker/registry/config.yml"
+docker exec -it  registry sh -c "sed -i '/delete:/a\    enabled: true' /etc/docker/registry/config.yml"
+#重启
+docker restart registry
+```
+
+首先我们找到需要删除的镜像然后查看他的sha256
+
+```
+docker inspect 镜像名称或者镜像id
+
+curl --header "Accept: application/vnd.docker.distribution.manifest.v2+json" -I -XGET 111.67.196.127:5000/v2/test-spider/manifests/0.0.1-SNAPSHOT 
+```
+
+然后查看到它的sha256，我们再去删除他
+
+```
+curl -I -X DELETE 111.67.196.127:5000/v2/test-spider/manifests/sha256:88e79e725e63669d4ffcba9463328ffa9751162b20498bf1c887d8b1a8f1f259
+```
+
+```
+curl 111.67.196.127:5000/v2/test-spider/tags/list
+```
+
+最后释放空间
+
+```
+docker exec -it  registry sh -c 'registry garbage-collect /etc/docker/registry/config.yml'
+```
+
+
+
 # Docker上传push失败
 
 ```
