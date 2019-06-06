@@ -12,11 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("test-mongo")
 @Api(tags = "测试Mongo脚手架")
 public class TestMongoController extends BaseMongoController<TestMongo,String,TestMongoService> {
-    private TestMongoService testService;
-
     @Autowired
-    public void setDutyPlanService(TestMongoService testService) {
-        this.testService = testService;
-        this.baseService = testService;
-    }
+    private TestMongoService testMongoService;
+
 }

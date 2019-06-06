@@ -1,5 +1,6 @@
 package com.kang.shop.jpa.base;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -10,11 +11,10 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
-public class BaseJpaServiceimpl<T extends BaseJpaEntity, PK extends Serializable> implements BaseJpaService<T, PK> {
-    protected BaseJpaDao<T, PK> baseDao;
+public class BaseJpaServiceimpl<T extends BaseJpaEntity, PK extends Serializable, M extends BaseJpaDao<T, PK>> implements BaseJpaService<T, PK> {
 
-    public BaseJpaServiceimpl() {
-    }
+    @Autowired
+    protected M baseDao;
 
     public Page<T> findAll(Pageable page) {
         Page<T> result = this.baseDao.findAll(page);

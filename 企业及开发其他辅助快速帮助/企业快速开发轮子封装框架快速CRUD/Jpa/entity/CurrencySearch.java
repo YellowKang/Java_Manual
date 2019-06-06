@@ -15,6 +15,8 @@ import java.util.List;
 @ToString
 public class CurrencySearch<T> implements Serializable {
 
+    private List<InCondition> in;
+
     private List<Condition> query;
 
     private List<Condition> like;

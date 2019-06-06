@@ -12,14 +12,9 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 @Primary
-public class TestMongoServiceImpl extends BaseMongoServiceImpl<TestMongo,String> implements TestMongoService {
-    protected TestMongoDao baseEntityDao;
-
+public class TestMongoServiceImpl extends BaseMongoServiceImpl<TestMongo,String,TestMongoDao> implements TestMongoService {
 
     @Autowired
-    public void setBaseEntityDao(TestMongoDao baseEntityDao) {
-        this.baseEntityDao = baseEntityDao;
-        this.baseDao = baseEntityDao;
-    }
+    private TestMongoDao testMongoDao;
 
 }

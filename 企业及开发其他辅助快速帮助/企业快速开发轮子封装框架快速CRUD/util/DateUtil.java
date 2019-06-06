@@ -1,6 +1,7 @@
 package com.kang.shop.common.util;
 
-import org.springframework.util.StringUtils;
+
+import org.jsoup.helper.StringUtil;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -20,7 +21,7 @@ public class DateUtil {
      * @return
      * @throws ParseException
      */
-    public static Date StringToDate(String date) throws ParseException {
+    public static Date StringToDate(String date) {
         Date result;
         String parse = date.replaceFirst("[0-9]{4}([^0-9]?)", "yyyy$1");
         parse = parse.replaceFirst("^[0-9]{2}([^0-9]?)", "yy$1");
@@ -30,7 +31,13 @@ public class DateUtil {
         parse = parse.replaceFirst("([^0-9]?)[0-9]{1,2}([^0-9]?)", "$1mm$2");
         parse = parse.replaceFirst("([^0-9]?)[0-9]{1,2}([^0-9]?)", "$1ss$2");
         DateFormat format = new SimpleDateFormat(parse);
-        result = format.parse(date);
+        try {
+            result = format.parse(date);
+        } catch (ParseException e) {
+            result = null;
+            e.printStackTrace();
+        }
+
         return result;
     }
 
@@ -40,11 +47,16 @@ public class DateUtil {
      * @return
      * @throws ParseException
      */
-    public static String DateToString(Date date) throws ParseException {
+    public static String DateToString(Date date) {
         if(date == null){
             return null;
         }
-        return DateToString(date,null);
+        try {
+            return DateToString(date,null);
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public static String DateToString(Date date,String pattern) throws ParseException {
@@ -53,7 +65,7 @@ public class DateUtil {
         }
         SimpleDateFormat simpleDateFormat;
 
-        if(StringUtils.isEmpty(pattern)){
+        if(StringUtil.isBlank(pattern)){
             simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         }else{
             simpleDateFormat = new SimpleDateFormat(pattern);

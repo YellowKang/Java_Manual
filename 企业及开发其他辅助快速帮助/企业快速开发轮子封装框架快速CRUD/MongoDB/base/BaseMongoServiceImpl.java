@@ -1,5 +1,6 @@
 package com.kang.shop.mongo.base;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,11 +14,9 @@ import java.util.List;
  * @param <T>
  * @param <PK>
  */
-public class BaseMongoServiceImpl<T extends BaseMongoEntity, PK extends Serializable> implements BaseMongoService<T, PK> {
-    protected BaseMongoDao<T, PK> baseDao;
-
-    public BaseMongoServiceImpl() {
-    }
+public class BaseMongoServiceImpl<T extends BaseMongoEntity, PK extends Serializable, M extends BaseMongoDao<T, PK>> implements BaseMongoService<T, PK> {
+    @Autowired
+    protected M baseDao;
 
     public T save(T entity) {
         return (T) this.baseDao.save(entity);

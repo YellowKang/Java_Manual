@@ -10,6 +10,10 @@ import java.util.List;
 @ToString
 public class CurrencySearch<T> implements Serializable {
 
+    private List<InCondition> in;
+
+    private List<InCondition> notIn;
+
     private List<Condition> query;
 
     private List<Condition> like;

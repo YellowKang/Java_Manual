@@ -12,7 +12,7 @@ public class Condition {
     private String field;
 
     @NotEmpty
-    private List<Object> value;
+    private Object value;
 
     public String getField(){
         if(field.equals("String") || field.equals("string")){

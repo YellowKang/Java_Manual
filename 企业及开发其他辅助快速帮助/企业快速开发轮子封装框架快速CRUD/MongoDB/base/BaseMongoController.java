@@ -8,6 +8,7 @@ import com.kang.shop.mongo.entity.ExampleRequest;
 import com.kang.shop.mongo.entity.PageRequest;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +27,8 @@ import java.util.List;
  * @Summarize BaseMongo的Controller层简化开发
  */
 public class BaseMongoController<T extends BaseMongoEntity, PK extends Serializable, S extends BaseMongoService<T, PK>> {
+
+    @Autowired
     protected S baseService;
 
     @ApiOperation("分页查询")
@@ -115,5 +118,12 @@ public class BaseMongoController<T extends BaseMongoEntity, PK extends Serializa
     public  ResultVo count() {
         Long count = this.baseService.count();
         return ResultVo.result(count,Code.OK_CODE);
+    }
+
+    @ApiOperation("多功能通用分页查询")
+    @PutMapping("/page")
+    public ResultVo currencySearch(){
+        baseService.findAll();
+        return null;
     }
 }

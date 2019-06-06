@@ -5,6 +5,7 @@ import com.kang.shop.common.web.Message;
 import com.kang.shop.common.web.ResultVo;
 import com.kang.shop.jpa.entity.Condition;
 import com.kang.shop.jpa.entity.CurrencySearch;
+import com.kang.shop.jpa.entity.InCondition;
 import com.kang.shop.jpa.entity.PageRequest;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -87,6 +88,12 @@ public abstract class BaseJpaController<T extends BaseJpaEntity, PK extends Seri
         return ResultVo.result(this.baseService.findAll(pageable), Code.OK_CODE);
     }
 
+    @ApiOperation(value = "查询所有")
+    @GetMapping(value = {"/getAll"})
+    public ResultVo getAll() {
+        return ResultVo.result(this.baseService.findAll(),Code.OK_CODE,Message.OK);
+    }
+
     @ApiOperation(value = "根据Id获取实体类")
     @GetMapping(value = {"/{id}"})
     public ResultVo get(@PathVariable PK id) {
@@ -112,6 +119,23 @@ public abstract class BaseJpaController<T extends BaseJpaEntity, PK extends Seri
     @ApiOperation(value = "多功能通用查询接口")
     @PostMapping(value = "/currencySearch")
     public ResultVo currencySearch(@RequestBody CurrencySearch<T> currencySearch) {
+        Page<T> all = baseCurrencySearch(currencySearch);
+        return ResultVo.result(all, Code.OK_CODE, Message.OK);
+    }
+
+    @ApiOperation(value = "多功能通用统计接口")
+    @PostMapping(value = "/currencyCount")
+    public ResultVo currencyCount(@RequestBody CurrencySearch<T> currencySearch) {
+        Long count = baseCurrencyCount(currencySearch);
+        return ResultVo.result(count, Code.OK_CODE, Message.OK);
+    }
+
+    /**
+     * 多功能通用查询父接口
+     * @param currencySearch
+     * @return
+     */
+    protected  Page<T> baseCurrencySearch(CurrencySearch<T> currencySearch){
         Page<T> all;
         if (currencySearch == null || currencySearch.getLike() == null && currencySearch.getQuery() == null && currencySearch.getPageOrder() == null && currencySearch.getBetween() == null && currencySearch.getDateParam() == null && currencySearch.getNot() == null) {
             all = baseService.findAll(new PageRequest(1, 10).pageable());
@@ -120,11 +144,20 @@ public abstract class BaseJpaController<T extends BaseJpaEntity, PK extends Seri
                 currencySearch.setPageOrder(new PageRequest(1, 10));
             }
             Specification<T> specification;
-            try {
                 specification = ((root, query, builder) -> {
                     List<Predicate> predicateList = new ArrayList<Predicate>();
-                    if (currencySearch.getQuery() != null && currencySearch.getQuery().size() > 0) {
+                    //查询条件eq
+                    if(currencySearch.getQuery() != null && currencySearch.getQuery().size() > 0){
                         List<Condition> query1 = currencySearch.getQuery();
+                        query1.forEach( v -> {
+                            if(!StringUtils.isEmpty(v.getField()) && !"string".equals(v.getField())){
+                                predicateList.add(builder.equal(root.get(v.getField()),v.getValue()));
+                            }
+                        });
+                    }
+                    //查询条件in
+                    if (currencySearch.getIn() != null && currencySearch.getIn().size() > 0) {
+                        List<InCondition> query1 = currencySearch.getIn();
                         query1.forEach(v -> {
                             if (v.getField() != null && v.getField() != "string") {
                                 CriteriaBuilder.In<Object> in = builder.in(root.get(v.getField()));
@@ -135,19 +168,19 @@ public abstract class BaseJpaController<T extends BaseJpaEntity, PK extends Seri
                             }
                         });
                     }
-
+                    //查询条件like
                     if (currencySearch.getLike() != null && currencySearch.getLike().size() > 0) {
                         currencySearch.getLike().forEach(v -> {
-                            predicateList.add(builder.and(builder.like(root.get(v.getField()), "%" + (String) v.getValue().get(0) + "%")));
+                            predicateList.add(builder.and(builder.like(root.get(v.getField()), "%" + (String) v.getValue() + "%")));
                         });
                     }
-
+                    //查询条件not
                     if (currencySearch.getNot() != null && currencySearch.getNot().size() > 0) {
                         currencySearch.getNot().forEach(v -> {
-                            predicateList.add(builder.notEqual(root.get(v.getField()), v.getValue().get(0)));
+                            predicateList.add(builder.notEqual(root.get(v.getField()), v.getValue()));
                         });
                     }
-
+                    //查询条件between
                     if (currencySearch.getBetween() != null && currencySearch.getBetween().size() > 0) {
                         currencySearch.getBetween().forEach(v -> {
                             if (v.getStart() != null) {
@@ -158,6 +191,7 @@ public abstract class BaseJpaController<T extends BaseJpaEntity, PK extends Seri
                             }
                         });
                     }
+                    //时间查询
                     if (currencySearch.getDateParam() != null) {
                         try {
                             predicateList.add(builder.between(root.get("createTime"), currencySearch.getDateParam().start(), currencySearch.getDateParam().end()));
@@ -168,25 +202,34 @@ public abstract class BaseJpaController<T extends BaseJpaEntity, PK extends Seri
                     return builder.and(predicateList.toArray(new Predicate[predicateList.size()]));
                 });
                 all = baseService.findAll(specification, currencySearch.getPageOrder().pageable());
-            } catch (Exception e) {
-                return ResultVo.result(Code.ERROR_CODE, Message.Param_ERROR);
-            }
         }
-        return ResultVo.result(all, Code.OK_CODE, Message.OK);
+        return all;
     }
 
-    @ApiOperation(value = "多功能通用统计接口")
-    @PostMapping(value = "/currencyCount")
-    public ResultVo currencyCount(@RequestBody CurrencySearch<T> currencySearch) {
+    /**
+     * base多功能通用统计接口
+     * @param currencySearch
+     * @return
+     */
+    protected Long baseCurrencyCount(CurrencySearch<T> currencySearch){
         Long count;
         if (currencySearch == null) {
             count = baseService.count();
         } else {
-            try {
                 Specification<T> specification = ((root, query, builder) -> {
                     List<Predicate> predicateList = new ArrayList<Predicate>();
-                    if (currencySearch.getQuery() != null && currencySearch.getQuery().size() > 0) {
+                    //查询条件eq
+                    if(currencySearch.getQuery() != null && currencySearch.getQuery().size() > 0){
                         List<Condition> query1 = currencySearch.getQuery();
+                        query1.forEach( v -> {
+                            if(!StringUtils.isEmpty(v.getField()) && !"string".equals(v.getField())){
+                                predicateList.add(builder.equal(root.get(v.getField()),v.getValue()));
+                            }
+                        });
+                    }
+                    //循环in条件，将查询条件为in的参数作为查询条件
+                    if (currencySearch.getIn() != null && currencySearch.getIn().size() > 0) {
+                        List<InCondition> query1 = currencySearch.getIn();
                         query1.forEach(v -> {
                             if (v.getField() != null && v.getField() != "string") {
                                 CriteriaBuilder.In<Object> in = builder.in(root.get(v.getField()));
@@ -197,20 +240,20 @@ public abstract class BaseJpaController<T extends BaseJpaEntity, PK extends Seri
                             }
                         });
                     }
-
+                    //查询条件like
                     if (currencySearch.getLike() != null && currencySearch.getLike().size() > 0) {
                         currencySearch.getLike().forEach(v -> {
-                            predicateList.add(builder.and(builder.like(root.get(v.getField()), "%" + (String) v.getValue().get(0) + "%")));
+                            predicateList.add(builder.and(builder.like(root.get(v.getField()), "%" + (String) v.getValue() + "%")));
                         });
                     }
-
+                    //查询条件not
                     if (currencySearch.getNot() != null && currencySearch.getNot().size() > 0) {
                         currencySearch.getNot().forEach(v -> {
-                            predicateList.add(builder.notEqual(root.get(v.getField()), v.getValue().get(0)));
+                            predicateList.add(builder.notEqual(root.get(v.getField()), v.getValue()));
 
                         });
                     }
-
+                    //查询条件between
                     if (currencySearch.getBetween() != null && currencySearch.getBetween().size() > 0) {
                         currencySearch.getBetween().forEach(v -> {
                             if (v.getStart() != null) {
@@ -221,7 +264,7 @@ public abstract class BaseJpaController<T extends BaseJpaEntity, PK extends Seri
                             }
                         });
                     }
-
+                    //按照时间查询
                     if (currencySearch.getDateParam() != null) {
                         try {
                             predicateList.add(builder.between(root.get("createTime"), currencySearch.getDateParam().start(), currencySearch.getDateParam().end()));
@@ -232,11 +275,7 @@ public abstract class BaseJpaController<T extends BaseJpaEntity, PK extends Seri
                     return builder.and(predicateList.toArray(new Predicate[predicateList.size()]));
                 });
                 count = baseService.count(specification);
-            } catch (Exception e) {
-                return ResultVo.result(Code.ERROR_CODE, Message.Param_ERROR);
-            }
         }
-        return ResultVo.result(count, Code.OK_CODE, Message.OK);
+        return count;
     }
-
 }

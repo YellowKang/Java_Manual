@@ -15,14 +15,9 @@ import javax.transaction.Transactional;
 @Service
 @Slf4j
 @Primary
-public class TestJpaServiceImpl extends BaseJpaServiceimpl<TestJpa,Long> implements TestJpaService {
-
-    private TestJpaDao testJpaDao;
+public class TestJpaServiceImpl extends BaseJpaServiceimpl<TestJpa,Long,TestJpaDao> implements TestJpaService {
 
     @Autowired
-    public void setTestJpaDao(TestJpaDao testJpaDao){
-        this.testJpaDao = testJpaDao;
-        this.baseDao = testJpaDao;
-    }
+    private TestJpaDao testJpaDao;
 
 }
