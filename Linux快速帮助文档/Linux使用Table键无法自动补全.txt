@@ -1,1 +1,4 @@
 yum install -y bash-completion
+
+
+退出连接，重新登陆生效

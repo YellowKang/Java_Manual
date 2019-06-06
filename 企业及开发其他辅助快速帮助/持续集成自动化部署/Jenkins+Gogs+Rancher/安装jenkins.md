@@ -140,6 +140,8 @@ mvn -v
 ```
 vim /docker/jenkins/home/maven/conf/settings.xml
 
+
+
 找到他的mirrors，将下面代码添加到最上面
 <mirrors>
     <mirror>
@@ -149,6 +151,54 @@ vim /docker/jenkins/home/maven/conf/settings.xml
       <mirrorOf>central</mirrorOf>        
     </mirror>
   </mirrors>
+然后设置仓库位置，我们放在var下，因为是容器内，我们又挂载了jenkins，所以这里写容器的目录
+<localRepository>/var/jenkins_home/maven/repository</localRepository>
+并且我们后续需要使用docker的maven插件所以也要添加插件分组
+  <pluginGroups>
+    <pluginGroup>com.spotify</pluginGroup>
+  </pluginGroups>
+```
+
+如果需要使用maven私服请修改配置
+
+```
+找到servers进行添加
+        <server>
+            <id>releases</id>
+            <username>bigkang</username>
+            <password>bigkang</password>
+        </server>
+        <server>
+            <id>Snapshots</id>
+            <username>bigkang</username>
+            <password>bigkang</password>
+        </server>
+然后找到profiles添加私有仓库地址
+        <profile>
+            <id>nexus</id>
+            <repositories>
+                <repository>
+                    <id>nexus</id>
+                    <name>local private nexus</name>
+                    <url>http://111.67.196.127:8081/repository/maven-public/</url>
+                </repository>
+            </repositories>
+        </profile>
+        <profile>
+            <id>nexus-snapshots</id>
+            <repositories>
+                <repository>
+                    <id>nexus-snapshots</id>
+                    <name>local private nexus snapshots</name>
+                    <url>http://111.67.196.127:8081/repository/maven-snapshots/</url>
+                </repository>
+            </repositories>
+        </profile>
+然后引入
+    <activeProfiles>
+        <activeProfile>nexus</activeProfile>
+        <activeProfile>nexus-snapshots</activeProfile>
+    </activeProfiles>
 ```
 
 ​		安装完成后mvn命令测试下
@@ -207,6 +257,8 @@ Maven配置不用管我们找到maven安装，给他取个名字（随便取）�
 ## 编写Dockerfile
 
 我们在当前的项目文件中加入Dockerfile，FROM指定父镜像，因为需要jdk，然后引入参数JAR_FILE也就是maven配置的地方，我们编写jdk的环境变量，方便修改参数，再编写项目变量，用于指定项目配置，我们将JAR添加到容器内部，并且设置启动命令，，最后暴露端口
+
+注：请先安装私有仓库，并上传一个jdk1.8的版本
 
 ```
 FROM 111.67.196.127:5000/java1.8
@@ -307,7 +359,21 @@ systemctl restart docker // 2，重启docker
 
 我们设置地址，首先创建构建镜像，然后配置镜像版本，然后push到私有仓库，配置镜像名以及tag版本
 
+### 推荐方式（看这里）
 
+结合maven的build，加上docker插件的push，这是最推荐使用的方式
+
+![](img\mvn dockerbuild.png)
+
+```
+clean package dockerfile:build
+```
+
+然后使用docker的push
+
+![](img\docker pushimage.png)
+
+我们选择构建成功之后，然后push，然后push的镜像名字，以及tag版本号
 
 # 问题总汇
 
