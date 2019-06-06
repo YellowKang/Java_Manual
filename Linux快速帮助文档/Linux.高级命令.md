@@ -84,3 +84,50 @@ count：刷新次数。如果不指定刷新次数，但指定了刷新时间间
 -V：显示vmstat版本信息。
 ```
 
+# 定时任务使用
+
+定时任务使用的是linux的crontab
+
+首先我们查询有没有定时任务
+
+```
+crontab -l
+```
+
+发现没有，我们先编写一个shell脚本，这个脚本可以用来删除docker的none镜像，也可以使用其他的脚本，自己定义
+
+```
+vim /root/rm-none-image-crontab.sh
+```
+
+然后脚本内写入
+
+```
+#!/bin/bash
+source /etc/profile
+docker images| grep none | grep -v grep| awk '{print "docker rmi "$3}'|sh
+```
+
+然后我们去定时任务添加
+
+```
+crontab -e
+进入编辑
+SHELL=/bin/bash
+*/10 * * * * /bin/bash /root/rm-none-image-crontab.sh
+```
+
+我们每隔10分钟使用shell脚本一次
+
+然后保存退出，重启定时任务
+
+```
+service crond restart
+```
+
+然后我们设置开机启动
+
+```
+systemctl enable crond.service
+```
+

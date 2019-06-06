@@ -19,7 +19,9 @@ docker run -itd \
 -p 50000:50000 \
 --name jenkins \
 --privileged=true \
--v /var/run/docker.sock:/var/run/docker.sock -v /docker/jenkins/home:/var/jenkins_home \
+-v /var/run/docker.sock:/var/run/docker.sock \
+-v /docker/jenkins/home:/var/jenkins_home \
+-v /usr/bin/docker:/usr/bin/docker \
 docker.io/jenkins/jenkins:lts
 
 
@@ -389,11 +391,31 @@ jenkins首先先检查maven的配置文件是否引入插件配置，然后jenki
 
 docker run --name test-spider-6-3-1.。。。。。。。。
 
-我们启动后使用rancher进行自动化部署时按照这个格式，然后我们来编写shell脚本批量删除过期停止的镜像
+我们启动后使用rancher进行自动化部署时按照这个格式，然后我们来编写shell脚本批量删除过期停止的镜像,这里我们采用linux的定时任务执行
 
 ```
-docker ps -a| grep test-spider | grep -v grep| awk '{print "docker rm "$1}'|sh
+查看定时任务
+crontab -l
+创建shell脚本
+vim /docker/rm-none-image-crontab.sh
+写入如下内容
+#!/bin/bash
+source /etc/profile
 docker images| grep none | grep -v grep| awk '{print "docker rmi "$3}'|sh
 ```
 
-docker ps -a| grep test | grep -v grep| awk '{print "docker rm "$1}'|sh
+然后我们退出编辑然后来编写定时任务
+
+```
+crontab -e
+编辑定时任务，每10分钟执行一次
+SHELL=/bin/bash
+*/10 * * * * /bin/bash /docker/rm-none-image-crontab.sh
+```
+
+然后重启定时任务
+
+```
+service crond restart
+```
+

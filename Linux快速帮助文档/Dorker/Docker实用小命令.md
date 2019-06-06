@@ -42,3 +42,8 @@ docker images| grep k8s | grep -v grep| awk '{print "docker rmi "$3}'|sh
  docker update --restart=always 容器id或者容器名称
 ```
 
+```
+docker images| grep none | grep -v grep| awk '{print "docker rmi "$3}'|sh
+```
+
+ sudo sh /docker/rm-none-image-crontab.sh
