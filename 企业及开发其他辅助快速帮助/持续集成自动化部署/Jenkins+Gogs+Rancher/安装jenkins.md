@@ -263,11 +263,18 @@ Maven配置不用管我们找到maven安装，给他取个名字（随便取）�
 注：请先安装私有仓库，并上传一个jdk1.8的版本
 
 ```
+docker pull gmaslowski/jdk
+docker tag gmaslowski/jdk ip:5000/java1.8
+```
+
+
+
+```
 FROM 111.67.196.127:5000/java1.8
 ARG JAR_FILE
 ENV JAVA_OPTS=""
 ENV APP_OPTS=""
-ADD ${JAR_FILE} app.jar
+ADD ${JAR_FILE} /app.jar
 ENTRYPOINT [ "sh", "-c", "java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -Dfile.encoding=UTF8 -Duser.timezone=GMT+08 -jar /app.jar $APP_OPTS" ]
 EXPOSE 8080
 ```
