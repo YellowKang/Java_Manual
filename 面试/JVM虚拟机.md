@@ -273,7 +273,93 @@ JVM有两种运行模式Server与Client。两种模式的区别在于
 java.lang.ClassNotFoundException
 ```
 
-## 常用的JVM调优参数
+## JVM参数调优
+
+### 常用的JVM调优参数
+
+
+
+```
+-Xms 					//初始大小内存，默认为物理内存1/64,等价于-XX：initialHeapSize
+-Xmx 					//分配最大内存，默认为物理内存1/64,等价于-XX：MaxHeapSize
+-Xss					//设置单个线程的栈的大小，默认为512k-1024k，等价于-XX:ThreadStackSize
+						根据操作系统区分具体可查看Oracle官方文档
+-Xmn					
+
+```
+
+
+
+### 如何查看JVM运行时的运行参数
+
+```
+首先使用jps查询出来正在运行的java程序
+jps
+然后找到他的pid然后通过jinfo查看，注意会出现一个jps的pid请不要选择jps的ip，我们选中一个进行查看
+jinfo -flags 533
+然后我们就会查看到如下的画面了
+我们还能使用，查看具体一个参数，比如我查看最大堆内存
+jinfo -flag MaxHeapSize  533
+我们可以看到他是
+2147483648计算后为2G，而我的内存为16g，为1/8，默认最大为1/4,我们再看下最小是不是1/64,我们会发现我查询的jenkins的最小也是2g，这里做了jvm的内存调优，默认正常是1/64，我们可以看到开始时有一个Non-default我们就能发现我们使用的jvm参数是被修改过的而不是默认的
+
+```
+
+![](img\jinfo flags.png)
+
+这些就是jvm的运行时参数了
+
+### Jvm的参数类型有哪些呢？
+
+​	分为三类：
+
+​		标配参数
+
+```
+-help
+-server
+-client
+-showversion
+-cp
+-classpath
+```
+
+​		X参数
+
+```
+X参数是非标准的参数
+-Xint：解释执行
+-Xcomp：第一次使用就编译成本地代码
+-Xmixed：混合模式，jvm自己来决定是否编译成本地代码。
+```
+
+​		XX参数
+
+```
+XX参数是一种非标准化的参数，相对不是很稳定，用户可以自己设置，jvm调优和debug都是用这些参数，主要分为以下两大类：
+1、Boolean类型
+	格式：-XX:[+-]<NAME>表示启用或者禁用name属性
+	比如：-XX:+UseConcMarkSweepGC
+	-XX:+UseG1GC
+2、非Boolean类型
+	格式：-XX:<NAME>=<VALUE>表示name属性的值是value
+	比如：XX:MaxGCPauseMillis=500
+	XX:GCTimeRatio=19
+3、特例
+	不是X参数，而是XX参数
+	-Xms等价于-XX:InitialHeapSize
+	-Xmx等价于-XX:MaxHeapSize
+```
+
+我们可以通过命令查询JVM的所有参数
+
+```
+java -XX:+PrintFlagsInitial
+java -XX:+PrintFlagsFinal -version
+
+查看JVM启动时默认参数以及默认垃圾收集器等等（重点）
+java -XX:+PrintCommandLineFlags -version
+```
 
 ### **jvisualvm.exe**的使用
 
