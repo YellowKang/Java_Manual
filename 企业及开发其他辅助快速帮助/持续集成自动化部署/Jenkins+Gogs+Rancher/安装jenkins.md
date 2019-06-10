@@ -35,6 +35,23 @@ sudo chown -R 1000:1000 /docker/jenkins
 
 启动好了之后我们访问8888端口，我们可以看到他需要一个初始化的密码，我们进入到容器中获取，或者直接从挂载目录获取
 
+
+
+```
+docker run -itd \
+-u root \
+-p 8888:8080 \
+-p 50000:50000 \
+--name jenkins \
+--privileged=true \
+-v /var/run/docker.sock:/var/run/docker.sock \
+-v /data/docker/var/lib/jenkins/home:/var/jenkins_home \
+-v /usr/bin/docker:/usr/bin/docker \
+docker.io/jenkins/jenkins:lts
+```
+
+
+
 ```
 挂载目录获取
 cat /docker/jenkins/home/secrets/initialAdminPassword

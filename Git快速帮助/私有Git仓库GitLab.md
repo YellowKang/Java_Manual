@@ -63,3 +63,12 @@ docker.io/twang2218/gitlab-ce-zh
 
 ```
 
+
+
+
+
+```
+docker run --restart=always -d --name gitlab -h 152.136.68.184 -p 10443:443 -p 10080:10080 -p 10022:10022 -v /data/docker/var/lib/gitlab/config:/etc/gitlab -v /data/docker/var/lib/gitlab/logs:/var/log/gitlab -v /data/docker/var/lib/gitlab/data:/var/opt/gitlab docker.io/twang2218/gitlab-ce-zh
+
+```
+

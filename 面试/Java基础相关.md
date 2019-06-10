@@ -1,4 +1,6 @@
-# **Java基础**
+
+
+# Java基础**
 
 ## 讲讲你所遇到过的异常
 
@@ -137,6 +139,8 @@ Hashmap在并发环境下，可能出现的问题：
 
 ​			当多个线程同时执行addEntry(hash,key ,value,i)时，如果产生哈希碰撞，导致两个线程得到同样的bucketIndex去存储，就可能会发生元素覆盖丢失的情况 
 
+### HashMap检测到hash冲突后，将元素插入在链表的末尾还是开头
+
 ## ArrayList
 
 ### ArrayList的初始化以及扩容的实现过程
@@ -262,3 +266,7 @@ Hashmap在并发环境下，可能出现的问题：
 2，检查异常是不是unchecked异常 
 
 3，如果是checked异常也想回滚的话，注解上写明异常类型即可 @Transactional(rollbackFor=Exception.class) 
+
+## Java反射原理？
+
+## Java注解原理？
