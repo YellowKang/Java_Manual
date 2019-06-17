@@ -131,3 +131,4 @@ service crond restart
 systemctl enable crond.service
 ```
 
+# 搜索文件

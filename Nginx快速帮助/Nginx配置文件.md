@@ -1,3 +1,5 @@
+# 配置负载均衡
+
 首先我们先编写配置文件
 
 ```
@@ -64,3 +66,22 @@ http {
 ```
 
 通过他的 upstream yuqing，来指定负载均衡的ip
+
+# 二级域名映射
+
+我们只需要配置文件添加一个server即可
+
+```
+server {
+
+listen 80;
+
+server_name boot.baijingins.com;
+
+location / { proxy_set_header X-Real-IP $remote_addr;
+	proxy_set_header Host $http_host;
+	proxy_pass http://localhost:9001; }
+}
+
+```
+

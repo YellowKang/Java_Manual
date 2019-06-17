@@ -19,6 +19,7 @@ docker ps -a| grep rancher | grep -v grep| awk '{print "docker stop "$1}'|sh
 批量删除rancher容器
 
 ```
+docker ps -a| grep rancher | grep -v grep| awk '{print "docker stop "$1}'|sh
 docker ps -a| grep rancher | grep -v grep| awk '{print "docker rm "$1}'|sh
 ```
 

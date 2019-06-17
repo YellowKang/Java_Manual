@@ -443,3 +443,40 @@ SHELL=/bin/bash
 service crond restart
 ```
 
+# jenkins配置ssh问题
+
+由于使用jenkins用户进行操作所以需要创建jenkins用户
+
+```
+useradd jenkins
+passwd jenkins    设置密码
+su jenkins 进入jenkins用户
+我们设置为jks12345678
+
+切换root设置docker命令权限
+chmod 777 /var/run/docker.sock
+然后查看权限
+ll /var/run/docker.sock
+然后进入jenkins用户发现是否能使用docker命令
+su jenkins 
+docker ps
+发现可以使用，然后我们生成jenkins主机的公钥
+ssh-keygen -t rsa
+查看公钥
+cat /home/jenkins/.ssh/id_rsa.pub
+
+然后复制公钥到第二台主机的jenkins用户中
+进入第二台jenkins用户
+su jenkins
+测试能否使用docker命令
+然后设置免密登陆
+vim /home/jenkins/.ssh//authorized_keys
+```
+
+```
+docker stop beluga-gateway
+docker rm beluga-gateway
+docker rmi 152.136.68.184:5000/beluga-gateway:1.0-SNAPSHOT
+docker run -d --name beluga-gateway -p 9099:9099 152.136.68.184:5000/beluga-gateway:1.0-SNAPSHOT
+```
+

@@ -10,7 +10,7 @@ ssh-keygen -t rsa
 
 ```
 ssh-keygen -t rsa
-cat /root/.ssh/authorized_keys
+cat /root/.ssh/id_rsa.pub
 ```
 
 然后我们把它cv一下
