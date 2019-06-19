@@ -166,11 +166,10 @@ nacos.naming.data.warmup=true
 docker run -p 8848:8848 \
 --name nacos-server \
 -e MODE=standalone \
+-v /docker/nacos/conf/application.properties:/home/nacos/conf/application.properties \
+-v /docker/nacos/conf/docker-startup.sh:/home/nacos/bin/docker-startup.sh \
 --privileged=true \
--d docker.io/nacos/nacos-server:1.0.0
-
-
-
+-d docker.io/nacos/nacos-server:1.0.1
 
 docker run -itd -p 8848:8848 \
 --name nacos \
