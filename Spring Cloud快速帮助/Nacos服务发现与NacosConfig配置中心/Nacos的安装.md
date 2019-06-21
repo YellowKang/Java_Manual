@@ -166,19 +166,16 @@ nacos.naming.data.warmup=true
 docker run -p 8848:8848 \
 --name nacos-server \
 -e MODE=standalone \
---privileged=true \
 -v /docker/nacos/conf/application.properties:/home/nacos/conf/application.properties \
--d docker.io/nacos/nacos-server:1.0.0
+-v /docker/nacos/conf/docker-startup.sh:/home/nacos/bin/docker-startup.sh \
+--privileged=true \
+-d docker.io/nacos/nacos-server:1.0.1
 
-
-
-
-docker run -p 8848:8848 \
---name nacos-server \
+docker run -itd -p 8848:8848 \
+--name nacos \
 -e MODE=standalone \
 --privileged=true \
--v /docker/nacos/conf/application.properties:/home/nacos/conf/application.properties \
--d docker.io/nacos/nacos-server:1.0.0
+docker.io/nacos/nacos-server:1.0.0
 ```
 
 然后访问ip:8848/nacos/index.html
@@ -644,5 +641,44 @@ docker stop  nacos-node3
 docker rm  nacos-node1
 docker rm  nacos-node2
 docker rm  nacos-node3
+```
+
+```
+# spring
+server.servlet.contextPath=${SERVER_SERVLET_CONTEXTPATH:/nacos}
+server.contextPath=/nacos
+server.port=${NACOS_SERVER_PORT:8848}
+spring.datasource.platform=${SPRING_DATASOURCE_PLATFORM:""}
+nacos.cmdb.dumpTaskInterval=3600
+nacos.cmdb.loadDataAtStart=false
+
+
+spring.datasource.platform=mysql
+db.num=1
+# 注意修改自己IP重要的话重复说
+db.url.0=jdbc:mysql://172.21.0.2:3306/nacos?characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&serverTimezone=Asia/Shanghai
+db.user=root
+db.password=root
+
+
+server.tomcat.accesslog.enabled=true
+server.tomcat.accesslog.pattern=%h %l %u %t "%r" %s %b %D
+# default current work dir
+server.tomcat.basedir=
+## spring security config
+### turn off security
+
+nacos.security.ignore.urls=/,/**/*.css,/**/*.js,/**/*.html,/**/*.map,/**/*.svg,/**/*.png,/**/*.ico,/console-fe/public/**,/v1/auth/login,/v1/console/health/**,/v1/cs/**,/v1/ns/**,/v1/cmdb/**,/actuator/**,/v1/console/server/**
+# metrics for elastic search
+management.metrics.export.elastic.enabled=fasle
+management.metrics.export.influx.enabled=false
+
+nacos.naming.distro.taskDispatchThreadCount=10
+nacos.naming.distro.taskDispatchPeriod=200
+nacos.naming.distro.batchSyncKeyCount=1000
+nacos.naming.distro.initDataRatio=0.9
+nacos.naming.distro.syncRetryDelay=5000
+nacos.naming.data.warmup=true
+
 ```
 
