@@ -132,3 +132,8 @@ systemctl enable crond.service
 ```
 
 # 搜索文件
+
+```
+find -name "*.jar"
+```
+
