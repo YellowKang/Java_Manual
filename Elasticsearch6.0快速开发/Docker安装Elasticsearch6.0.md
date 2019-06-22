@@ -93,7 +93,7 @@ http.cors.enabled: true
 http.cors.allow-origin: "*"
 node.master: true
 node.data: true
-discovery.zen.ping.unicast.hosts:["39.108.158.33:9301","39.108.158.33:9302","39.108.158.9303"]
+discovery.zen.ping.unicast.hosts: ["39.108.158.33:9301","39.108.158.33:9302","39.108.158.9303"]
 discovery.zen.minimum_master_nodes: 1
 ```
 
