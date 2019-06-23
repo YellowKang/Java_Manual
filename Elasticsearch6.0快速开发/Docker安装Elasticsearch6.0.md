@@ -41,6 +41,15 @@ chmod -R 777 /docker/elasticsearch/data
 
 ```
 docker run -d \
+-e ES_JAVA_OPTS="-Xms256m -Xmx256m" \
+-p 10092:9200 \
+-p 10093:9300 \
+-v /docker/elasticsearch/data:/usr/share/elasticsearch/data \
+--name elasticsearch6.7 docker.io/elasticsearch:6.7.0
+```
+
+```
+docker run -d \
 -e ES_JAVA_OPTS="-Xms1g -Xmx1g" \
 -p 9200:9200 \
 -p 9300:9300 \
@@ -298,6 +307,8 @@ ls
 如果有ik分词器则安装完成
 
 # 启动失败看这里
+
+或者是由于权限的原因
 
 我们使用docker logs -f 容器查看日志
 

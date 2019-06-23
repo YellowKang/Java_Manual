@@ -9,6 +9,7 @@ mkdir -p /docker/maven-nexus/data
 ```
 docker run -d \
 --name maven-nexus \
+--restart=always \
 --privileged=true \
 -p 18081:8081 \
 -v /docker/maven-nexus/data:/var/nexus-data \

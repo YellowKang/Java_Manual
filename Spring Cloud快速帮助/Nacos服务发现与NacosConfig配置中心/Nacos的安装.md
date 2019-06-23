@@ -101,6 +101,16 @@ docker run -p 3306:3306 \
 -v /docker/nacos/data:/var/lib/mysql \
 -v /docker/nacos/conf/my.cnf:/etc/mysql/conf.d/mysql.cnf \
 -d docker.io/mysql:5.7
+
+
+
+docker run -p 13307:3306 \
+--name mysql \
+-e MYSQL_ROOT_PASSWORD=beluga@mysql. \
+--privileged=true \
+-v /docker/mysql/data:/var/lib/mysql \
+-v /docker/mysql/conf/my.cnf:/etc/mysql/conf.d/mysql.cnf \
+-d docker.io/mysql:5.7
 ```
 
 然后我们进入容器，创建数据库
@@ -119,6 +129,7 @@ create database nacos;
 这样MySQL就已经搭建完毕了，我们来搭建Nacos,这里注意一定要用自己的MySQL的ip地址
 
 ```
+mkdir -p /docker/nacos/conf
 首先创建配置文件
 vim /docker/nacos/conf/application.properties
 将下面内容粘贴进去，注意这里用户和密码以及mysql的ip地址都要修改
