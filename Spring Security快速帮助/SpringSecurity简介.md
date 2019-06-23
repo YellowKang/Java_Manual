@@ -22,14 +22,6 @@
 
 ​		HeaderWriterFilter 
 
-​			
-
-
-
-
-
-
-
         CorsFilter 
         LogoutFilter
         RequestCacheAwareFilter
