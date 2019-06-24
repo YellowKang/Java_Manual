@@ -4,6 +4,18 @@
 docker pull jenkins/jenkins:lts
 ```
 
+# Linux版本
+
+```
+sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
+yum install jenkins
+```
+
+下面是官网地址
+
+<https://pkg.jenkins.io/redhat-stable/>
+
 # 然后运行容器
 
 我们这里需要挂载目录，由于在jenkins中需要安装jdk，以及maven所以我们将目录挂载到本地，将文件目录创建
