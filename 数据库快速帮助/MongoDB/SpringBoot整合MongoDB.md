@@ -119,3 +119,64 @@ http://localhost:8080/save?name=bigkang&email=bigkangsix@qq.com	新增
 
 # SpringDataAPI操作
 
+
+
+## 高阶Api进行聚合查询
+
+首先我们引入MongoTemplate
+
+```
+    @Autowired
+    private MongoTemplate mongoTemplate;
+    
+		//首先我们创建一个集合，并且使用聚合条件
+        List<AggregationOperation> operations = new ArrayList<>();
+        
+        //这里是根据atype进行查询
+        operations.add(Aggregation.match(Criteria.where("atype").is("煤矿")));
+
+		//然后根据时间进行查询，这里采用时间戳为秒的
+        if(dateParam != null){
+            if(dateParam.getStartDate().length() > 1){
+                Long start =  dateParam.startDate().getTime() / 1000;
+                operations.add(Aggregation.match(Criteria.where("atime").gte(start)));
+            }
+            if(dateParam.getEndDate().length() > 1){
+                Long end =  dateParam.endDate().getTime() / 1000;
+                operations.add(Aggregation.match(Criteria.where("atime").lte(end)));
+            }
+        }
+        //在这里进行要聚合的属性，我们根据atype进行聚合，然后台统计数量，as表示返回的字段，sum为将聚合的例如每个大类的死亡人数统计到一起，然后返回字段为deathnumber，然后把所有的聚合到一起，然后返回province
+operations.add(Aggregation.group("atype").count().as("count").sum("deathnumber").as("deathnumber").addToSet("province").as("province"));
+		//生成聚合对象
+        Aggregation aggregation = Aggregation.newAggregation(operations);
+        //进行查询，将聚合对象传入，然后写入集合的名称，并且返回类型为HashMap（我们也可以自定义封装）
+        AggregationResults<HashMap> accident = mongoTemplate.aggregate(aggregation, "accident", HashMap.class);
+        //获取返回条件返回
+        return accident.getUniqueMappedResult();
+
+```
+
+mongo的查询语句对应如下
+
+```
+db.accident.aggregate([
+	{
+        $match: {
+            "atype":"煤矿",
+            "atime":{$gte:1556691186},
+            "atime":{$lte:1561961586}}
+        },
+        {$group: { 
+            _id: "$atype2",
+            count:{$sum:1}, 
+            deathnumber: { $sum: "$deathnumber" },
+            province:{$addToSet:"$province"}} 
+        },
+        {$sort:{
+            deathnumber:1
+        }
+    }
+])
+```
+

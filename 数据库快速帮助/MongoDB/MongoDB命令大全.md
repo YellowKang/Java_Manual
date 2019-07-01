@@ -188,4 +188,289 @@ db.acc.update({"domestic":{"$exists":false}},{$set:{"domestic":true}},{multi:tru
 
 ```
 
+# 聚合查询
+
+和MySQL对比
+
+| SQL 操作/函数 |    mongodb聚合操作     |
+| :-----------: | :--------------------: |
+|     where     |         $match         |
+|   group by    |         $group         |
+|    having     |         $match         |
+|    select     |        $project        |
+|   order by    |         $sort          |
+|     limit     |         $limit         |
+|     sum()     |          $sum          |
+|    count()    |          $sum          |
+|     join      | $lookup  （v3.2 新增） |
+
+我们可以看到这些查询其实差别并不是很大只是换了个语法而已
+
+下面我们就来实际使用一下吧
+
+
+
+## group
+
+这里的group 和mysql的group by一样，我们来看下使用吧
+
+```
+db.accident.aggregate([
+   	{$group:{
+   		_id: "统计条数",
+   		count: {$sum:1}
+     } 
+    },
+    {
+     $sort:{deathnumber:1}
+    }
+])    
+```
+
+我们可以看到如下
+
+![](img\group——1.png)
+
+然后我们来看一下根据所有的类型进行聚合吧，我们根据所有的大类进行统计，并且统计每个大类的和
+
+```
+db.accident.aggregate([
+   	{$group:{
+   		_id: "$atype",
+   		count: {$sum:1}
+     } 
+    },
+    {
+     $sort:{deathnumber:1}
+    }
+])    
+```
+
+我们可以看到他将所有的类进行了统计
+
+![](img\group——2.jpg)
+
+## match
+
+match和mysql中的where条件相类似，下面我们来看下使用吧,我们查询煤矿大类，并且按照他的二级分类进行聚合然后统计，并且根据死亡人数排序
+
+```
+db.accident.aggregate([
+    {$match:{
+        "atype":"煤矿"
+     }
+    },
+    {$group:{
+   		_id: "$atype2",
+   		count: {$sum:1}
+     } 
+    },
+    {
+     $sort:{deathnumber:1}
+    }
+])
+```
+
+![](img\match——1.png)
+
+## project
+
+project就是控制我们所查询的数据是否进行展示，例如我不想展示id了，这样既可取消展示id
+
+```
+    
+db.accident.aggregate([
+    {$match:{
+        "atype":"煤矿"
+     }
+    },
+    {$group:{
+        _id: "$atype2",
+        count: {$sum:1}
+     } 
+    },
+    {
+     $sort:{deathnumber:1}
+    },
+    {$project: {
+        "count":1,"_id":0
+     }
+    }
+])
+```
+
+如下图所示
+
+![](img\project——1.png)
+
+## sort
+
+sort是排序，我们可以根据字段进行排序，1为升序，-1为降序，我们再更具count进行排序
+
+```
+    
+db.accident.aggregate([
+    {$match:{
+        "atype":"煤矿"
+     }
+    },
+    {$group:{
+        _id: "$atype2",
+        count: {$sum:1}
+     } 
+    },
+    {
+     $sort:{deathnumber:1,count:-1}
+    },
+    {$project: {
+        "count":1,"_id":0
+     }
+    }
+])
+```
+
+如下图所示
+
+![](img\sort——1.png)
+
+## limit
+
+我们只想统计前几个部门的数据那么我们直接查询进行limit，我们排序后设置limit大小即可，还有配合skip就能坐到分页
+
+```
+    
+db.accident.aggregate([
+    {$match:{
+        "atype":"煤矿"
+     }
+    },
+    {$group:{
+        _id: "$atype2",
+        count: {$sum:1}
+     } 
+    },
+    {
+     $sort:{deathnumber:1,count:-1}
+    },
+    {$project: {
+        "count":1,"_id":0
+     }
+    },
+    {$limit: 10}
+])
+```
+
+如下图所示
+
+![](img\limit——1.png)
+
+## push
+
+比如我们统计了这个部门的员工，但是我们需要把他的员工Id给拿出来。并且跟随数据一起返回。例如这个部门有30个人，我需要这个部门的30个人的员工id
+
+```
+db.accident.aggregate([
+    {$group:{
+        _id: "$atype",
+        count: {$sum:1},
+        获取所有id: {$push:"$deathnumber"}
+     } 
+    }
+])
+```
+
+## first以及last
+
+```
+db.accident.aggregate([
+    {$group:{
+        _id: "$atype",
+        count: {$sum:1},
+        第一个: {$first:"$atype"},
+        最后一个: {$last:"$atype"}
+        
+     } 
+    }
+])
+```
+
+## sum以及其他
+
+下面我们来进行统计了，先把上面的去掉避免太长
+
+简单的查询如下
+
+```
+db.accident.aggregate([
+    {$group:{
+        _id: "$atype",
+        count: {$sum:1}
+     } 
+    }
+])
+```
+
+如下图所示
+
+![](img\sum——1.png)
+
+每条数据都有事故的死亡人数我们分别根据死亡人数统计每个大类的，死亡人数总和，死亡人数平均值，最大值，和最小值
+
+```
+db.accident.aggregate([
+    {$group:{
+        _id: "$atype",
+        count: {$sum:1},
+        死亡人数总和: {$sum:"$deathnumber"},
+        死亡人数平均: {$avg:"$deathnumber"},
+        死亡人数最大: {$max:"$deathnumber"},
+        死亡人数最小: {$min:"$deathnumber"}
+     } 
+    }
+])
+```
+
+然后我们就可以看到如图所示了
+
+![](img\sum——2.png)
+
+
+
+## 查询出来所有的id
+
+由于数据太大，这个id我们用死亡人数，也就是聚合所有不同的死亡人数将它做成列表
+
+```
+db.accident.aggregate([
+    {$group:{
+        _id: "$atype",
+        count: {$sum:1},
+        死亡人数总和: {$sum:"$deathnumber"},
+        死亡人数平均: {$avg:"$deathnumber"},
+        死亡人数最大: {$max:"$deathnumber"},
+        死亡人数最小: {$min:"$deathnumber"},
+        死亡人数列表: {$addToSet:"$deathnumber"}
+     } 
+    }
+])
+```
+
+![](img\addset——1.png)
+
+Mongo相对应的复杂查询统计使用聚合
+
+查询语句如下，我们根据accident这个集合然后进行聚合，聚合的查询条件为，atype为煤矿的，然后聚合的字段是atype2，然后我们定义一个count用来记录他的数量，然后统计死亡人数，根据每个atype2统计死亡人数，然后将所有的省全部都拼到一起，并且排序根据死亡人数，1为升序，-1为降序
+
+```
+db.accident.aggregate([
+	{$match: {"atype":"煤矿"}},
+    {$group: { 
+    	_id: "$atype2",
+    	count:{$sum:1}, 
+    	deathnumber: { $sum: "$deathnumber" },
+    	province:{$addToSet:"$province"}} 
+    },
+    {$sort:{deathnumber:1}}
+])
+```
 
