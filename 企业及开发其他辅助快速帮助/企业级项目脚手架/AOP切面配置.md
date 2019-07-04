@@ -99,3 +99,126 @@ execution(* com.xyz.service.*.*(..))
 http://www.cnblogs.com/duenboa/p/6665474.html
 ```
 
+# 结合注解修改参数
+
+​    	我们现在想通过一个注解进行修改我们请求的参数，例如如果我的注解中写到了一个数据，现在请求过来了有一个字段我们需要将他给修改了，如果注解中设置了修改我们就修改参数，如果他没有设置我们就使用原来的参数，下面我们来开始使用吧
+
+​		首先新建注解	新建一个注解@MethodUpArgs,意思是修改方法中的参数，我们来试下
+
+```
+@Documented
+@Target({ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+public @interface MethodUpArgs {
+    String[] argsName() default "";
+    String[] argsValue() default "";
+}
+```
+
+我们新建好了注解之后，我们去新建一个Controller，我们通过注解，希望将test这个参数改为testAs这个参数
+
+```
+    @MethodUpArgs(argsName = {"test"},argsValue = {"testAs"})
+    @GetMapping("test")
+    public String test(String test){
+        return test;
+    }
+```
+
+现在我们来使用Aop进行修改，新建一个配置类AspectConfig
+
+代码示例如下
+
+ 
+
+```
+@Component
+@Aspect
+@Slf4j
+public class AspectConfig {
+	
+    /**
+     * 根据注解修改参数值
+     * @param point 代理信息
+     * @param methodUpArgs 注解参数
+     * @return
+     * @throws Throwable
+     */
+    @Around(value = "@annotation(methodUpArgs)",argNames = "methodUpArgs")
+    public Object myprocess(ProceedingJoinPoint point,MethodUpArgs methodUpArgs) throws Throwable {
+        //获取HttpServletRequest，然后获取头信息，并且搭建用户的系统以及浏览器
+        ServletRequestAttributes attributes = (ServletRequestAttributes)RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = attributes.getRequest();
+        System.out.println(request.getHeader("User-Agent").toString());
+
+        //获取用户方法签名
+        MethodSignature msg = (MethodSignature)point.getSignature();
+        //获取方法参数名称
+        String[] paramName = msg.getParameterNames();
+        //获取传入的参数值
+        Object[] args = point.getArgs();
+        //将参数名称转为集合
+        List<String> paramNameList = Arrays.asList(paramName);
+        //循环遍历需要修改的参数
+        if(methodUpArgs.argsName().length > 0 && methodUpArgs.argsName() != null){
+            for (int i = 0; i < methodUpArgs.argsName().length; i++) {
+                //非空判断
+                if(!StringUtils.isEmpty(methodUpArgs.argsName()[i])){
+                    //判断是否包含参数
+                    if (paramNameList.contains(methodUpArgs.argsName()[i])) {
+                        //获取参数位置
+                        Integer pos = paramNameList.indexOf(methodUpArgs.argsName()[i]);
+                        //判断值是否为空
+                        if (StringUtils.isEmpty(methodUpArgs.argsValue()[i])){
+                            System.out.println("取消修改参数！！！");
+                        }else{
+                            args[pos] = methodUpArgs.argsValue()[i];
+                            System.out.println("修改为注解参数" + methodUpArgs.argsValue()[i]);
+                        }
+                    }
+                }
+            }
+        }
+        //重新返回参数对象
+        Object result = point.proceed(args);
+        return result;
+    }
+}
+```
+
+# 记录方法执行时间以及日志
+
+```
+    //需要代理的表达式，com.kang.boot.test.controller包下所有方法
+    @Pointcut("execution(* com.kang.boot.test.controller.**.*(..))")
+    private void pointcut() {}
+
+    @Around("pointcut()")
+    public Object around(ProceedingJoinPoint joinPoint) throws Throwable {
+        // 接收到请求，记录请求内容
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = attributes.getRequest();
+        // 记录下请求内容
+        log.info("请求URL: " + request.getRequestURL().toString());//打印请求url
+        log.info("请求IP: " + request.getRemoteAddr());//打印请求IP来源
+
+
+        // 获取目标Logger
+        Logger logger = LoggerFactory.getLogger(joinPoint.getTarget().getClass());
+        // 获取目标类名称
+        String clazzName = joinPoint.getTarget().getClass().getName();
+        // 获取目标类方法名称
+        String methodName = joinPoint.getSignature().getName();
+        //获取开始时间戳
+        long start = System.currentTimeMillis();
+        logger.info( "{}: {}: 开始执行方法...", clazzName, methodName);
+        // 调用目标方法
+        Object result = joinPoint.proceed();
+        //计算运行时间
+        long time = System.currentTimeMillis() - start;
+        logger.info( "{}: {}: 方法执行结束... 执行时间: {} ms", clazzName, methodName, time);
+        return result;
+    }
+```
+
