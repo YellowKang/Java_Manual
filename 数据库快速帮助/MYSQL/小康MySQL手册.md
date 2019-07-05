@@ -107,7 +107,8 @@ sql_mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_
 #### 	创建用户
 
 ​				CREATE USER 'huangkang'@'%' IDENTIFIED BY 'bigkang'; 
-				表示创建名称为（huangkang）的用户，密码设为（bigkang）；
+
+​				表示创建名称为（huangkang）的用户，密码设为（bigkang）；
 
 ​				（%）表示让所有的ip访问
 
@@ -294,9 +295,9 @@ sql_mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_
 ### 两大主流引擎解析
 
 ​		对比项					MyISAM						InnoDB
-		外键					不支持						支持
-		事务					不支持						支持
-		行表锁			表锁，即使操作一条记录也会锁住		行锁,操作时只锁某一行，不对其它行有影		
+​		外键					不支持						支持
+​		事务					不支持						支持
+​		行表锁			表锁，即使操作一条记录也会锁住		行锁,操作时只锁某一行，不对其它行有影		
 
 ​						整个表，不适合高并发的操作			响，适合高并发的操作
 
@@ -307,9 +308,9 @@ sql_mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_
 ​															的影响	
 
 ​		关注点				节省资源、消耗少、简单业务		并发写、事务、更大资源
-		默认安装						Y						Y
-		默认使用						N 						Y
-		自带系统表使用				Y						N
+​		默认安装						Y						Y
+​		默认使用						N 						Y
+​		自带系统表使用				Y						N
 
 
 
@@ -595,17 +596,7 @@ sql_mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_
 
 
 
-​			
-
-
-
-
-
-
-
-
-
-
+​	
 
 
 

@@ -37,14 +37,23 @@ docker ps -a| grep k8s| grep -v grep| awk '{print "docker rm "$1}'|sh
 
 docker images| grep k8s | grep -v grep| awk '{print "docker rmi "$3}'|sh
 
-设置容器自启动
+# 设置容器自启动
 
 ```
  docker update --restart=always 容器id或者容器名称
 ```
 
+# 将镜像打包压缩文件
+
+打包过程可能会比较慢等待执行完毕即可
+
 ```
-docker images| grep none | grep -v grep| awk '{print "docker rmi "$3}'|sh
+docker save -o  ****.tar  镜像名：镜像版本
 ```
 
- sudo sh /docker/rm-none-image-crontab.sh
+将打包好的tar包加载到另一个docker中，即可把压缩包导入docker
+
+```
+docker load -i ****.tar  
+```
+

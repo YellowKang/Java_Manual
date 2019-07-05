@@ -239,6 +239,12 @@ docker run -d \
 -p 5601:5601 \
 -v /docker/kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml \
 -e ELASTICSEARCH_URL=http://111.67.196.127:9200 docker.io/kibana:6.7.0 
+
+docker run -d \
+--name kibana6.7 \
+-p 5601:5601 \
+-v /docker/kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml \
+-e ELASTICSEARCH_URL=http://118.187.4.89:10092/ docker.io/kibana:6.7.0 
 ```
 
 然后等待容器启动一会直接访问5601端口
@@ -267,7 +273,7 @@ docker run -d --name head-es -p 9100:9100 docker.io/mobz/elasticsearch-head:5
 
 ```
 先从Es中将这个文件从这个容器中拷贝出来
-docker cp elasticsearch:/usr/share/elasticsearch/config/elasticsearch.yml /root/elasticsearch.yml
+docker cp elasticsearch6.7:/usr/share/elasticsearch/config/elasticsearch.yml /root/elasticsearch.yml
 
 然后编辑拷贝出来的容器
 vim /root/elasticsearch.yml 
@@ -277,10 +283,10 @@ http.cors.enabled: true
 http.cors.allow-origin: "*"
 
 然后把这个文件cp到容器中
-docker cp /root/elasticsearch.yml elasticsearch:/usr/share/elasticsearch/config/elasticsearch.yml
+docker cp /root/elasticsearch.yml elasticsearch6.7:/usr/share/elasticsearch/config/elasticsearch.yml
 
 然后重启容器
-docker restart elasticsearch
+docker restart elasticsearch6.7
 ```
 
 # IK分词器安装

@@ -49,6 +49,26 @@ properties版本
 spring.data.mongodb.uri=mongodb://test:test@192.168.0.1:27017/test
 ```
 
+mongo配置
+
+```
+# MongoDB URI配置 重要，添加了用户名和密码验证
+spring.data.mongodb.uri=mongodb://anjian:topcom123@192.168.68.138:27017,192.168.68.137:27017,192.168.68.139:27017/anjian-db?slaveOk=true&replicaSet=mongoreplset&write=1&readPreference=secondaryPreferred&connectTimeoutMS=300000
+
+#每个主机的连接数
+spring.data.mongodb.connections-per-host=50
+#线程队列数，它以上面connectionsPerHost值相乘的结果就是线程队列最大值
+spring.data.mongodb.threads-allowed-to-block-for-connection-multiplier=50
+spring.data.mongodb.connect-timeout=5000
+spring.data.mongodb.socket-timeout=3000
+spring.data.mongodb.max-wait-time=1500
+#控制是否在一个连接时，系统会自动重试
+spring.data.mongodb.auto-connect-retry=true
+spring.data.mongodb.socket-keep-alive=true
+```
+
+
+
 # 编写代码实现
 
 编写实体类，Document为文档类似MySQL的表名，可以自动创建，id为主键id，随着创建而创建自动生成
