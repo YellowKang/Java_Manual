@@ -407,7 +407,7 @@ docker run -d -P --name web -v /webapp training/webapp python app.py
 挂载文件
 ```
 
-## network
+## network（网络管理）
 
 ```
 docker network create
@@ -416,6 +416,17 @@ docker network ls
 docker network rm
 docker network disconnect
 docker network inspect
+
+创建一个新的网络
+docker network create -d bridge public-network
+
+删除所有未使用的网络
+docker network prune
+
+删除一个网络
+docker network rm public-network
+
+
 ```
 
 # 系统日志信息
