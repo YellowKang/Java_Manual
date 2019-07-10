@@ -72,16 +72,19 @@ http {
 我们只需要配置文件添加一个server即可
 
 ```
-server {
+    server {
+        #监听端口号
+        listen 80;
 
-listen 80;
+        #代理域名
+        server_name nacos.bigkang.club;
 
-server_name boot.baijingins.com;
-
-location / { proxy_set_header X-Real-IP $remote_addr;
-	proxy_set_header Host $http_host;
-	proxy_pass http://localhost:9001; }
-}
-
+        #代理路径
+        location / {
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $http_host;
+        proxy_pass http://39.108.158.33:8848;
+        }
+    }
 ```
 
