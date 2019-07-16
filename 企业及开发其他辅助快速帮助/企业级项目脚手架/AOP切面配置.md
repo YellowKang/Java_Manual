@@ -1,6 +1,6 @@
 # 添加依赖
 
-```
+```java
         <!-- SpringBoot整合AOP -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -20,7 +20,7 @@
 
 我们去项目包中新建一个aspect包，然后新建个类AspectConfig
 
-```
+```java
 
 @Component
 @Aspect
@@ -49,7 +49,7 @@ public class AspectConfig {
 
 # 代理注解
 
-```
+```java
 @Before("testAspect()")							  	//前置通知
 		在连接点前面执行，前置通知不会影响连接点的执
 @AfterReturning("testAspect()")						//正常返回通知
@@ -64,7 +64,7 @@ public class AspectConfig {
 
 # 获取代理信息
 
-```
+```java
 
 		// 获取请求对象
         ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
@@ -82,7 +82,7 @@ public class AspectConfig {
 
 # 切面表达式
 
-```
+```java
 任意公共方法的执行：
 execution(public * *(..))
 
@@ -105,7 +105,7 @@ http://www.cnblogs.com/duenboa/p/6665474.html
 
 ​		首先新建注解	新建一个注解@MethodUpArgs,意思是修改方法中的参数，我们来试下
 
-```
+```java
 @Documented
 @Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
@@ -118,7 +118,7 @@ public @interface MethodUpArgs {
 
 我们新建好了注解之后，我们去新建一个Controller，我们通过注解，希望将test这个参数改为testAs这个参数
 
-```
+```java
     @MethodUpArgs(argsName = {"test"},argsValue = {"testAs"})
     @GetMapping("test")
     public String test(String test){
@@ -132,7 +132,7 @@ public @interface MethodUpArgs {
 
  
 
-```
+```java
 @Component
 @Aspect
 @Slf4j
@@ -189,7 +189,7 @@ public class AspectConfig {
 
 # 记录方法执行时间以及日志
 
-```
+```java
     //需要代理的表达式，com.kang.boot.test.controller包下所有方法
     @Pointcut("execution(* com.kang.boot.test.controller.**.*(..))")
     private void pointcut() {}
@@ -218,6 +218,140 @@ public class AspectConfig {
         //计算运行时间
         long time = System.currentTimeMillis() - start;
         logger.info( "{}: {}: 方法执行结束... 执行时间: {} ms", clazzName, methodName, time);
+        return result;
+    }
+```
+
+# 代理注解
+
+## 代理类上注解
+
+我们这里代理类上面的注解，使用@within(methodUpArgs)，然后参数中加入注解
+
+```java
+@Around(value = "@within(methodUpArgs)",argNames = "methodUpArgs")
+public Object myprocess(ProceedingJoinPoint point,MethodUpArgs methodUpArgs) throws Throwable {
+    //获取HttpServletRequest，然后获取头信息，并且搭建用户的系统以及浏览器
+    ServletRequestAttributes attributes = (ServletRequestAttributes)RequestContextHolder.getRequestAttributes();
+    HttpServletRequest request = attributes.getRequest();
+    log.info(request.getHeader("User-Agent").toString());
+    //获取用户方法签名
+    MethodSignature msg = (MethodSignature)point.getSignature();
+    //获取方法参数名称
+    String[] paramName = msg.getParameterNames();
+    //获取传入的参数值
+    Object[] args = point.getArgs();
+    //将参数名称转为集合
+    List<String> paramNameList = Arrays.asList(paramName);
+    if(!methodUpArgs.enable()){
+        System.out.println("取消修改参数");
+    }
+    //循环遍历需要修改的参数
+    if(methodUpArgs.argsName().length > 0 && methodUpArgs.argsName() != null){
+        for (int i = 0; i < methodUpArgs.argsName().length; i++) {
+            //非空判断
+            if(!StringUtils.isEmpty(methodUpArgs.argsName()[i])){
+                //判断是否包含参数
+                if (paramNameList.contains(methodUpArgs.argsName()[i])) {
+                    //获取参数位置
+                    Integer pos = paramNameList.indexOf(methodUpArgs.argsName()[i]);
+                    //判断值是否为空
+                    if (StringUtils.isEmpty(methodUpArgs.argsValue()[i])){
+                        log.info("取消修改参数！！！");
+                    }else{
+                        args[pos] = methodUpArgs.argsValue()[i];
+                        log.info("修改为注解参数" + methodUpArgs.argsValue()[i]);
+                    }
+                }
+            }
+        }
+    }
+    //执行方法
+    Object result = point.proceed(args);
+    return result;
+}
+```
+
+## 代理方法上注解
+
+方法上的注解我们使用@annotation
+
+```java
+@Around(value = "@annotation(methodUpArgs)",argNames = "methodUpArgs")
+public Object myprocess(ProceedingJoinPoint point,MethodUpArgs methodUpArgs) throws Throwable {
+    //获取HttpServletRequest，然后获取头信息，并且搭建用户的系统以及浏览器
+    ServletRequestAttributes attributes = (ServletRequestAttributes)RequestContextHolder.getRequestAttributes();
+    HttpServletRequest request = attributes.getRequest();
+    log.info(request.getHeader("User-Agent").toString());
+    //获取用户方法签名
+    MethodSignature msg = (MethodSignature)point.getSignature();
+    //获取方法参数名称
+    String[] paramName = msg.getParameterNames();
+    //获取传入的参数值
+    Object[] args = point.getArgs();
+    //将参数名称转为集合
+    List<String> paramNameList = Arrays.asList(paramName);
+    if(!methodUpArgs.enable()){
+        System.out.println("取消修改参数");
+    }
+    //循环遍历需要修改的参数
+    if(methodUpArgs.argsName().length > 0 && methodUpArgs.argsName() != null){
+        for (int i = 0; i < methodUpArgs.argsName().length; i++) {
+            //非空判断
+            if(!StringUtils.isEmpty(methodUpArgs.argsName()[i])){
+                //判断是否包含参数
+                if (paramNameList.contains(methodUpArgs.argsName()[i])) {
+                    //获取参数位置
+                    Integer pos = paramNameList.indexOf(methodUpArgs.argsName()[i]);
+                    //判断值是否为空
+                    if (StringUtils.isEmpty(methodUpArgs.argsValue()[i])){
+                        log.info("取消修改参数！！！");
+                    }else{
+                        args[pos] = methodUpArgs.argsValue()[i];
+                        log.info("修改为注解参数" + methodUpArgs.argsValue()[i]);
+                    }
+                }
+            }
+        }
+    }
+    //执行方法
+    Object result = point.proceed(args);
+    return result;
+}
+```
+
+写好之后controller如下，我们将请求的companyFullName给修改为“修改后参数”
+
+```java
+    @GetMapping("test")
+    @MethodUpArgs(argsName= {"companyFullName"},argsValue = {"修改后参数"})
+    public String test(String companyFullName){
+        String and = "(";
+        List<String> address = HanlpUtil.baseCoreWord(companyFullName, "ns");
+        for (int i = 0; i < address.size(); i++) {
+            if(i > 0){
+                and += "AND";
+            }
+            and += "\"" + address.get(i) + "\"";
+        }
+        and += ")";
+        //or条件
+        String or = "(";
+        //核心短语
+        List<String> phrase = HanlpUtil.corePhrase(companyFullName, 2);
+        for (int i = 0; i < phrase.size(); i++) {
+            if(i > 0){
+                or += "OR";
+            }
+            or += "\"" + phrase.get(i) + "\"";
+        }
+
+        List<String> keyword = HanlpUtil.corekeyword(companyFullName, 3);
+        for (int i = 0; i < keyword.size(); i++) {
+            or += "OR\"" + keyword.get(i) + "\"";
+        }
+        or += ")";
+        String result = and + "AND" + or;
         return result;
     }
 ```

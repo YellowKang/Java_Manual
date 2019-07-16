@@ -1,0 +1,2 @@
+
+{"atype": "事故灾害","atype2": "民航飞行","province": "四川","city": "达州","county": "开江","originaltime": "2019-07-11","companyFullName": "7月11日报道，英国“伊丽莎白女王号”航空母舰在测试中发生漏水事故，测试工作因此被迫暂停。","url": "http//weibo.com/1763351504/HD7JU45Z8?refer_flag=1001030103_","domestic": true}

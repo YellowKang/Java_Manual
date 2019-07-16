@@ -21,4 +21,9 @@ spring:
 
 # 然后编写配置类
 
-创建一个
+创建一个SecurityConfig类
+
+```
+
+```
+
