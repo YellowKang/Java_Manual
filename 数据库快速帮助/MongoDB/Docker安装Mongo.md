@@ -15,8 +15,7 @@ docker run --name mongo -p 27017:27017 -d docker.io/mongo:latest --auth
 ```
 首先创建文件夹用于挂载目录
 
-mkdir -p /docker/mongo/conf
-mkdir -p /docker/mongo/data
+mkdir -p /docker/mongo/{conf,data}
 赋予权限
 chmod 777 /docker/mongo/conf
 chmod 777 /docker/mongo/data

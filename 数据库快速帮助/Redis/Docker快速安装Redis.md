@@ -1,3 +1,5 @@
+# Redis5.0版本
+
 # 单机版
 
 ## 快速启动
@@ -272,9 +274,9 @@ redis redis-server /etc/redis/redis.conf --appendonly yes
 
 
 使用redis-cli一键搭建集群
-/root/redis-5.0.0/src/redis-cli --cluster create 127.0.0.1:16371 127.0.0.1:16372 127.0.0.1:16373 127.0.0.1:16374 127.0.0.1:16375 39.108.158.33:6379 --cluster-replicas 1
+/root/test/redis-5.0.0/src/redis-cli --cluster create 39.108.158.33:16371 39.108.158.33:16372 39.108.158.33:16373 140.143.0.227:16371 140.143.0.227:16372 140.143.0.227:16373 --cluster-replicas 1 -a bigkang
 
-
+-a    密码
 
 访问时使用redis集群访问
 /root/redis-5.0.0/src/redis-cli -h 127.0.0.1 -p 16374  -c
@@ -297,8 +299,6 @@ cluster meet 140.143.0.227 16371
 cluster meet 140.143.0.227 16372
 cluster meet 140.143.0.227 16373
 ```
-
-
 
 # 环境清理
 
@@ -988,3 +988,10 @@ docker rm redis{1,2,3}
 docker rm redis{4,5,6}
 ```
 
+# Java整合后问题
+
+## 第一次启动寻找内网地址
+
+​		公网连接查询内网ip，连接超时
+
+​		我们将项目运行后第一次查询或者写入，发现他去查询内网地址并且查找内网ip，怎么办呢，这个原因肯定是因为我们集群默认他将自己节点的信息存储在，数据中了，我们找到data目录，将里面的node.conf自己的内网节点改为公网ip即可

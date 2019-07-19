@@ -111,8 +111,8 @@ public interface TestMongoDao extends MongoRepository<TestMongo, String>  {
     public Page<TestEs> findAll(Pageable pageable) {
         return this.baseDao.findAll(pageable);
     }
-
-
-
 ```
 
+# MongoJpa进阶
+
+在很多时候其实简单的接口查询并不能满足我们所以我们可以使用mongoTemplate来进行查询，

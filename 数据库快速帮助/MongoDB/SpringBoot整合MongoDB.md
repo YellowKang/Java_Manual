@@ -139,7 +139,44 @@ http://localhost:8080/save?name=bigkang&email=bigkangsix@qq.com	新增
 
 # SpringDataAPI操作
 
+## 高阶带条件Distinct
 
+```java
+//创建查询条件
+Query query = new Query();
+//查询id大于1的数据
+query.addCriteria(Criteria.where("id").gt(1));
+//返回一个List<Object>,
+	query:				查询条件封装
+	"type":				需要进行distinct的字段
+	"user":				集合名称《表名》
+	Object.class:		返回的类型
+List<Object> distinct = mongoTemplate.findDistinct(query, "type", "user", Object.class);
+```
+
+
+
+## 高阶查询字段以及条件过滤
+
+```java
+        //创建QueryBuilder对象
+        QueryBuilder queryBuilder = new QueryBuilder();
+		//创建BasicDBObject对象，用于查询字段，例如只查询公司名称
+        BasicDBObject basicDBObject = new BasicDBObject();
+ 		//需要查询返回的字段，值为1表示返回
+        basicDBObject.put("companyFullName",1);
+		//创建Query对象
+		Query query = 
+            new BasicQuery(queryBuilder.get().toString(),basicDBObject.toJson());
+		//添加查询条件，查询atype为危险化学品的
+        query.addCriteria(Criteria.where("atype").is("危险化学品"));
+		//返回一个hashmap
+        List<HashMap> list = mongoTemplate.find(query,  HashMap.class, "accident");
+		//这个hashmap返回时就是我们查询的字段我们直接get字段名即可取出
+        for (HashMap hashMap : list) {
+            System.out.println(hashMap.get("companyFullName").toString());
+        }
+```
 
 ## 高阶Api进行聚合查询
 
@@ -167,6 +204,7 @@ http://localhost:8080/save?name=bigkang&email=bigkangsix@qq.com	新增
             }
         }
         //在这里进行要聚合的属性，我们根据atype进行聚合，然后台统计数量，as表示返回的字段，sum为将聚合的例如每个大类的死亡人数统计到一起，然后返回字段为deathnumber，然后把所有的聚合到一起，然后返回province
+
 operations.add(Aggregation.group("atype").count().as("count").sum("deathnumber").as("deathnumber").addToSet("province").as("province"));
 		//生成聚合对象
         Aggregation aggregation = Aggregation.newAggregation(operations);
