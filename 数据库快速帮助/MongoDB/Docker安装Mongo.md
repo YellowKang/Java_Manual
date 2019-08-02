@@ -115,6 +115,8 @@ mongodb 集群搭建的方式有三种：
 
 > 其中，第一种方式基本没什么意义，官方也不推荐这种方式搭建。另外两种分别就是副本集和分片的方式。今天介绍副本集的方式搭建mongodb高可用集群
 
+## 副本集集群版
+
 副本集的方式也很容易理解，这里需要一个主节点，一个备节点，如果主节点发生故障，那么会启用备节点，当主节点修复之后，主节点再次恢复为主节点，备节点不再是主节点的角色。副本集的方式还需要一个角色，那就是仲裁节点，它不存储数据，他的作用就是当主节点出现故障，选举出备节点作为主节点，继续保证集群可用。客户端连接时只连接主节点或者备节点，不用连接仲裁节点。
 
 > 集群节点为偶数时需要仲裁节点，如果集群节点为奇数是则不需要仲裁节点
@@ -127,19 +129,21 @@ mongodb 集群搭建的方式有三种：
 
 ```
 # 启动master
-docker run -d --restart=always --name mongo \
--v mongo-db:/data/db \
--v mongo-configdb:/data/configdb \
--p 20168:27017 mongo:3.4.9 mongod --dbpath /data/db --replSet mongoreplset --oplogSize 128
+docker run -d --restart=always --name mongo-node1 \
+-v /docker/mongo-cluster/mongo-node1/db:/data/db \
+-v /docker/mongo-cluster/mongo-node1/conf:/data/configdb \
+-p 20168:27017 \
+docker.io/mongo mongod --dbpath /data/db --replSet mongoreplset --oplogSize 128
 
 # 启动salve
-docker run -d --restart=always --name mongo \
--v mongo-db:/data/db \
--v mongo-configdb:/data/configdb \
--p 20168:27017 mongo:3.4.9 mongod --dbpath /data/db --replSet mongoreplset --oplogSize 128
+docker run -d --restart=always --name mongo-node2 \
+-v /docker/mongo-cluster/mongo-node2/db:/data/db \
+-v /docker/mongo-cluster/mongo-node2/conf:/data/configdb \
+-p 20167:27017 \
+docker.io/mongo mongod --dbpath /data/db --replSet mongoreplset --oplogSize 128
 
 # 启动arbiter
-docker run -d --restart=always --name mongo \
+docker run -d --restart=always --name mongo-arbiter \
 -v mongo-db:/data/db \
 -v mongo-configdb:/data/configdb \
 -p 27017:27017 mongo:3.4.9 mongod \
@@ -347,9 +351,7 @@ rs.slaveOk() //副本集默认仅primary可读写, 查询secondary节点时要�
 db.user.find()
 ```
 
-## Spring Boot 实现Mongodb集群读写分离
-
-### 配置文件
+### Spring Boot 配置Mongodb集群
 
 ```
 # MongoDB URI配置 重要，添加了用户名和密码验证
@@ -366,3 +368,15 @@ spring.data.mongodb.max-wait-time=1500
 spring.data.mongodb.auto-connect-retry=true
 spring.data.mongodb.socket-keep-alive=true
 ```
+
+## 分片集群版本
+
+MongoDB分片群集包含以下组件：
+
+​	分片：每个分片包含分片数据的子集。每个分片都可以部署为副本集。
+
+​	mongos：`mongos`充当查询路由器，提供客户端应用程序和分片集群之间的接口。
+
+​	config servers：配置服务器存储群集的元数据和配置设置。从MongoDB 3.4开始，必须将配置服务器部署为副本集（CSRS）。（也就是最少两台）
+
+​	

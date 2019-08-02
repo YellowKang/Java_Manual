@@ -81,9 +81,7 @@ mkdir /root/elasticsearch-cluster-yml
 
 然后进入创建三个文件分别为es-cluster1.yml  es-cluster2.yml  es-cluster3.yml
 
-touch /root/elasticsearch-cluster-yml/es-cluster1.yml
-touch /root/elasticsearch-cluster-yml/es-cluster2.yml
-touch /root/elasticsearch-cluster-yml/es-cluster3.yml
+touch /root/elasticsearch-cluster-yml/es-cluster{1,2,3}.yml
 
 ```
 
@@ -92,53 +90,52 @@ touch /root/elasticsearch-cluster-yml/es-cluster3.yml
 es-cluster1.yml
 
 ```
-cluster.name: es-cluster
-node.name: es-node1
+echo "cluster.name: es-cluster
+node.name: es-master1
 network.bind_host: 0.0.0.0
-network.publish_host: 39.108.158.33
-http.port: 9200
-transport.tcp.port: 9300
+network.publish_host: 118.187.4.89
+http.port: 9201
+transport.tcp.port: 9301
 http.cors.enabled: true
-http.cors.allow-origin: "*"
+http.cors.allow-origin: \"*\"
 node.master: true
 node.data: true
-discovery.zen.ping.unicast.hosts: ["39.108.158.33:9301","39.108.158.33:9302","39.108.158.9303"]
-discovery.zen.minimum_master_nodes: 1
+discovery.zen.ping.unicast.hosts: [\"118.187.4.89:9302\",\"118.187.4.89:9303\"]
+discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-cluster1.yml
 ```
 
 es-cluster2.yml
 
 ```
-cluster.name: es-cluster
-node.name: es-node2
+echo "cluster.name: es-cluster
+node.name: es-data1
 network.bind_host: 0.0.0.0
-network.publish_host: 39.108.158.33
-http.port: 9200
-transport.tcp.port: 9300
+network.publish_host: 118.187.4.89
+http.port: 9202
+transport.tcp.port: 9302
 http.cors.enabled: true
-http.cors.allow-origin: "*"
+http.cors.allow-origin: \"*\"
 node.master: true
 node.data: true
-discovery.zen.ping.unicast.hosts: ["39.108.158.33:9301","39.108.158.33:9302","39.108.158.9303"]
-discovery.zen.minimum_master_nodes: 1
-
+discovery.zen.ping.unicast.hosts: [\"118.187.4.89:9301\",\"118.187.4.89:9303\"]
+discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-cluster2.yml
 ```
 
 es-cluster3.yml
 
 ```
-cluster.name: es-cluster
-node.name: es-node3
+echo "cluster.name: es-cluster
+node.name: es-data2
 network.bind_host: 0.0.0.0
-network.publish_host: 39.108.158.33
-http.port: 9200
-transport.tcp.port: 9300
+network.publish_host: 118.187.4.89
+http.port: 9203
+transport.tcp.port: 9303
 http.cors.enabled: true
-http.cors.allow-origin: "*"
+http.cors.allow-origin: \"*\"
 node.master: true
 node.data: true
-discovery.zen.ping.unicast.hosts: ["39.108.158.33:9301","39.108.158.33:9302","39.108.158.9303"]
-discovery.zen.minimum_master_nodes: 1
+discovery.zen.ping.unicast.hosts: [\"118.187.4.89:9301\",\"118.187.4.89:9302\"]
+discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-cluster3.yml
 ```
 
 这三个文件夹分别修改，node.name集群节点的名字，不能相同
@@ -147,7 +144,7 @@ discovery.zen.minimum_master_nodes: 1
 
 以及discovery.zen.ping.unicast.hosts这个集群的ip因为要和集群节点通信所以我们在一台机器虚拟化3个端口，这里可以自行修改
 
-
+我们这里部署了一个master，两个data节点
 
 ## 挂载数据文件夹
 
@@ -160,9 +157,7 @@ discovery.zen.minimum_master_nodes: 1
 mkdir /root/elasticsearch-cluster-data
 
 然后创建子文件夹
-mkdir /root/elasticsearch-cluster-data/data1
-mkdir /root/elasticsearch-cluster-data/data2
-mkdir /root/elasticsearch-cluster-data/data3
+mkdir /root/elasticsearch-cluster-data/data{1,2,3}
 
 然后授予权限因为在使用时需要有权限
 chmod -R 777 /root/elasticsearch-cluster-data
@@ -177,24 +172,36 @@ chmod -R 777 /root/elasticsearch-cluster-data
 启动第一个容器es-node1
 
 ```
-docker run -e ES_JAVA_OPTS="-Xms256m -Xmx256m" -d 
--p 9201:9200 \
--p 9301:9300 \
+docker run -e ES_JAVA_OPTS="-Xms256m -Xmx256m" -d \
+-p 9201:9201 \
+-p 9301:9301 \
 -v /root/elasticsearch-cluster-yml/es-cluster1.yml:/usr/share/elasticsearch/config/elasticsearch.yml \
--v /root/elasticsearch-cluster-data/data1:/usr/share/elasticsearch/data --name es-node1 \
+-v /root/elasticsearch-cluster-data/data1:/usr/share/elasticsearch/data --name es-master1 \
 docker.io/elasticsearch:6.7.0
 ```
 
 启动第二个容器es-node2
 
 ```
-docker run -e ES_JAVA_OPTS="-Xms256m -Xmx256m" -d -p 9202:9200 -p 9302:9300 -v /root/elasticsearch-cluster-yml/es-cluster2.yml:/usr/share/elasticsearch/config/elasticsearch.yml -v /root/elasticsearch-cluster-data/data2:/usr/share/elasticsearch/data --name es-node2 docker.io/elasticsearch:6.7.0
+docker run -d \
+-e ES_JAVA_OPTS="-Xms256m -Xmx256m" \
+-p 9202:9202 \
+-p 9302:9302 \
+-v /root/elasticsearch-cluster-yml/es-cluster2.yml:/usr/share/elasticsearch/config/elasticsearch.yml \
+-v /root/elasticsearch-cluster-data/data2:/usr/share/elasticsearch/data --name es-data1 \
+docker.io/elasticsearch:6.7.0
 ```
 
 启动第三个容器es-node3
 
 ```
-docker run -e ES_JAVA_OPTS="-Xms256m -Xmx256m" -d -p 9203:9200 -p 9303:9300 -v /root/elasticsearch-cluster-yml/es-cluster3.yml:/usr/share/elasticsearch/config/elasticsearch.yml -v /root/elasticsearch-cluster-data/data3:/usr/share/elasticsearch/data --name es-node3 docker.io/elasticsearch:6.7.0
+docker run -d \
+-e ES_JAVA_OPTS="-Xms256m -Xmx256m" \
+-p 9203:9203 \
+-p 9303:9303 \
+-v /root/elasticsearch-cluster-yml/es-cluster3.yml:/usr/share/elasticsearch/config/elasticsearch.yml \
+-v /root/elasticsearch-cluster-data/data3:/usr/share/elasticsearch/data --name es-data2 \
+docker.io/elasticsearch:6.7.0
 ```
 
 可以将jvm优化那个删除（由于内存不够设置），可以修改挂载的文件地址（不建议，因为修改地方多），可以修改数据挂载文件或者不指定（不建议） ，然后指定镜像运行容器

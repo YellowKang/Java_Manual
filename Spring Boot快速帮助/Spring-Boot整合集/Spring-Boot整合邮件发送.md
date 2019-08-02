@@ -78,3 +78,15 @@ spring.mail.properties.mail.smtp.starttls.required=fasle
 ```
 
 这样我们就实现了简单的一个邮件的发送，我们还可以整合其他的技术然后来发送邮件
+
+## 自定义工具类发送
+
+```
+        JavaMailSenderImpl mailSender = new JavaMailSenderImpl();//直接生产一个实例
+        mailSender.setHost("smtp.exmail.qq.com");
+        mailSender.setPassword("Yq123456");
+        mailSender.setPort(25);
+        mailSender.setProtocol("smtp");
+        mailSender.setUsername("yuqing@bjtopcom.com");
+```
+

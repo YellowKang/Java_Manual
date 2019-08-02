@@ -19,7 +19,10 @@ passwd bigkang
 ```
 vim /etc/ssh/sshd_config
 找到PermitRootLogin yes，改为no
-PermitRootLogin no
+#PermitRootLogin yes 	 #禁止root远程登录
+PasswordAuthentication no #禁止使用基于口令认证的方式登陆
+PubkeyAuthentication yes #允许使用基于密钥认证的方式登陆
+
 
 也可以使用命令一键修改
 sed -i 's/\(PermitRootLogin\) yes/\1 no/' /etc/ssh/sshd_config

@@ -131,3 +131,28 @@ server:
 spring:
   profiles: dec
 
+# 设置组件生产环境生效
+
+​		我们在开发是有测试以及生产环境的，但是生产环境上是有定时任务的，我们在测试的时候不想要定时任务执行，那么如何使用呢，我们加入@Profile这个注解，然后再配置文件中写到
+
+```java
+@Component
+@EnableScheduling
+@Slf4j
+@Profile("prod")
+public class TestTask {
+
+    @Scheduled(cron = "*/2 * * * * ?")
+    public void  test(){
+        System.out.println("test");
+    }
+
+}
+```
+
+```java
+spring:
+  profiles:
+    active: prod
+```
+

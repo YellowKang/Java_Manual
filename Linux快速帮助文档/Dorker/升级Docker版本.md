@@ -16,10 +16,10 @@ yum remove docker  docker-common docker-selinux docker-engine
 sudo yum install -y yum-utils device-mapper-persistent-data lvm2
 ```
 
-更换yum源，这里我们使用docker的yum源
+更换yum源，这里我们使用阿里云的yum源
 
 ```
-sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo 
 ```
 
 ## 指定版本

@@ -182,11 +182,11 @@ docker run -p 8848:8848 \
 --privileged=true \
 -d docker.io/nacos/nacos-server:1.0.1
 
-docker run -itd -p 8848:8848 \
---name nacos \
+docker run -p 8848:8848 \
+--name nacos-server \
 -e MODE=standalone \
 --privileged=true \
-docker.io/nacos/nacos-server:1.0.0
+-d docker.io/nacos/nacos-server:1.0.1
 ```
 
 然后访问ip:8848/nacos/index.html

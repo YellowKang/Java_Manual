@@ -93,3 +93,11 @@ mongoimport -h 192.168.86.126 --port 27017 -d my-db -c my-collection --type csv 
 相关博客
 
 <https://www.cnblogs.com/lingwang3/p/6567857.html>
+
+
+
+# 数据操作
+
+## 修改字段名
+
+db.getCollection('synonymsList').update({}, {$rename : {"name_status" : "status"}}, false, true)
