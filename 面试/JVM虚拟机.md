@@ -279,6 +279,17 @@ java.lang.ClassNotFoundException
 
 ​		System.gc()他只是帮助我们提醒一下虚拟机需要回收垃圾了，但是他并不会一定去执行垃圾回收的操作，只是起到了一个提醒的作用
 
+下面这几个方法，上面两个都是提醒系统需要gc了，而下面两个方法则是进行gc这种方法本质上是不安全的。它可能导致在活动对象上调用终结器，而其他线程同时操作这些对象，从而导致不稳定的行为或死锁。并且这两个方法已经过时
+
+```
+        System.gc();
+        System.runFinalization();
+
+
+        System.runFinalizersOnExit(true);
+        Runtime.runFinalizersOnExit(true);
+```
+
 
 
 # JVM参数调优

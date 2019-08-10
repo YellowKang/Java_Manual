@@ -93,14 +93,14 @@ es-cluster1.yml
 echo "cluster.name: es-cluster
 node.name: es-master1
 network.bind_host: 0.0.0.0
-network.publish_host: 118.187.4.89
+network.publish_host: 122.114.65.233
 http.port: 9201
 transport.tcp.port: 9301
 http.cors.enabled: true
 http.cors.allow-origin: \"*\"
 node.master: true
 node.data: true
-discovery.zen.ping.unicast.hosts: [\"118.187.4.89:9302\",\"118.187.4.89:9303\"]
+discovery.zen.ping.unicast.hosts: [\"122.114.65.233:9302\",\"122.114.65.233:9303\"]
 discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-cluster1.yml
 ```
 
@@ -110,14 +110,14 @@ es-cluster2.yml
 echo "cluster.name: es-cluster
 node.name: es-data1
 network.bind_host: 0.0.0.0
-network.publish_host: 118.187.4.89
+network.publish_host: 122.114.65.233
 http.port: 9202
 transport.tcp.port: 9302
 http.cors.enabled: true
 http.cors.allow-origin: \"*\"
 node.master: true
 node.data: true
-discovery.zen.ping.unicast.hosts: [\"118.187.4.89:9301\",\"118.187.4.89:9303\"]
+discovery.zen.ping.unicast.hosts: [\"122.114.65.233:9301\",\"122.114.65.233:9303\"]
 discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-cluster2.yml
 ```
 
@@ -127,14 +127,14 @@ es-cluster3.yml
 echo "cluster.name: es-cluster
 node.name: es-data2
 network.bind_host: 0.0.0.0
-network.publish_host: 118.187.4.89
+network.publish_host: 122.114.65.233
 http.port: 9203
 transport.tcp.port: 9303
 http.cors.enabled: true
 http.cors.allow-origin: \"*\"
 node.master: true
 node.data: true
-discovery.zen.ping.unicast.hosts: [\"118.187.4.89:9301\",\"118.187.4.89:9302\"]
+discovery.zen.ping.unicast.hosts: [\"122.114.65.233:9301\",\"122.114.65.233:9302\"]
 discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-cluster3.yml
 ```
 

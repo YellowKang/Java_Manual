@@ -88,3 +88,23 @@ http {
     }
 ```
 
+# 配置SSL证书
+
+注意这里监听端口好为443
+
+```
+        #监听端口号
+        listen 443;
+        ssl             on;
+        #证书公钥
+        ssl_certificate /etc/nginx/certificate/1_www.bigkang.club_bundle.crt;    
+         #证书私钥
+        ssl_certificate_key /etc/nginx/certificate/2_www.bigkang.club.key; 
+        ssl_session_cache    shared:SSL:1m;
+        ssl_session_timeout  5m;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2; 
+        ssl_ciphers ECDH:AESGCM:HIGH:!RC4:!DH:!MD5:!3DES:!aNULL:!eNULL;
+        ssl_prefer_server_ciphers  on;
+        
+```
+

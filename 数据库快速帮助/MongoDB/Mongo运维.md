@@ -71,8 +71,12 @@ mongorestore -h 127.0.0.1 -port 27017 -u root -p root123 -d my-db --dir /tmp/mon
 ## 导出
 
 ```
-mongoexport -h 192.168.86.108 --port 27017 -d my-db -c my-collection -f id -q '{"id":{"$exists":true}}'  --csv -o 123
+导出json
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 -f content -q {"content":/电/}  -o C:\Users\topcom\Desktop\accident-电.json
 
+
+导出csv
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 -f content -q {"content":/电/} --type csv -o C:\Users\topcom\Desktop\accident-电.csv
 
 -h ： 主机
 --port ：端口号
