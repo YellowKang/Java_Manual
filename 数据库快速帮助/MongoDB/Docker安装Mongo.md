@@ -154,7 +154,7 @@ docker run -d --restart=always --name mongo-arbiter \
 
 ```
 docker exec -it mongo mongo
-config = {_id:"mongoreplset", version:1, members:[{_id:0, host:"10.18.81.18:20168", priority:5}, {_id:1, host:"10.18.81.19:20168", priority:4}, {_id:2, host:"10.18.81.20:20168", priority:3} ]}
+config = {_id:"mongoreplset", version:1, members:[{_id:0, host:"122.114.65.233:20168", priority:5}, {_id:1, host:"10.18.81.19:20168", priority:4}, {_id:2, host:"10.18.81.20:20168", priority:3} ]}
 rs.initiate(config)
 ```
 

@@ -1,6 +1,278 @@
+# TCP
+
+Tcp和Udp概述，以及区别。
+
+TCP面向连接（如打电话要先拨号建立连接）;UDP是无连接的，即发送数据之前不需要建立连接
+
+TCP提供可靠的服务。也就是说，通过TCP连接传送的数据，无差错，不丢失，不重复，且按序到达;UDP尽最大努力交付，即不保证可靠交付
+
+TCP面向字节流，实际上是TCP把数据看成一连串无结构的字节流;UDP是面向报文的
+
+UDP没有拥塞控制，因此网络出现拥塞不会使源主机的发送速率降低（对实时应用很有用，如IP电话，实时视频会议等）
+
+每一条TCP连接只能是点到点的;UDP支持一对一，一对多，多对一和多对多的交互通信
+
+TCP首部开销20字节;UDP的首部开销小，只有8个字节
+
+TCP的逻辑通信信道是全双工的可靠信道，UDP则是不可靠信道
+
+## ServerSocket
+
+### 构造函数
+
+```java
+ServerSocket()
+创建未绑定的服务器套接字。
+
+ServerSocket(int port)
+创建绑定到指定端口的服务器套接字。
+
+ServerSocket(int port, int backlog)
+创建服务器套接字并将其绑定到指定的本地端口号，并指定了积压。这里的积压是指同一时间连接数，如果超出了则会拒绝其他链接
+示例如下：
+			ServerSocket serverSocket = new ServerSocket(8084,6);
+			//我们创建一端口为8084的服务端，并且只能有6个连接
+
+ServerSocket(int port, int backlog, InetAddress bindAddr)
+创建服务器套接字并将其绑定到指定的本地端口号，并指定了积压。这里的积压是指同一时间连接数，如果超出了则会拒绝其他链接，并且实例绑定ip
+示例如下：
+			ServerSocket serverSocket = 
+			new ServerSocket(8084,6,InetAddress.getByName("192.168.1.176"));
+			//我们这里指定端口为8084，最大连接数为6，然后绑定实例ip，为192.168.1.176，如果不是本机网卡ip则直接抛出异常
+			//java.net.BindException: Cannot assign requested address: JVM_Bind
+        	
+```
+
+### 常用方法
+
+注意这里serverSocket代表实例化后的ServerSocket
+
+```java
+accept()//侦听要连接到此套接字并接受它。监听连接如果一直没有连接过来则一直阻塞
+    示例如下：
+		ServerSocket serverSocket = new ServerSocket();
+		Socket accept = serverSocket.accept();
+
+bind(SocketAddress endpoint)//将 ServerSocket绑定到特定地址（IP地址和端口号）。
+    示例如下：
+        ServerSocket serverSocket = new ServerSocket();
+        SocketAddress address = new InetSocketAddress("192.168.1.176",8084);
+        serverSocket.bind(address);
+		//重载方法
+		serverSocket.bind(SocketAddress endpoint, int backlog)
+		//将 ServerSocket绑定到特定地址（IP地址和端口号）。并且指定连接数
+
+getInetAddress()//返回此服务器套接字的本地地址。
+getLocalPort()//返回此套接字正在侦听的端口号。
+getLocalSocketAddress()//返回此套接字绑定到的端点的地址。
+getReceiveBufferSize()//获取此 ServerSocket的 SO_RCVBUF选项的值，即将用于从该 ServerSocket接受的套接字的建议缓冲区大小。
+getReuseAddress()//测试是否启用了 SO_REUSEADDR 。
+getSoTimeout()//检索 SO_TIMEOUT的设置。
+setPerformancePreferences(int connectionTime, int latency, int bandwidth)//设置此ServerSocket的性能首选项。
+toString()//将该套接字的实现地址和实现端口返回为 String 。
+```
+
+等等方法，可以参考jdk文档查看详细介绍
+
+## Socket
+
+### 构造函数
+
+```java
+new Socket()			
+//创建一个未连接的套接字，并使用系统默认类型的SocketImpl。
+    
+new Socket(InetAddress address, int port)
+//创建流套接字并将其连接到指定IP地址的指定端口号。
+    
+new Socket(InetAddress host, int port, boolean stream)
+//已弃用,使用DatagramSocket代替UDP传输。
+   
+new Socket(InetAddress address, int port, InetAddress localAddr, int localPort)
+//创建套接字并将其连接到指定的远程端口上指定的远程地址。
+    
+new Socket(Proxy proxy)
+//创建一个未连接的套接字，指定应该使用的代理类型（如果有的话），无论其他任何设置如何。
+```
+
+等等，此处只列举一部分常用
+
+### 常用方法
+
+```java
+bind(SocketAddress bindpoint)
+//将套接字绑定到本地地址。
+    
+close()
+//关闭此套接字。
+    
+connect(SocketAddress endpoint)
+//将此套接字连接到服务器。
+    
+connect(SocketAddress endpoint, int timeout)
+//将此套接字连接到具有指定超时值的服务器。
+    
+getChannel()
+//返回与此套接字相关联的唯一的SocketChannel对象（如果有）。
+    
+getInetAddress()
+//返回套接字所连接的地址。
+    
+getInputStream()
+//返回此套接字的输入流。
+    
+getLocalAddress()
+//获取套接字所绑定的本地地址。
+    
+getLocalPort()
+//返回此套接字绑定到的本地端口号。
+    
+getLocalSocketAddress()
+//返回此套接字绑定到的端点的地址。
+    
+getOutputStream()
+//返回此套接字的输出流。
+    
+getPort()
+//返回此套接字连接到的远程端口号。
+```
+
+## SpringBoot整合
+
+### 服务端编写
+
+首先我们编写配置文件
+
+```
+tcp:
+  port: 17781
+```
+
+properties版本
+
+```
+tcp.port=17781
+```
+
+然后我们编写Tcp服务端实体类以及构造方法
+
+```java
+@Data
+@Slf4j
+public class CustomTcpServer {
+    //记录Tcp连接数
+    private volatile AtomicInteger clientCount = new AtomicInteger(0);
+    //ServerSocket服务端对象
+    private volatile ServerSocket serverSocket;
+
+    /**
+     * 双重锁初始化自定义Tcp服务端
+     *
+     * @param port
+     */
+    public CustomTcpServer(Integer port) {
+        if (serverSocket == null) {
+            synchronized (CustomTcpServer.class) {
+                if (serverSocket == null) {
+                    try {
+                        serverSocket = new ServerSocket(port,3);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        log.info("......初始化Tcp服务端失败，请检查端口是否占用");
+                    }
+                    log.info("......初始化Tcp服务端成功");
+                }
+            }
+        }
+    }
+}
+```
+
+然后编写消费消息的线程，因为我们在boot启动的时候就要初始化服务端，然后启动线程去监听连接消息
+
+```java
+@Slf4j
+public class TcpConsumerThread implements Runnable {
+    //自定义Tcp服务端
+    private CustomTcpServer customTcpServer;
+
+    public TcpConsumerThread(CustomTcpServer customTcpServer) {
+        this.customTcpServer = customTcpServer;
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                Socket accept = customTcpServer.getServerSocket().accept();
+                log.info("加入连接！！！");
+                customTcpServer.getClientCount().getAndIncrement();
+                log.info("当前连接数：" + customTcpServer.getClientCount().get());
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(accept.getInputStream()));
+                String line = "";
+                while ((line = bufferedReader.readLine()) != null) {
+                    log.info("收到消息：" + line);
+                }
+                bufferedReader.close();
+                accept.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
+```
+
+最后我们编写config类，放在能被springboot扫描到的地方
+
+```java
+@Configuration
+public class TcpServerConfig {
+
+    @Value("${tcp.port:17782}")
+    public Integer port;
+
+    @Bean
+    public CustomTcpServer customTcpServer(){
+        CustomTcpServer customTcpServer = new CustomTcpServer(port);
+        new Thread(new TcpConsumerThread(customTcpServer)).start();
+        return customTcpServer;
+    }
+
+}
+
+```
+
+### 连接端编写
+
+在SpringBoot中新建测试类，运行即可
+
+```
+public class TestTcpThread {
+    public static void main(String[] args) {
+        for (int k = 0; k < 10; k++) {
+            new Thread(() -> {
+                try {
+                    Socket socket = new Socket("127.0.0.1",17781);
+                    BufferedWriter bufferedWriter = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
+                    for (int i = 0; i < 5; i++) {
+                        bufferedWriter.write(""+i);
+                        bufferedWriter.newLine();
+                    }
+                    bufferedWriter.close();
+                    socket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }).start();
+        }
+    }
+}
+```
+
 # UDP
 
-​         UDP在Socket网络中都是通过DatagramPacket的数据格式进行传输的，也就是数据报的形式。UDP数据报是基于IP数据报建立的，UDP数据报同样分为首部和主体，UDP数据报的首部比IP数据报的首部多了8个字节，其中UDP的首部包括：**源端口号和目标端口号、** **IP首部之后所有内容的长度、** **可选的检验和。** 理论上UDP包中的数据长度最大是65507字节，但实际上总是比这少得多
+​         UDP在Socket网络中都是通过DatagramPacket的数据格式进行传输的，也就是数据报的形式。UDP数据报是基于IP数据报建立的，UDP数据报同样分为首部和主体，UDP数据报的首部比IP数据报的首部多了8个字节，其中UDP的首部包括：**源端口号和目标端口号、** **IP首部之后所有内容的长度、** **可选的检验和。** 理论上UDP包中的数据长度最大是65507字节，但实际上总是比这少得多。
 
 ## DatagramPacket（数据报）
 
@@ -259,12 +531,94 @@ public synchronized void setBroadcast(boolean on) throws SocketException
 	该属性控制是否允许一个Socket向广播地址收发数据报。默认为true。
 ```
 
+## SpringBoot整合
 
+### 服务端编写
 
-此文章根据Samuel_Tom作品改编
-原文链接：https://www.jianshu.com/p/54cfa3ce0edf
-来源：简书
+编写监听器运行UDP服务端
 
-来源：简书
+```
+@WebListener
+@Slf4j
+public class UDPServer implements ServletContextListener {
+    public static final String LISTENER_ADDRESS = "127.0.0.1";
+    public static final int MAX_UDP_DATA_SIZE = 4096;
+    public static final int UDP_PORT = 6007;
+    public static DatagramPacket packet = null;
+    public static DatagramSocket socket = null;
+
+    @Override
+    public void contextInitialized(ServletContextEvent sce) {
+        try {
+            log.info("========启动一个线程，监听UDP数据报.PORT:" + UDP_PORT + "=========");
+            // 启动一个线程，监听UDP数据报
+            new Thread(new UDPProcess(UDP_PORT)).start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    class UDPProcess implements Runnable {
+        public UDPProcess(final int port) throws SocketException {
+            //创建服务器端DatagramSocket，指定端口
+            socket = new DatagramSocket(port);
+        }
+        @Override
+        public void run() {
+            // TODO Auto-generated method stub
+            log.info("=======创建数据报，用于接收客户端发送的数据======");
+            while (true) {
+                byte[] buffer = new byte[MAX_UDP_DATA_SIZE];
+                packet = new DatagramPacket(buffer, buffer.length);
+                try {
+                    socket.receive(packet);
+                    System.out.println("收到消息："+new String(packet.getData(),"UTF-8"));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }
+    }
+
+    /**
+     * 跟随servlet容器销毁时执行
+     * @param sce
+     */
+    @Override
+    public void contextDestroyed(ServletContextEvent sce) {
+        socket.close();
+        log.info("========UDPListener摧毁=========");
+    }
+}
+```
+
+### 连接端编写
+
+使用测试类发送udp数据报
+
+```
+    @Test
+    public void udp() {
+        try {
+            // 1，创建udp服务。通过DatagramSocket对象。
+            DatagramSocket socket = new DatagramSocket(LOCAL_PORT);
+            // 2，确定数据，并封装成数据包。DatagramPacket(byte[] buf, int length, InetAddress
+            // address, int port)
+            byte[] buf = "Hello World".getBytes();
+            SocketAddress socketAddress = new InetSocketAddress("127.0.0.1",6007);
+            DatagramPacket dp = new DatagramPacket(buf, buf.length, socketAddress);
+            // 3，通过socket服务，将已有的数据包发送出去。通过send方法。
+            socket.send(dp);
+
+            System.out.println(new String(dp.getData(), "UTF-8").trim());
+            // 4，关闭资源。
+            socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+```
 
 简书著作权归作者所有，任何形式的转载都请联系作者获得授权并注明出处。
