@@ -41,7 +41,7 @@ mongo
 -----选中admin数据库
 use admin
 -----创建用户，root用户
-db.createUser({user:"root",pwd:"bigkang",roles:[{role:'root',db:'admin'}]})
+db.createUser({user:"topcom",pwd:"topcom123",roles:[{role:'root',db:'admin'}]})
 -----退出mongo
 exit
 ```
@@ -59,7 +59,9 @@ use test
 user为用户名，pwd为用户密码，role为角色，db为数据库
 
 ```
-db.createUser({user:"bigkang",pwd:"bigkang",roles:[{role:'dbOwner',db:'test'}]})
+db.createUser({user:"topcom",pwd:"topcom123",roles:[{role:'root',db:'hnmj_demo'}]})
+
+db.createUser({user:"bigkang",pwd:"bigkang",roles:[{role:'dbOwner',db:'hnmj_demo'}]})
 ```
 
 然后需要认证登录

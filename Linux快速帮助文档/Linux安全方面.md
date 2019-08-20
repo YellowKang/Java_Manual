@@ -23,9 +23,17 @@ vim /etc/ssh/sshd_config
 PasswordAuthentication no #禁止使用基于口令认证的方式登陆
 PubkeyAuthentication yes #允许使用基于密钥认证的方式登陆
 
+#禁止root使用密码登录只能使用秘钥
+PermitRootLogin prohibit-password 
+
 
 也可以使用命令一键修改
 sed -i 's/\(PermitRootLogin\) yes/\1 no/' /etc/ssh/sshd_config
+
+
+#禁止root使用密码登录只能使用秘钥
+PermitRootLogin prohibit-password 
+sed -i 's/\(PermitRootLogin\) yes/\1 prohibit-password/' /etc/ssh/sshd_config
 
 然后重启服务
 systemctl restart sshd

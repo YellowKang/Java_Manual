@@ -75,8 +75,13 @@ mongorestore -h 127.0.0.1 -port 27017 -u root -p root123 -d my-db --dir /tmp/mon
 mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 -f content -q {"content":/电/}  -o C:\Users\topcom\Desktop\accident-电.json
 
 
+
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c company_business_info -u anjian -p topcom123  -o C:\Users\topcom\Desktop\company_business_info.json
+
+
 导出csv
-mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 -f content -q {"content":/电/} --type csv -o C:\Users\topcom\Desktop\accident-电.csv
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 -f content -q {"content":/电/} --type csv -o C:\Users\topcom\Desktop\mine_base.csv
+
 
 -h ： 主机
 --port ：端口号
@@ -91,7 +96,15 @@ mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p t
 ## 导入
 
 ```
-mongoimport -h 192.168.86.126 --port 27017 -d my-db -c my-collection --type csv --headerline -f _id --file 123
+mongoimport  -h 192.168.1.11 --port 20168 -d anjian-db -c coal_riskprobability -u anjian -p topcom123 --type csv --headerline --ignoreBlanks --file C:\Users\topcom\Documents\coalRiskProbability.csv
+
+  -h 192.168.1.11 --port 20168 -d anjian-db -c mine_base -u anjian -p topcom123
+
+mongoimport  -h 39.108.158.33 --port 27017 -d test -c coalRiskProbability -u bigkang -p bigkang --file C:\Users\topcom\Desktop\导出数据\风险预测\coal_riskprobability.json
+
+
+
+--type csv --headerline --ignoreBlanks --file 
 ```
 
 相关博客

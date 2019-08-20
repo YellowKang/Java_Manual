@@ -91,3 +91,41 @@
 ​		6、 where语句中对字段表达式操作，例如where age * 2 = 100
 
 ​					注意：不要使用表达式，尽量使用age = 50
+
+# 你所遇到的Mysql事故
+
+### rancher引起
+
+在使用rancher的时候，发现许多连接的错误，随之mysql就自动关闭了，这是什么原因呢
+
+```
+2019-08-14T11:18:30.558570Z 4 [Note] Aborted connection 4 to db: 'cattle' user: 'cattle' host: '10.18.16.99' (Got an error reading communication packets)
+2019-08-14T11:18:30.558705Z 6 [Note] Aborted connection 6 to db: 'cattle' user: 'cattle' host: '10.18.16.99' (Got an error reading communication packets)
+```
+
+我们可以看到非常多的连接请求，然后读取数据报出错，那应该是连接的问题了，那么到底什么原因会引起mysql连接报错呢，当然就是连接数量太多所引起的，这个问题在rancher中能够体现，我们使用rancher监控服务器，然后重启了mysql，rancher就不停请求mysql，只要我们一重启mysql就直接崩溃了，所以我们需要
+
+```
+方法一：修改配置文件（永久生效）。
+在/etc/my.conf文件加入 max_connections=2000 ，然后重启MySQL服务即可.
+
+方法二：命令行修改（临时生效）
+命令行登录MySQL后。设置新的MySQL最大连接数为2000：
+MySQL> set global max_connections=2000;
+```
+
+然后还是发现有问题连接不上，是因为我们发送了太多的连接请求，超过了mysql的异常连接数量导致ip被mysql拒绝，这个时候我们需要刷新一下缓存
+
+```
+flush host
+```
+
+但是究竟是什么导致链接数上升，前端开始重建链接，由于当时的前端日志没有及时分析出来，故我们就不得而知了。但是有3个怀疑点：
+
+1、由于mysql版本是5.5.12，所以可能遇到了max_connections的bug，可以见这个blog（http://www.cnblogs.com/billyxp/p/3408335.html），这种情况下，前端日志应该有非常多的too many connection是的报错。
+
+2、短时间内有大量的大包传输，导致超过max_allow_packet的限制，导致断开连接。这个设置在server和client上都有，需要同步配置。同时前端应该报Got a packet bigger than ‘max_allowed__packet’ bytes这个报错。
+
+3、超过max_connect_error的限制，导致某一个ip出现问题，不停的重试。（这个可能是最不可能，首先默认数值非常大，其次单个ip不应该出现这么大的影响。max_connect_error代表某一个ip连续失败超过n之后，server会拒绝这个ip的请求，只有flush host cache才可以解封。）
+
+异常
