@@ -1,12 +1,12 @@
 # 下载jenkins最新镜像
 
-```
+```shell
 docker pull jenkins/jenkins:lts
 ```
 
 # Linux版本
 
-```
+```shell
 sudo wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
 sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io.key
 yum install jenkins
@@ -20,7 +20,7 @@ yum install jenkins
 
 我们这里需要挂载目录，由于在jenkins中需要安装jdk，以及maven所以我们将目录挂载到本地，将文件目录创建
 
-```
+```shell
 创建挂载目录
 mkdir -p /docker/jenkins/home
 
@@ -52,14 +52,18 @@ sudo chown -R 1000:1000 /docker/jenkins
 ```
 docker run -itd \
 -u root \
--p 8888:8080 \
+-p 18081:8080 \
 -p 50000:50000 \
---name jenkins \
---privileged=true \
 -v /var/run/docker.sock:/var/run/docker.sock \
--v /data/docker/var/lib/jenkins/home:/var/jenkins_home \
+-v /data/jenkins_home:/var/jenkins_home \
 -v /usr/bin/docker:/usr/bin/docker \
-docker.io/jenkins/jenkins:lts
+--restart=always \
+--name topcom-jenkins \
+--privileged=true \
+topcom/jenkins:latest
+
+
+
 ```
 
 

@@ -14,13 +14,13 @@ echo 3 > /proc/sys/vm/drop_caches   //清除页面和目录缓存
 
 # 批量删除容器
 
-```
+```shell
 docker ps -a| grep rancher | grep -v grep| awk '{print "docker rm "$1}'|sh
 ```
 
 # 查看主机运行情况（CPU，IO，内存等等）
 
-```
+```shell
 vmstat 1
 ```
 
@@ -28,7 +28,7 @@ vmstat 1
 
 ![](img\vmstat.png)
 
-```
+```shell
 Procs（进程）
 	r:	运行队列中进程数量，这个值也可以判断是否需要增加CPU。（长期大于1）
 	b	等待IO的进程数量。
@@ -61,7 +61,7 @@ sy:	内核系统进程执行时间百分比(system time) sy的值高时，说明
 
 使用参数
 
-```
+```shell
 vmstat [-a] [-n] [-t] [-S unit] [delay [ count]]
 vmstat [-s] [-n] [-S unit]
 vmstat [-m] [-n] [delay [ count]]
@@ -90,19 +90,19 @@ count：刷新次数。如果不指定刷新次数，但指定了刷新时间间
 
 首先我们查询有没有定时任务
 
-```
+```shell
 crontab -l
 ```
 
 发现没有，我们先编写一个shell脚本，这个脚本可以用来删除docker的none镜像，也可以使用其他的脚本，自己定义
 
-```
+```shell
 vim /root/rm-none-image-crontab.sh
 ```
 
 然后脚本内写入
 
-```
+```shell
 #!/bin/bash
 source /etc/profile
 docker images| grep none | grep -v grep| awk '{print "docker rmi "$3}'|sh
@@ -110,7 +110,7 @@ docker images| grep none | grep -v grep| awk '{print "docker rmi "$3}'|sh
 
 然后我们去定时任务添加
 
-```
+```shell
 crontab -e
 进入编辑
 SHELL=/bin/bash
@@ -121,19 +121,66 @@ SHELL=/bin/bash
 
 然后保存退出，重启定时任务
 
-```
+```shell
 service crond restart
 ```
 
 然后我们设置开机启动
 
-```
+```shell
 systemctl enable crond.service
 ```
 
 # 搜索文件
 
-```
+```shell
 find -name "*.jar"
+```
+
+# Linux查询java路径
+
+
+
+```shell
+which java
+```
+
+# 快速定位异常关机
+
+```shell
+#首先我们先定位开关机时间
+last reboot
+#会展示如下信息
+reboot   system boot  3.10.0-514.26.2. Mon Feb 18 22:43 - 15:43 (185+16:59)
+#前面的我们不看，重点看时间
+Mon Feb 18 22:43 			//我们开机的时间
+- 15:43								//当前的时间
+(185+16:59)						//表示从启动到现在的时间
+```
+
+然后我们根据时间去查询message日志,根据时间范围查找，如果查询历史日期查看比异常时间久的且最近的文件，仔细翻阅日志即可查询关机原因
+
+```shell
+cd /var/log
+```
+
+# 查看用户登录日志
+
+```shell
+ last -f /var/log/wtmp
+```
+
+# 查看是否别人请求暴力破解
+
+查看请求登录记录
+
+```shell
+cat /var/log/secure
+```
+
+# 查看yum安装记录
+
+```shell
+cat /var/log/yum.log 
 ```
 

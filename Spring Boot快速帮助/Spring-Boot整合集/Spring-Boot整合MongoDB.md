@@ -45,7 +45,7 @@ spring.data.mongodb.uri=mongodb://bigkang:bigkang@39.106.158.23:27017/test
 @Data
 @ToString
 @Document(collection = "test")
-public class TestMongo extends BaseMongoEntity {
+public class TestMongo{
 
     /**
      * id
@@ -98,7 +98,7 @@ public interface TestMongoDao extends MongoRepository<TestMongo, String>  {
     }
     
     //修改和添加同一方法
-    public TestEs save(TestEs entity) {
+    public TestEs save(TestMongo entity) {
         return  this.baseDao.save(entity);
     }
 

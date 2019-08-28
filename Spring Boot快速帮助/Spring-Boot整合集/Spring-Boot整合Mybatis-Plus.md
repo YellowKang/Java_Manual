@@ -6,7 +6,7 @@
 
 ## 先创建数据库数据
 
-```
+```sql
 DROP TABLE IF EXISTS user;
 
 CREATE TABLE user
@@ -30,20 +30,20 @@ INSERT INTO user (id, name, age, email) VALUES
 
 ## 引入依赖《注：基于Spring-Boot环境》
 
-```
+```xml
         //依赖版本可以修改成新版本
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-boot-starter</artifactId>
             <version>3.0.6</version>
         </dependency>
-		//Lombok插件
-    	<dependency>
-        	<groupId>org.projectlombok</groupId>
-        	<artifactId>lombok</artifactId>
-        	<optional>1.18.0</optional>
-    	</dependency>
-    	//连接驱动
+				//Lombok插件
+    		<dependency>
+        		<groupId>org.projectlombok</groupId>
+        		<artifactId>lombok</artifactId>
+        		<optional>1.18.0</optional>
+    		</dependency>
+    		//连接驱动
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
@@ -55,32 +55,31 @@ INSERT INTO user (id, name, age, email) VALUES
         </dependency>
         //测试包
       	<dependency>
-        	<groupId>org.springframework.boot</groupId>
-        	<artifactId>spring-boot-starter-test</artifactId>
-        	<scope>test</scope>
-    	</dependency>
-
+        		<groupId>org.springframework.boot</groupId>
+        		<artifactId>spring-boot-starter-test</artifactId>
+        		<scope>test</scope>
+    		</dependency>
 ```
 
 ## 编写配置文件
 
-```
+```properties
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/test_mybatis_plus?characterEncoding=UTF-8&useSSL=false
-    username: bigkang
-    password: bigkang
+    username: root
+    password: root
 ```
 
 ## 扫描包注解
 
-```
+```java
 @MapperScan("com.atguigu.mybatis_plus.mapper")
 ```
 
 ## 编写实体类
 
-```
+```java
 @Data
 public class User {
     private Long id;
@@ -92,7 +91,7 @@ public class User {
 
 ## 创建Mapper接口
 
-```
+```java
 public interface UserMapper extends BaseMapper<User> {
     
 }
@@ -100,7 +99,7 @@ public interface UserMapper extends BaseMapper<User> {
 
 ## 代码进行查询
 
-```
+```java
     @Test
     public void testSelectList() {
         System.out.println(("----- selectAll method test ------"));
@@ -113,7 +112,7 @@ public interface UserMapper extends BaseMapper<User> {
 
 ## 配置日志文件
 
-```
+```properties
 #mybatis日志
 mybatis-plus.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl
 ```
@@ -126,7 +125,7 @@ mybatis-plus.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl
 
 ### 单个增加
 
-```
+```java
         //新建一个User对象
         //由于id设置了自动生成id的策略所以不用填写
         User user = new User();
@@ -140,13 +139,13 @@ mybatis-plus.configuration.log-impl=org.apache.ibatis.logging.stdout.StdOutImpl
 
 ### 单个按id删除
 
-```
+```java
 testMapper.deleteById(1);
 ```
 
 ### 批量按id删除
 
-```
+```java
         List<Integer> deleteIds = new ArrayList<>();
         deleteIds.add(1);
         deleteIds.add(5);
@@ -155,7 +154,7 @@ testMapper.deleteById(1);
 
 ### 按条件删除
 
-```
+```java
         Map<String,Object> map = new HashMap<>();
         //map的键为数据库的字段名
         map.put("email", "bigkang@qq.com");
@@ -168,7 +167,7 @@ testMapper.deleteById(1);
 
 先查询出来然后修改名字《注。因为按主键进行修改所以要查询，并且如果null值的列他是不会修改的》
 
-```
+```java
        User user = testMapper.selectById(12);
        user.setName("社会康");
        testMapper.updateById(user);
@@ -180,7 +179,7 @@ testMapper.deleteById(1);
 
 查询id为1的用户
 
-```
+```java
 User user1 = testMapper.selectById(1);
 ```
 
@@ -188,7 +187,7 @@ User user1 = testMapper.selectById(1);
 
 查询所有用户（条件为空）
 
-```
+```java
  List<User> user1 = testMapper.selectList(null);
 ```
 
@@ -196,27 +195,325 @@ User user1 = testMapper.selectById(1);
 
 查询年龄为18的用户
 
-```
+```java
 Map<String,Object> map = new HashMap<>();
 map.put("age","18");
 List<User> users = testMapper.selectByMap(map);
 ```
 
+# Plus插件
+
+## 新建config配置类
+
+```java
+/**
+ * @Author BigKang
+ * @Date 2019/5/9 17:37
+ * @Summarize mybatis-plus配置类
+ */
+@EnableTransactionManagement
+@Configuration
+public class MybatisPlusConfig {
+
+    /**
+     * 分页插件
+     */
+    @Bean
+    public PaginationInterceptor paginationInterceptor() {
+        return new PaginationInterceptor();
+    }
+
+    /**
+     * 使用乐观锁
+     * @return
+     */
+    @Bean
+    public OptimisticLockerInterceptor optimisticLockerInterceptor(){
+        return  new OptimisticLockerInterceptor();
+    }
+
+    /**
+     * 逻辑删除功能
+     * @return
+     */
+    @Bean
+    public ISqlInjector sqlInjector() {
+        return new LogicSqlInjector();
+    }
+
+    /**
+     * SQL执行效率插件,性能测试
+     */
+    @Bean
+    @Profile({"dev","test"})// 设置 dev test 环境开启
+    public PerformanceInterceptor performanceInterceptor() {
+        return new PerformanceInterceptor();
+    }
+}
+```
+
+## 自动填充插件
+
+我们新建一个自定义的自动填充配置类
+
+```java
+@Component
+public class CustomMetaObjectHandler implements MetaObjectHandler {
+    @Override
+    public void insertFill(MetaObject metaObject) {
+        //给createTime"这个属性在插入的时候创建一个时间
+        this.setFieldValByName("createTime",new Date(), metaObject);
+
+        //给updateTime这个属性在插入的时候创建一个时间
+        this.setFieldValByName("updateTime",new Date(), metaObject);
+
+        //给version这个属性在插入的时候标记为1
+        this.setFieldValByName("version",1, metaObject);
+
+    }
+
+    @Override
+    public void updateFill(MetaObject metaObject) {
+        //给updateTime这个属性在修改的时候将时间改为最新的new Date（）
+        this.setFieldValByName("updateTime",new Date(), metaObject);
+
+    }
+}
+```
+
+然后实体类中配置，我们可以看到我们在updateTime上加上了注解，加上了插入自动填充，以及修改自动填充
+
+```java
+
+/**
+ * <p>
+ * 
+ * </p>
+ *
+ * @author 黄康
+ * @since 2019-05-09
+ */
+@Data
+@EqualsAndHashCode(callSuper = false)
+@Accessors(chain = true)
+public class TestPlus implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    @TableId(value = "id", type = IdType.AUTO)
+    private Long id;
+
+    @TableField(fill = FieldFill.INSERT)
+    private Date createTime;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Date updateTime;
+
+    private String address;
+
+    private Integer age;
+
+    private String birthday;
+
+    private String email;
+
+    private String password;
+
+    private String phone;
+
+    private String username;
+
+
+}
+```
+
+## 分页插件
+
+分页插件非常简洁方便，按照上方配置config配置类即可
+
+```java
+IPage<TestPlus> page = baseService.page(new Page<>(1, 10));
+```
+
+## 乐观锁插件
+
+乐观锁，简单来说就是我们认为他每次访问之前都有可能会被修改掉，所以我们加上版本号进行区分，如果被别人修改掉了我们则修改失败，它类似与原子引用，简单的来说就是比较版本号并且赋值，我修改3这个版本，但是别人已经修改现在版本号变为4，则修改失败，它支持的数据类型有**int,Integer,long,Long,Date,Timestamp,LocalDateTime**
+
+```java
+/**
+ * <p>
+ * 
+ * </p>
+ *
+ * @author 黄康
+ * @since 2019-05-09
+ */
+@Data
+@EqualsAndHashCode(callSuper = false)
+@Accessors(chain = true)
+public class TTestJpa implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    @TableId(value = "id", type = IdType.AUTO)
+    private Long id;
+
+    @TableField(fill = FieldFill.INSERT)
+    private Date createTime;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Date updateTime;
+
+    private String address;
+
+    private Integer age;
+
+    private String birthday;
+
+    private String email;
+
+    private String password;
+
+    private String phone;
+
+    private String username;
+    
+    @Version
+    private Integer version;
+
+}
+```
+
+## 逻辑删除插件
+
+配置文件（可选）
+
+```properties
+mybatis-plus:
+  global-config:
+    db-config:
+      logic-delete-value: 1 # 逻辑已删除值(默认为 1)
+      logic-not-delete-value: 0 # 逻辑未删除值(默认为 0)
+```
+
+然后按照上方配置config配置类
+
+实体类中写到
+
+```java
+/**
+ * <p>
+ * 
+ * </p>
+ *
+ * @author 黄康
+ * @since 2019-05-09
+ */
+@Data
+@EqualsAndHashCode(callSuper = false)
+@Accessors(chain = true)
+public class TestPlus implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    @TableId(value = "id", type = IdType.AUTO)
+    private Long id;
+
+    @TableField(fill = FieldFill.INSERT)
+    private Date createTime;
+    @TableField(fill = FieldFill.INSERT_UPDATE)
+    private Date updateTime;
+
+    private String address;
+
+    private Integer age;
+
+    private String birthday;
+
+    private String email;
+
+    private String password;
+
+    private String phone;
+
+    private String username;
+    
+    @Version
+    private Integer version;
+  
+  	@TableLogic
+		private Integer deleted;
+
+}
+```
+
+
+
+## SQL效率插件
+
+详情如上方config配置类所示
+
+```java
+    /**
+     * SQL执行效率插件,性能测试
+     */
+    @Bean
+    @Profile({"dev","test"})// 设置 dev test 环境开启
+    public PerformanceInterceptor performanceInterceptor() {
+        return new PerformanceInterceptor();
+    }
+```
+
+
+
 # 条件构造器
+
+## 查询条件构造器
+
+```java
+        //创建QueryWrapper对象
+				QueryWrapper<TestPlus> queryWrapper = new QueryWrapper<>();
+				//查询name等于BigKang，年龄大于等于1，小于等于20，并且id在1-100之间，然后id不等于散的数据，并且进行分页，查询第一页，一页10条
+        queryWrapper
+                .eq("name","Bigkang")
+                .ge("age",1)
+                .le("age",20)
+                .between("id",1,100)
+                .ne("id",3);
+
+        IPage<TestPlus> pages =  testPlusService.page(new Page<>(1,10),queryWrapper);
+```
+
+## 修改条件构造器
+
+```java
+        //这次我们将同样的查询条件的数据的邮箱修改
+				UpdateWrapper<TestPlus> updateWrapper = new QueryWrapper<>();
+        updateWrapper
+                .eq("name","Bigkang")
+                .ge("age",1)
+                .le("age",20)
+                .between("age",1,100)
+                .ne("id",3);
+        TestPlus testPlus = new TestPlus();
+        testPlus.setEmaile("bigkangsix@qq.com");
+
+        testPlusService.update(testPlus,queryWrapper);
+```
+
+
 
 # 拓展操作
 
 ## 返回自动递增id
 
-```
+```java
    	@Options(useGeneratedKeys = true,keyProperty = "id")
    	@Insert("insert into admin(name) values(#{name})")
     int insertUser(User user);
 ```
 
-## 自定义封装动态SQL批量增删
+## 自定义封装动态SQL批量增删（不推荐）
 
-```
+```java
     //批量增加方法
     @InsertProvider(type = Provider.class, method = "addAssign")
     Integer addAssignRole(@Param("userid") Integer userid,@Param("ids") Integer[] ids);
@@ -260,17 +557,11 @@ List<User> users = testMapper.selectByMap(map);
 
 # 配置方面
 
-主键生成
-
-乐观锁
-
-属性绑定
-
 # MP代码生成器
 
 直接在测试类中加入下面的代码就能生成
 
-```
+```java
     @Test
     public void ganerreter(){
         // 1、创建代码生成器

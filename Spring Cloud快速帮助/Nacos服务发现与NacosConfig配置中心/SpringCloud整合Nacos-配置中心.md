@@ -8,26 +8,20 @@
 
 ​	我们在配置管理中添加配置文件
 
-![](img\添加配置文件.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566812795551.png)
 
 
 
 添加一个为test.properties的配置文件,并且选中配置文件格式为properties,文件内容为
 
-```
+```properties
 test=黄康123
 server.port=8888
 ```
 
-![](img\配置文件配置.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566812810079.png)
 
 
-
-# .X+Cloud-Greenwich版本+Nacos1.0.0版本
-
-​	如果需要使用其他版本请参考
-
-​	https://github.com/spring-cloud-incubator/spring-cloud-alibaba/wiki/%E7%89%88%E6%9C%AC%E8%AF%B4%E6%98%8E
 
 
 
@@ -35,7 +29,7 @@ server.port=8888
 
 这里采用nacos服务端1.1.0   + Springboot 2.1.6 + Springcloud Greenwich.SR2
 
-```
+```xml
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -82,11 +76,11 @@ server.port=8888
 
 
 
-# 添加依赖
+# 添加依赖（未毕业版本）
 
 我们添加springcloud的依赖和cloudalibaba的依赖
 
-```
+```xml
     <properties>
         <java.version>1.8</java.version>
         <spring-cloud.version>Greenwich.SR1</spring-cloud.version>
@@ -132,25 +126,25 @@ server.port=8888
 
 ！！！！！！！！！！！！！！！！注意！！！！！！！！！
 
-​		这里我们不是在application.properties中编写，而是在bootstrap.properties中编写
+这里我们不是在application.properties中编写，而是在bootstrap.properties中编写
 
-![](img\boostartp.properties.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566812883693.png)
 
 这里端口我们采用8999，服务名我们叫做test,然后编写nacos的注册地址，这个如果有多个使用逗号隔开
 
 注意这里的spring.application.name这个名字就是你的配置文件开始的名字，他会根据你的项目名字查询这个配置，以及环境，如果是test那么就新建，test.properties,如果是mynacos就是mynacos.properties
 
-```
+```properties
 server.port=8999
 spring.application.name=test
-spring.cloud.nacos.config.server-addr=39.108.158.33:8848
+spring.cloud.nacos.config.server-addr=127.0.0.1:8848
 ```
 
 # 代码编写
 
 随便编写一个能被访问的controller，我们使用@RefreshScope注解来刷新，然后获取test这个配置，默认为13
 
-```
+```java
 @RestController
 @RefreshScope
 public class TestClient {
@@ -170,11 +164,11 @@ public class TestClient {
 
 
 
-![](img\serverport配置.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566812923998.png)
 
 
 
-![](img\get接口测试.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566812954568.png)
 
 这个时候我们再去修改配置文件中的test，然后再请求就会发现他的配置文件是动态获取的了
 
@@ -182,17 +176,17 @@ public class TestClient {
 
 ​	如果我们有很多个项目同时都用到了nacos的服务发现。那么我们如何将他们区分开呢？在nacos中我们可以通过他的命名空间，也就是namespace进行隔离，我们首先先来创建namespace，我们点击命名空间然后点击新建，我们新建一个test命名空间他会自动的生成一串id
 
-![](img\namespace服务发现.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566812989577.png)
 
 
 
 我们在nacos中找到配置列表，然后点击test空间新建配置，为test.properties，分组也为test
 
-![](img\nacosnamespace环境config.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566813003204.png)
 
 我们拿着这个id在配置文件中写入，我们这里又使用了namespace又使用了分组用来区分项目
 
-```
+```properties
 spring.cloud.nacos.config.namespace=905ddece-e4ac-4564-b2aa-f4cf3d568318
 spring.cloud.nacos.config.group=test
 ```
@@ -207,7 +201,7 @@ spring.cloud.nacos.config.group=test
 
 项目名-prod.yml
 
-```
+```properties
 spring:
     profiles:
       active: prod
@@ -221,7 +215,7 @@ spring:
 
 然后在配置中更改
 
-```
+```properties
 spring:
     application:
         name: user-test-server #服务名，项目名，用于区分项目
@@ -238,6 +232,6 @@ spring:
 
 
 
-![](img\nacos配置yml.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566813060405.png)
 
 这样就可以了
