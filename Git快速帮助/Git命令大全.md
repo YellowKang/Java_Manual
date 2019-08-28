@@ -9,7 +9,7 @@
 	删除文件：git rm 文件名					--删除的当前目录下的文件（例如删除kang.txt）
 		例如：
 			git rm kang.txt
-
+	
 	单个添加：git add 文件名				--当对这个文件进行创建和修改之后需要重新添加到暂存区
 	批量添加：git add .						
 		例如：
@@ -28,9 +28,9 @@
 
 
 		git branch -a 查看所有的分支				--显示当前版本库和本地的所有分支
-
+	
 		git branch -r 查看本地所有分支				--显示当前的本地分支
-
+	
 	git commit -am "注释" 					--提交并且加注释 
 	git remote add origin git@192.168.1.119:ndshow
 	git push origin master 将文件给推到服务器上 
@@ -219,9 +219,10 @@ git branch -m branch_0.1 branch_1.0 将branch_0.1重命名为branch_1.0
 git checkout branch_1.0/master 切换到branch_1.0/master分支
 du -hs
 
+# Git记住密码
 
+输入一次密码即可后续不用输入
 
-
-
-
-
+```
+git config  credential.helper store     
+```
