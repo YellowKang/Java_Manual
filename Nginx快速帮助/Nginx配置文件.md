@@ -108,3 +108,23 @@ http {
         
 ```
 
+# 单端口配置多项目
+
+下面以zabbix为例子，在项目前后都加上/代理路径后加上/表示绝对路径
+
+```
+ location /zabbix/ {
+        proxy_pass http://10.18.81.28:7000/;
+        proxy_redirect  off;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For
+        $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host:$server_port;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 86400;
+}
+
+```
+
