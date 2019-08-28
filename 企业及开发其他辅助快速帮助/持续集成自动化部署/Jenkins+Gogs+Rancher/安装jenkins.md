@@ -57,6 +57,7 @@ docker run -itd \
 -v /var/run/docker.sock:/var/run/docker.sock \
 -v /data/jenkins_home:/var/jenkins_home \
 -v /usr/bin/docker:/usr/bin/docker \
+<<<<<<< HEAD
 --restart=always \
 --name topcom-jenkins \
 --privileged=true \
@@ -64,6 +65,12 @@ topcom/jenkins:latest
 
 
 
+=======
+docker.io/jenkins/jenkins:lts
+
+
+/var/jenkins_home/
+>>>>>>> ea9815b12005174dac147aea886405a2a0bb0805
 ```
 
 
