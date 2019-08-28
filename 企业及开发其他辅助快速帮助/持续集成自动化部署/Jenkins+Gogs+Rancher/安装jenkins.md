@@ -60,6 +60,9 @@ docker run -itd \
 -v /data/docker/var/lib/jenkins/home:/var/jenkins_home \
 -v /usr/bin/docker:/usr/bin/docker \
 docker.io/jenkins/jenkins:lts
+
+
+/var/jenkins_home/
 ```
 
 
