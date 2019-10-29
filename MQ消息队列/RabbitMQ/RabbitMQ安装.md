@@ -1,8 +1,9 @@
+# Docker一键安装单节点RabbitMQ
+
 这里我们直接采用Docker一键安装
 
-```
+```sh
 docker run -d \
---hostname test-rabbitmq \
 --name rabbitmq \
 -e RABBITMQ_DEFAULT_USER=bigkang \
 -e RABBITMQ_DEFAULT_PASS=bigkang \
@@ -10,3 +11,11 @@ docker run -d \
 -p 5672:5672 \
 rabbitmq:3-management
 ```
+
+```properties
+RABBITMQ_DEFAULT_USER				//RabbitMQ用户名
+RABBITMQ_DEFAULT_PASS				//RabbitMQ密码
+15672												//RabbitMQ图形化WEB端
+5672												//服务通信接口
+```
+

@@ -12,7 +12,7 @@ docker pull docker.io/elasticsearch:6.7.0
 
 然后我们运行容器
 
-```
+```sh
 docker run -e ES_JAVA_OPTS="-Xms256m -Xmx256m" -d -p 9200:9200 -p 9300:9300 --name elasticsearch docker.io/elasticsearch:6.7.0
 ```
 
@@ -20,11 +20,11 @@ docker run -e ES_JAVA_OPTS="-Xms256m -Xmx256m" -d -p 9200:9200 -p 9300:9300 --na
 
 ​	然后我们docker ps 查看容器
 
-```
+```sh
 docker ps
 ```
 
-![](img\dockerps.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567161267350.png)
 
 
 
@@ -32,32 +32,20 @@ docker ps
 
 创建挂载文件夹
 
-```
+```sh
 mkdir -p /docker/elasticsearch/data
 chmod -R 777 /docker/elasticsearch/data
 ```
 
-然后直接启动容器
+然后直接启动容器，内存够的朋友不需要指定jvm参数
 
-```
+```sh
 docker run -d \
--e ES_JAVA_OPTS="-Xms256m -Xmx256m" \
 -p 10092:9200 \
 -p 10093:9300 \
 -v /docker/elasticsearch/data:/usr/share/elasticsearch/data \
 --name elasticsearch6.7 docker.io/elasticsearch:6.7.0
 ```
-
-```
-docker run -d \
--e ES_JAVA_OPTS="-Xms1g -Xmx1g" \
--p 9200:9200 \
--p 9300:9300 \
--v /docker/elasticsearch/data:/usr/share/elasticsearch/data \
---name elasticsearch6.7 docker.io/elasticsearch:6.7.0
-```
-
-
 
 # 集群版
 
@@ -65,7 +53,7 @@ docker run -d \
 
 首先我们也先下载一个Es6.0
 
-```
+```sh
 docker pull docker.io/elasticsearch:6.7.0
 ```
 
@@ -75,7 +63,7 @@ docker pull docker.io/elasticsearch:6.7.0
 
 我们先创建3个配置文件文件
 
-```
+```sh
 首先创建文件夹
 mkdir /root/elasticsearch-cluster-yml
 
@@ -85,11 +73,11 @@ touch /root/elasticsearch-cluster-yml/es-cluster{1,2,3}.yml
 
 ```
 
-然后在下面分别将下面三个配置文件中的内容写上去
+然后在下面分别将下面三个配置文件中的内容写上去，直接复制命令执行即可，一键写入文件
 
 es-cluster1.yml
 
-```
+```sh
 echo "cluster.name: es-cluster
 node.name: es-master1
 network.bind_host: 0.0.0.0
@@ -106,7 +94,7 @@ discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-clus
 
 es-cluster2.yml
 
-```
+```sh
 echo "cluster.name: es-cluster
 node.name: es-data1
 network.bind_host: 0.0.0.0
@@ -123,7 +111,7 @@ discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-clus
 
 es-cluster3.yml
 
-```
+```sh
 echo "cluster.name: es-cluster
 node.name: es-data2
 network.bind_host: 0.0.0.0
@@ -218,20 +206,20 @@ docker.io/elasticsearch:6.7.0
 
 首先先下载Kibana镜像（一定要对应的es版本）
 
-```
+```sh
 docker pull docker.io/kibana:6.7.0
 ```
 
 然后我们新建一个配置文件用来存储配置文件
 
-```
+```sh
 mkdir -p /docker/kibana/conf
 vim /docker/kibana/conf/kibana.yml
 ```
 
 然后添加以下内容，下面的hosts地址修改为es地址
 
-```
+```sh
 server.name: kibana
 server.host: "0"
 elasticsearch.hosts: [ "http://111.67.196.127:9200" ]
@@ -240,12 +228,12 @@ xpack.monitoring.ui.container.elasticsearch.enabled: true
 
 然后我们就能启动容器了
 
-```
+```sh
 docker run -d \
 --name kibana6.7 \
--p 5601:5601 \
+-p 15601:5601 \
 -v /docker/kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml \
--e ELASTICSEARCH_URL=http://111.67.196.127:9200 docker.io/kibana:6.7.0 
+-e ELASTICSEARCH_URL=http://192.168.1.16:10092 docker.io/kibana:6.7.0 
 
 docker run -d \
 --name kibana6.7 \
@@ -262,13 +250,13 @@ docker run -d \
 
 ​	首先下载镜像（由于没有6的版本head插件所以使用5）
 
-```
+```sh
 docker pull  docker.io/mobz/elasticsearch-head:5
 ```
 
 ​	然后启动容器
 
-```
+```sh
 docker run -d --name head-es -p 9100:9100 docker.io/mobz/elasticsearch-head:5
 ```
 
@@ -278,7 +266,7 @@ docker run -d --name head-es -p 9100:9100 docker.io/mobz/elasticsearch-head:5
 
 首先我们先来把Elasticsearch的配置文件修改一点点
 
-```
+```sh
 先从Es中将这个文件从这个容器中拷贝出来
 docker cp elasticsearch6.7:/usr/share/elasticsearch/config/elasticsearch.yml /root/elasticsearch.yml
 
@@ -296,11 +284,13 @@ docker cp /root/elasticsearch.yml elasticsearch6.7:/usr/share/elasticsearch/conf
 docker restart elasticsearch6.7
 ```
 
-# IK分词器安装
+# 插件安装
+
+### IK分词器安装
 
 直接进入容器内部进行编辑
 
-```
+```sh
 进入容器内部编辑
 docker exec -it  elasticsearch bash
 
@@ -312,12 +302,20 @@ elasticsearch-plugin install https://github.com/medcl/elasticsearch-analysis-ik/
 
 等待下载完成然后cd，然后查看是否有ik分词器
 
-```
+```sh
 cd plugins/
 ls
 ```
 
-如果有ik分词器则安装完成
+如果有ik分词器则安装完成，然后重新启动es然后访问
+
+### 拼音插件
+
+```
+elasticsearch-plugin install https://artifacts.elastic.co/downloads/elasticsearch-plugins/ingest-attachment/ingest-attachment-6.7.0.zip
+```
+
+
 
 # 启动失败看这里
 
@@ -331,8 +329,11 @@ ls
 
 解决方法
 
-```
+```sh
 vim /etc/sysctl.conf 
+
+
+
 在最后一行添加
 vm.max_map_count=655360
 然后退出执行

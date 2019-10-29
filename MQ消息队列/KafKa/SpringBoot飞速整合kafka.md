@@ -1,6 +1,6 @@
 # 引入依赖
 
-```
+```xml
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
@@ -9,7 +9,7 @@
 
 # 编写配置
 
-```
+```properties
 spring:
   kafka:
     bootstrap-servers: 39.108.158.33:9092
@@ -21,7 +21,7 @@ spring:
 
 使用kafkaTemplate向test2这个topic随便简单发送一条消息
 
-```
+```java
     @Autowired
     private KafkaTemplate<String,String> kafkaTemplate;
     
@@ -36,7 +36,7 @@ spring:
 
 消费test2这个topic，注意需要使用@Component注解将他标注成组件
 
-```
+```java
 @Component
 public class ConsumerTest {
 
@@ -48,7 +48,7 @@ public class ConsumerTest {
 ```
 # 配置文件详解
 
-```
+```properties
 # 指定kafka server的地址，集群配多个，中间，逗号隔开
 spring.kafka.bootstrap-servers=127.0.0.1:9092
 

@@ -1,6 +1,6 @@
 # **JVM**
 
-## JMM的内存模型
+### JMM的内存模型
 
 ​	JMM内存模型简单的将他分为5大块分别为
 
@@ -20,7 +20,7 @@
 
 ​			程序计数器是一块较小的内存空间，可以看作是当前线程所执行的字节码的行号指示器。分支、循环、跳转、异常处理、线程恢复等基础功能都需要依赖这个计数器来完成。 
 
-## JVM的启动方式
+### JVM的启动方式
 
 JVM有两种运行模式Server与Client。两种模式的区别在于
 
@@ -34,9 +34,9 @@ JVM有两种运行模式Server与Client。两种模式的区别在于
 
 ​		但是启动进入稳定期长期运行之后Server模式的程序运行速度比Client要快很多。这是因为Server模式启动的JVM采用的是重量级的虚拟机，对程序采用了更多的优化；而Client模式启动的JVM采用的是轻量级的虚拟机。所以Server启动慢，但稳定后速度比Client远远要快。 
 
-## JVM的内存结构
 
-## Java类加载的过程
+
+### Java类加载的过程
 
 加载：
 
@@ -110,15 +110,15 @@ JVM有两种运行模式Server与Client。两种模式的区别在于
 
 ​		 GC垃圾回收 
 
-## G1
+### G1
 
 ​	G1将新生代，老年代的物理空间划分取消了 ，取而代之的是，G1算法将堆划分为若干个区域（Region），它仍然属于分代收集器 。不过，这些区域的一部分包含新生代，新生代的垃圾收集依然采用暂停所有应用线程的方式，将存活对象拷贝到老年代或者Survivor空间。老年代也分成很多区域，G1收集器通过将对象从一个区域复制到另外一个区域，完成了清理工作。这就意味着，在正常的处理过程中，G1完成了堆的压缩（至少是部分堆的压缩），这样也就不会有cms内存碎片问题的存在了 
 
-## Jvm启动的默认大小
+### Jvm启动的默认大小
 
 ​	Jvm启动的默认最小内存为当前系统内存的1/64，最大为1/4。
 
-## JVM方法栈的工作过程，方法栈和本地方法栈有什么区别
+### JVM方法栈的工作过程，方法栈和本地方法栈有什么区别
 
 ​	方法栈：存储栈帧，支持Java方法的调用、执行和退出 
 
@@ -126,11 +126,11 @@ JVM有两种运行模式Server与Client。两种模式的区别在于
 
 ​	本地方法栈Native方法是基于系统还有底层的实现，它并不是调用的Java代码
 
-## JVM的栈中引用如何和堆中的对象产生关联
+### JVM的栈中引用如何和堆中的对象产生关联
 
 ​	栈中的栈帧用来存储内存地址，通过PC计数器进行引用，它类似于C中的指针，可以帮助栈引用到堆中的堆内存对象
 
-## 双亲委派模型的过程以及优势
+### 双亲委派模型的过程以及优势
 
 ​		
 
@@ -167,9 +167,7 @@ java.lang.ClassNotFoundException
 
 
 
-## 说一下逃逸分析技术
-
-#### 逃逸分析
+### 说一下逃逸分析技术
 
 ​		逃逸是指在某个方法之内创建的对象除了在方法体之内被引用之外，还在方法体之外被其它变量引用到；这样带来的后果是在该方法执行完毕之后，该方法中创建的对象将无法被GC回收。由于其被其它变量引用，由于无法回收，即称为逃逸。
 
@@ -177,11 +175,11 @@ java.lang.ClassNotFoundException
 
 ​		总结：虽然他被引用之后导致了无法回收，但是它是随着栈的结束而结束掉的，而一个栈对应一个线程，这个线程一结束就会被销毁了
 
-## GC的常见算法，CMS以及G1的垃圾回收过程，CMS的各个阶段哪两个是Stop the world的，CMS会不会产生碎片，G1的优势
+### GC的常见算法，CMS以及G1的垃圾回收过程，CMS的各个阶段哪两个是Stop the world的，CMS会不会产生碎片，G1的优势
 
 ​		
 
-## 标记清除和标记整理算法的理解以及优缺点
+### 标记清除和标记整理算法的理解以及优缺点
 
 
 
@@ -193,7 +191,7 @@ java.lang.ClassNotFoundException
 
 ​		
 
-## JVM如何判断一个对象是否该被GC，可以视为root的都有哪几种类型
+### JVM如何判断一个对象是否该被GC，可以视为root的都有哪几种类型
 
 ​	是根据他的引用强度进行垃圾回收的，引用分为四种
 
@@ -233,7 +231,7 @@ java.lang.ClassNotFoundException
 
 ​			本地方法栈(Native Stack)引用的对象 
 
-## 什么情况下类会被回收掉
+### 什么情况下类会被回收掉
 
 ​		堆中不存在该类的任何实例
 
@@ -241,7 +239,7 @@ java.lang.ClassNotFoundException
 
 ​		该类的java.lang.Class对象没有在任何地方被引用，也就是说无法通过反射再带访问该类的信息	
 
-## 如何判断一个对象需要被回收
+### 如何判断一个对象需要被回收
 
 ​		1、引用计数法
 
@@ -263,7 +261,7 @@ java.lang.ClassNotFoundException
 
 ​			本地方法栈中JNI引用的对象
 
-## 强软弱虚引用的区别以及GC对他们执行怎样的操作
+### 强软弱虚引用的区别以及GC对他们执行怎样的操作
 
 ​		强引用一般在GC的时候都不会去回收他，所以强引用过多JVM就算抛出OOM异常也不会去回收他
 
@@ -271,17 +269,15 @@ java.lang.ClassNotFoundException
 
 ​		对象是虚可达到对象 ，虚引用对象在那时或者在以后的某一时间，它会将该引用加入队列， 所以他其实只是会发出一个通知，但是他在某一个时间段还是会加入队列，所以在每次GC他都会被清理但是每次都又会回归队列
 
-## System.gc()可以进行垃圾回收么？
+### System.gc()可以进行垃圾回收么？
 
 ​		System.gc()是一个Java提供的函数，看似他是进行Gc操作的，实际上它并不能进行Gc，因为Java并没有提供手动gc的任何方法，那么他的作用是什么呢？
-
-
 
 ​		System.gc()他只是帮助我们提醒一下虚拟机需要回收垃圾了，但是他并不会一定去执行垃圾回收的操作，只是起到了一个提醒的作用
 
 下面这几个方法，上面两个都是提醒系统需要gc了，而下面两个方法则是进行gc这种方法本质上是不安全的。它可能导致在活动对象上调用终结器，而其他线程同时操作这些对象，从而导致不稳定的行为或死锁。并且这两个方法已经过时
 
-```
+```java
         System.gc();
         System.runFinalization();
 
@@ -294,9 +290,9 @@ java.lang.ClassNotFoundException
 
 # JVM参数调优
 
-## 常用的JVM调优参数
+### 常用的JVM调优参数
 
-```
+```shell
 -Xms 					//初始大小内存，默认为物理内存1/64,等价于-XX：initialHeapSize
 						示例：-Xms512m    			设置为512m
 -Xmx 					//分配最大内存，默认为物理内存1/64,等价于-XX：MaxHeapSize
@@ -310,15 +306,15 @@ java.lang.ClassNotFoundException
 
 非调优参数
 
-```
+```shell
 -XX:+PrintGCDetails 	  //打印GC回收的过程
 ```
 
 
 
-## 如何查看JVM运行时的运行参数
+### 如何查看JVM运行时的运行参数
 
-```
+```shell
 首先使用jps查询出来正在运行的java程序
 jps
 然后找到他的pid然后通过jinfo查看，注意会出现一个jps的pid请不要选择jps的ip，我们选中一个进行查看
@@ -332,17 +328,17 @@ jinfo -flag MaxHeapSize  533
 java -XX:+PrintCommandLineFlags -jar XXX.jar 
 ```
 
-![](img\jinfo flags.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1569570954838.png)
 
 这些就是jvm的运行时参数了
 
-## Jvm的参数类型有哪些呢？
+### Jvm的参数类型有哪些呢？
 
 ​	分为三类：
 
 ​		标配参数
 
-```
+```shell
 -help
 -server
 -client
@@ -353,7 +349,7 @@ java -XX:+PrintCommandLineFlags -jar XXX.jar
 
 ​		X参数
 
-```
+```shell
 X参数是非标准的参数
 -Xint：解释执行
 -Xcomp：第一次使用就编译成本地代码
@@ -362,7 +358,7 @@ X参数是非标准的参数
 
 ​		XX参数
 
-```
+```shell
 XX参数是一种非标准化的参数，相对不是很稳定，用户可以自己设置，jvm调优和debug都是用这些参数，主要分为以下两大类：
 1、Boolean类型
 	格式：-XX:[+-]<NAME>表示启用或者禁用name属性
@@ -380,7 +376,7 @@ XX参数是一种非标准化的参数，相对不是很稳定，用户可以自
 
 我们可以通过命令查询JVM的所有参数
 
-```
+```shell
 java -XX:+PrintFlagsInitial
 java -XX:+PrintFlagsFinal -version
 
@@ -388,7 +384,7 @@ java -XX:+PrintFlagsFinal -version
 java -XX:+PrintCommandLineFlags -version
 ```
 
-## **jvisualvm.exe**的使用
+### **jvisualvm.exe**的使用
 
 ​		产生OOM异常时生成Dump文件		
 
@@ -430,7 +426,7 @@ java -XX:+PrintCommandLineFlags -version
 
 ​				栈空间太小-----StackOverFlow栈溢出（一般递归时产生大量局部变量导致）
 
-## JVM自带工具类
+### JVM自带工具类
 
 jconsole的使用 		
 
@@ -454,49 +450,49 @@ jstack用于打印指定进程的调用堆栈信息
 
 # 测试
 
-## 模拟堆内存溢出
+### 模拟堆内存溢出
 
 我们编写一个大对象，为50M，然后我们使用IDEA设置JVM的启动参数
 
 
 
-![](img\test-oom1.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1569570906702.png)
 
 
 
 启动参数如下
 
-```
+```shell
  -Xmx10m -Xms10m -XX:+PrintCommandLineFlags -XX:+PrintGCDateStamps -XX:+PrintGCDetails 
 ```
 
-![](img\vm-args.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1569570889103.png)
 
 我们只有10m的堆内存，但是我们new了一个50m的大对象所以一定会oom Java heap space
 
 如下图所示
 
-![](img\oom-vm-2.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1569570873505.png)
 
 我们可以看到我们已经oom了，并且我们通过参数可以看到打印了非常多的信息，下面我们来分析打印的这些数据，
 
 我们可以看到打印了时间已经GC类型，GC代表新生代的垃圾回收，Full GC表示老年代的回收下面是具体的参数的解释，下面如图就是参数的信息
 
-![](img\gc-info.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1569570861296.png)
 
 
 
-## 模拟栈溢出
+### 模拟栈溢出
 
 还是使用jvm参数如下，修改栈为108k
 
-```
+```shell
 -Xmx10m -Xms10m -Xss108k -XX:+PrintCommandLineFlags -XX:+PrintGCDateStamps -XX:+PrintGCDetails 
 ```
 
 然后使用如下代码运行
 
-```
+```java
     static Integer i = 1;
     public static void main(String[] args) {
         stackOOM();

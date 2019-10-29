@@ -27,53 +27,6 @@
 # 分支管理
 
 
-		git branch -a 查看所有的分支				--显示当前版本库和本地的所有分支
-	
-		git branch -r 查看本地所有分支				--显示当前的本地分支
-	
-	git commit -am "注释" 					--提交并且加注释 
-	git remote add origin git@192.168.1.119:ndshow
-	git push origin master 将文件给推到服务器上 
-	git remote show origin 显示远程库origin里的资源 
-	git push origin master:develop
-	git push origin master:hb-dev 将本地库与服务器上的库进行关联 
-	git checkout --track origin/dev 切换到远程dev分支
-	git branch -D master rm develop 删除本地库develop
-	git checkout -b 分支名称				-- 建立一个新的本地分支（例如建立一个分支kang）		
-		git checkout -b kang
-	git merge origin/dev 将分支dev与当前分支进行合并
-	git remote show 查看远程库
-
-# 远程仓库相关命令
-
-	检出（也称复制）仓库：git clone 跟github等远程仓库地址（如https://github.com/YellowKang/HelloWord.git）
-		例如：git clone https://github.com/YellowKang/HelloWord.git(注意是生成在当前目录下，清先选好生成路径如：F:/某某/某某/下面)
-	查看远程仓库：git remote -v
-			查看到提交到的远程仓库地址地址：如
-						origin  https://github.com/YellowKang/MyWork (fetch)
-						origin  https://github.com/YellowKang/MyWork (push)
-	添加远程仓库：git remote add [name] [url]
-	删除远程仓库：git remote rm [name]
-	修改远程仓库：git remote set-url --push [name] [newUrl]
-	拉取（也称复制远程仓库的资源）远程仓库：git pull [物理地址如：https://github.com/YellowKang/HelloWord.git 或者设置别名] [当前使用的支线名字如master]
-	
-		如下：git pull https://github.com/YellowKang/HelloWord.git master
-	推送远程仓库：git push [物理地址如：https://github.com/YellowKang/HelloWord.git 或者设置别名] [当前使用的支线名字如master]
-	
-		如下：git push https://github.com/YellowKang/HelloWord.git master
-	
-		注：如果推送分支到远程仓库
-	
-			例如：
-				提交本地的kang分支，到远程的master分支，在https://github.com/YellowKang/MyWork.git上
-	
-				git    push 	https://github.com/YellowKang/MyWork.git  kang:master
-
-
-
-
-2、分支(branch)操作相关命令
-
 	查看本地分支：git branch				--显示当前库的所有分支
 								例如：
 									$ git branch
@@ -107,6 +60,33 @@
 									原分支为：/f/git/hello (kang)
 									git branch -m kangs
 									修改后为：/f/git/hello (kangs)			
+
+# 远程仓库相关命令
+
+	检出（也称复制）仓库：git clone 跟github等远程仓库地址（如https://github.com/YellowKang/HelloWord.git）
+		例如：git clone https://github.com/YellowKang/HelloWord.git(注意是生成在当前目录下，清先选好生成路径如：F:/某某/某某/下面)
+	查看远程仓库：git remote -v
+			查看到提交到的远程仓库地址地址：如
+						origin  https://github.com/YellowKang/MyWork (fetch)
+						origin  https://github.com/YellowKang/MyWork (push)
+	添加远程仓库：git remote add [name] [url]
+	删除远程仓库：git remote rm [name]
+	修改远程仓库：git remote set-url --push [name] [newUrl]
+	拉取（也称复制远程仓库的资源）远程仓库：git pull [物理地址如：https://github.com/YellowKang/HelloWord.git 或者设置别名] [当前使用的支线名字如master]
+	
+		如下：git pull https://github.com/YellowKang/HelloWord.git master
+	推送远程仓库：git push [物理地址如：https://github.com/YellowKang/HelloWord.git 或者设置别名] [当前使用的支线名字如master]
+	
+		如下：git push https://github.com/YellowKang/HelloWord.git master
+	
+		注：如果推送分支到远程仓库
+	
+			例如：
+				提交本地的kang分支，到远程的master分支，在https://github.com/YellowKang/MyWork.git上
+	
+				git    push 	https://github.com/YellowKang/MyWork.git  kang:master
+
+
 
 
 3、版本(tag)操作相关命令

@@ -143,14 +143,14 @@ getPort()
 
 首先我们编写配置文件
 
-```
+```properties
 tcp:
   port: 17781
 ```
 
 properties版本
 
-```
+```properties
 tcp.port=17781
 ```
 
@@ -247,7 +247,7 @@ public class TcpServerConfig {
 
 在SpringBoot中新建测试类，运行即可
 
-```
+```java
 public class TestTcpThread {
     public static void main(String[] args) {
         for (int k = 0; k < 10; k++) {
@@ -537,7 +537,7 @@ public synchronized void setBroadcast(boolean on) throws SocketException
 
 编写监听器运行UDP服务端
 
-```
+```java
 @WebListener
 @Slf4j
 public class UDPServer implements ServletContextListener {
@@ -598,7 +598,7 @@ public class UDPServer implements ServletContextListener {
 
 使用测试类发送udp数据报
 
-```
+```java
     @Test
     public void udp() {
         try {
@@ -620,5 +620,3 @@ public class UDPServer implements ServletContextListener {
         }
     }
 ```
-
-简书著作权归作者所有，任何形式的转载都请联系作者获得授权并注明出处。

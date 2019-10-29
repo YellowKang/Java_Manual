@@ -44,8 +44,6 @@ root：只在admin数据库中可用。超级账号，超级权限
 
 # 添加
 
-## 添加数据
-
 ### 添加单条数据
 
 给testas集合添加一条数据
@@ -74,7 +72,7 @@ db.testas.find()
 db.testas.insertMany([{"name":"test1"},{"name":"test2"}])
 ```
 
-## 添加字段
+### 添加字段
 
 给testas这个表，nice字段是123的数据，添加一个字段haode，值为PDF，multi:true表示修改所有nice为123的，如果不设置则默认修改一行
 
@@ -102,7 +100,7 @@ db.getCollection('accident').find({"hangye":{"$exists":false}})
 
 # 查询
 
-## 简单查询
+### 简单查询
 
 查询用户姓名等于
 
@@ -112,7 +110,7 @@ db.getCollection('accident').find({"hangye":{"$exists":false}})
 db.testas.find({ "nice":{$exists:true}})
 ```
 
-## 字段查询
+### 字段值查询
 
 查询这个字段的所有的值类型，比如一共有2000条数据，他们的type有8个类型，admin，user，，，，等等我们把这些数据全部查询出来
 
@@ -124,7 +122,7 @@ db.getCollection('accident').distinct("type")
 
 # 删除
 
-## 删除单条数据
+### 删除单条数据
 
 删除name为test2的数据只删除一条，第一个括号为条件，第二个为设置
 
@@ -136,7 +134,7 @@ db.testas.deleteOne(
 )
 ```
 
-## 删除多行数据
+### 删除多行数据
 
 ```
 db.testas.deleteMany(
@@ -146,7 +144,7 @@ db.testas.deleteMany(
 )
 ```
 
-## 删除字段
+### 删除字段
 
 也就是unset，然后不给条件为从上往下删除表中的haode字段，multi为全部删除
 
@@ -158,7 +156,7 @@ db.testas.update({},{$unset:{"haode":""}},{multi:true})
 
 # 修改
 
-修改字段名
+### 修改字段名
 
 修改testas表中的nice字段，为names
 
@@ -166,7 +164,7 @@ db.testas.update({},{$unset:{"haode":""}},{multi:true})
 db.testas.update({}, {$rename:{"nice":"names"}}, false, true);
 ```
 
-修改字段值
+### 修改字段值
 
 修改testas表中的phonename为小米的，修改phonename字段为华为
 
@@ -210,7 +208,7 @@ db.acc.update({"domestic":{"$exists":false}},{$set:{"domestic":true}},{multi:tru
 
 
 
-## group
+### group
 
 这里的group 和mysql的group by一样，我们来看下使用吧
 
@@ -246,7 +244,7 @@ db.accident.aggregate([
 
 我们可以看到他将所有的类（atype）进行了统计，将所有类型查询出来并且查询数量
 
-## match
+### match
 
 match和mysql中的where条件相类似，下面我们来看下使用吧,我们查询汽车大类，并且按照他的二级分类进行聚合然后统计，并且根据汽车数量数排序
 
@@ -267,7 +265,7 @@ db.accident.aggregate([
 ])
 ```
 
-## project
+### project
 
 project就是控制我们所查询的数据是否进行展示，例如我不想展示id了，这样既可取消展示id
 
@@ -293,7 +291,7 @@ db.accident.aggregate([
 ])
 ```
 
-## sort
+### sort
 
 sort是排序，我们可以根据字段进行排序，1为升序，-1为降序，我们再更具count进行排序
 
@@ -319,7 +317,7 @@ db.accident.aggregate([
 ])
 ```
 
-## limit
+### limit
 
 我们只想统计前几个部门的数据那么我们直接查询进行limit，我们排序后设置limit大小即可，还有配合skip就能坐到分页
 
@@ -346,7 +344,7 @@ db.accident.aggregate([
 ])
 ```
 
-## push
+### push
 
 比如我们统计了这个部门的员工，但是我们需要把他的员工Id给拿出来。并且跟随数据一起返回。例如这个部门有30个人，我需要这个部门的30个人的员工id
 
@@ -361,7 +359,7 @@ db.accident.aggregate([
 ])
 ```
 
-## first以及last
+### first以及last
 
 ```
 db.accident.aggregate([
@@ -376,7 +374,7 @@ db.accident.aggregate([
 ])
 ```
 
-## sum以及其他
+### sum以及其他
 
 下面我们来进行统计了，先把上面的去掉避免太长
 
@@ -408,7 +406,7 @@ db.accident.aggregate([
 ])
 ```
 
-## 查询出来所有的id
+### 查询出来所有的id
 
 由于数据太大，这个id我们用汽车类，也就是聚合所有不同的价格将它做成列表
 
@@ -431,7 +429,7 @@ Mongo相对应的复杂查询统计使用聚合
 
 查询语句如下，我们根据accident这个集合然后进行聚合，聚合的查询条件为，atype为煤矿的，然后聚合的字段是atype2，然后我们定义一个count用来记录他的数量，然后统计总价，根据每个atype2统计汽车数，然后将所有的省全部都拼到一起，并且排序汽车数，1为升序，-1为降序
 
-```
+```sql
 db.accident.aggregate([
 	{$match: {"atype":"汽车"}},
     {$group: { 
@@ -441,6 +439,30 @@ db.accident.aggregate([
     	province:{$addToSet:"$province"}} 
     },
     {$sort:{count:1}}
+])
+```
+
+### 按照时间聚合统计
+
+```sql
+db.minehn_fault_repair.aggregate([
+    {
+        $project: {
+             time: { "$dateToString": { format: "%Y-%m-%d", date: "$planDate" } },
+        }
+    },
+    { $group: { _id: "$time", count: { $sum: 1 } } },
+    { $sort: { "_id": -1 } }
+])
+```
+
+### 聚合时间以及类型多重统计
+
+```
+db.supervise_process.aggregate([
+    {$project:{hosr:"$hosr",type:"$type"}},
+    {$group:{_id:{hosr:"$hosr",type:"$type"},count:{$sum:1}}},
+    {$sort:{"_id.hosr":-1}}
 ])
 ```
 

@@ -1,6 +1,6 @@
 # 下载镜像
 
-```
+```sh
 docker pull apache/zeppelin:0.8.0
 ```
 
@@ -8,7 +8,7 @@ docker pull apache/zeppelin:0.8.0
 
 根据实际使用情况进行参数配置
 
-```
+```sh
 docker run -d \
 -p 18089:8080 \
 --name zeppelin \
@@ -26,14 +26,14 @@ apache/zeppelin:0.8.0
 
 首先进入容器内部，然后进入conf文件夹下,将zeppelin-site.xml.template复制修改名字
 
-```
+```sh
 cd conf
 cp zeppelin-site.xml.template zeppelin-site.xml
 ```
 
 然后修改，现在容器内部安装vim 编辑器
 
-```
+```xml
 apt-get update
 apt-get install vim
 
@@ -57,13 +57,13 @@ vim zeppelin-site.xml
 
 然后复制shiro的初始化文件
 
-```
+```sh
 cp shiro.ini.template shiro.ini
 ```
 
 然后去里面的user上添加东西
 
-```
+```sh
 例如添加bigkang用户密码为bigkang（注意放置位置）
 bigkang=bigkang
 ```

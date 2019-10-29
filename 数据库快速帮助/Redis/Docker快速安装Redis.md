@@ -1,10 +1,10 @@
-# Redis5.0版本
+# Redis5.0版本+Redis-Cli
 
-# 单机版
+### 单机版
 
-## 快速启动
+#### 快速启动
 
-```
+```sh
 docker run -d --name redis -p 6379:6379 redis
 
 带密码加挂载数据
@@ -13,19 +13,24 @@ docker run -d \
 -p 6379:6379 \
 -v /docker/redis/data:/data \
 redis --requirepass 'bigkang'
+
+docker run -d \
+--name redis \
+-p 16379:6379 \
+redis --requirepass 'bigkang'
 ```
 
-## 生产启动
+#### 生产启动
 
 首先创建挂载文件
 
-```
+```sh
 mkdir -p /docker/redis/{data,conf}
 ```
 
 首先编辑配置文件，注意我此处设置了密码，请修改为自己的密码
 
-```
+```sh
 vim /docker/redis/conf/redis.conf
 
 退出后授予权限，因为配置文件执行需要权限
@@ -122,7 +127,7 @@ appendfsync everysec
 
 redis镜像 使用redis-server启动，并且指定配置文件，然后持久化
 
-```
+```sh
 docker run -d \
 --name redis \
 -p 16371:6379 \
@@ -131,19 +136,51 @@ docker run -d \
 redis redis-server /etc/redis/redis.conf --appendonly yes
 ```
 
+### 集群版
 
+我们分别在两台主机上个搭建3个redis节点
 
-# 集群版
+下面以
 
-首先我们先把所有的挂载目录给创建出来
+192.168.1.1
 
+192.168.1.2
+
+端口如下
+
+|  服务器ip   | redis端口 | 集群通信端口 |
+| :---------: | :-------: | :----------: |
+| 192.168.1.1 |   16371   |    26371     |
+| 192.168.1.1 |   16372   |    26372     |
+| 192.168.1.1 |   16373   |    26373     |
+| 192.168.1.2 |   16371   |    26371     |
+| 192.168.1.2 |   16372   |    26372     |
+| 192.168.1.2 |   16373   |    26373     |
+
+作为例子
+
+我们先去每台机器放3个节点的配置文件以及容器
+
+```sh
+第一台
+mkdir -p /docker/redis-cluster/redis{1,2,3}/{data,conf}
+第二台
+mkdir -p /docker/redis-cluster/redis{4,5,6}/{data,conf}
 ```
-mkdir -p /docker/redis-cluster/redis{1,2,3,4,5,6}/{data,conf}
+
+ 然后写入一个配置文件并且复制到所有的conf下
+
+```sh
+vim /root/redis.conf
 ```
 
-然后将下面的配置文件放入每个conf目录下
+记住修改下面的端口号为
 
-```
+然后将下面的配置文件放入每个conf目录下,修改密码为自己密码并且修改端口号分别为16371，16372
+
+如上示例我们只修改port，如果需要设置密码请参考最上方集群，注意此处修改密码为自己的密码否则为bigkang
+
+```sh
 # Redis默认不是以守护进程的方式运行，可以通过该配置项修改，使用yes启用守护进程
 daemonize no
 
@@ -226,123 +263,123 @@ appendfsync everysec
 cluster-enabled yes
 ```
 
-然后我们启动6个redis
-
+```sh
+添加权限
+chmod 777 /root/redis.conf
+复制到文件中
+第一台
+cp /root/redis.conf /docker/redis-cluster/redis1/conf
+cp /root/redis.conf /docker/redis-cluster/redis2/conf
+cp /root/redis.conf /docker/redis-cluster/redis3/conf
+第二台
+cp /root/redis.conf /docker/redis-cluster/redis4/conf
+cp /root/redis.conf /docker/redis-cluster/redis5/conf
+cp /root/redis.conf /docker/redis-cluster/redis6/conf
 ```
+
+然后启动容器
+
+这里为什么使用host呢，因为由于docker的原因，他会给我们虚拟出来一个ip，这个ip不同于宿主机ip，这个时候在集群环境下就会出现问题，所以我们需要将网络映射到本地进行通信
+
+然后我们启动6个redis，注意，redis通信端口为当前端口号+1万，例如16371，通信端口号为26371，如果不指定网络为host，则开放两个端口，推荐使用host，并且注意端口是否冲突
+
+第一台
+
+```sh
 docker run -d \
 --name redis1 \
--p 16371:6379 \
--p 26371:16379 \
+--net=host \
 -v /docker/redis-cluster/redis1/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis1/data:/data \
 redis redis-server /etc/redis/redis.conf --appendonly yes
---------------------------------------------------------------------------
+
 docker run -d \
 --name redis2 \
 --net=host \
 -v /docker/redis-cluster/redis2/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis2/data:/data \
 redis redis-server /etc/redis/redis.conf --appendonly yes
---------------------------------------------------------------------------
+
 docker run -d \
 --name redis3 \
 --net=host \
 -v /docker/redis-cluster/redis3/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis3/data:/data \
 redis redis-server /etc/redis/redis.conf --appendonly yes
---------------------------------------------------------------------------
+```
+
+第二台
+
+```sh
 docker run -d \
 --name redis4 \
 --net=host \
 -v /docker/redis-cluster/redis4/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis4/data:/data \
 redis redis-server /etc/redis/redis.conf --appendonly yes
---------------------------------------------------------------------------
+
 docker run -d \
 --name redis5 \
 --net=host \
 -v /docker/redis-cluster/redis5/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis5/data:/data \
 redis redis-server /etc/redis/redis.conf --appendonly yes
---------------------------------------------------------------------------
+
 docker run -d \
 --name redis6 \
 --net=host \
 -v /docker/redis-cluster/redis6/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis6/data:/data \
 redis redis-server /etc/redis/redis.conf --appendonly yes
+```
+
+安装搭建已经完成了下面我们开始集群吧
+
+```sh
+随便进入一个容器
+docker exec -it redis1 bash
+进入bin目录
+cd /bin
+使用redis-cli进行集群
+redis-cli --cluster create 192.168.1.1:16371 192.168.1.1:16372 192.168.1.1:16373 192.168.1.2:16371 192.168.1.2:16372 192.168.1.2:16373 --cluster-replicas 1 -a bigkang
+
+-a   	密码
 
 
-使用redis-cli一键搭建集群
-/root/test/redis-5.0.0/src/redis-cli --cluster create 39.108.158.33:16371 39.108.158.33:16372 39.108.158.33:16373 140.143.0.227:16371 140.143.0.227:16372 140.143.0.227:16373 --cluster-replicas 1 -a bigkang
+```
 
--a    密码
+搭建完成后测试集群下载redis-cli快速（可省略）
+
+```sh
+wget http://download.redis.io/releases/redis-5.0.0.tar.gz
+
 
 访问时使用redis集群访问
-/root/redis-5.0.0/src/redis-cli -h 127.0.0.1 -p 16374  -c
-
+/root/redis-5.0.0/src/redis-cli -h 192.168.1.1 -p 16374 -p bigkang  -c
 ```
 
+如果出现一直join那么需要配置公网
+
+#### 公网搭建注意事项
+
+如果公网搭建一直处于连接状态，那么需要去公网哪台redis将其他节点的公网ip配置完成，如果使用集群命令后一直在进行集群操作超过30秒，那么则进入其他服务器redis中输入以下命令
+
+```sh
+cluster meet 192.168.1.1 16371
+cluster meet 192.168.1.1 16372
+cluster meet 192.168.1.1 16373
+cluster meet 192.168.1.2 16371
+cluster meet 192.168.1.2 16372
+cluster meet 192.168.1.2 16373
 ```
-wget http://download.redis.io/releases/redis-5.0.0.tar.gz
-```
-
-### 公网搭建注意事项
-
-如果公网搭建一直处于连接状态，那么需要去公网哪台redis将其他节点的公网ip配置完成
-
-```
-cluster meet 39.108.158.33 16371
-cluster meet 39.108.158.33 16372
-cluster meet 39.108.158.33 16373
-cluster meet 140.143.0.227 16371
-cluster meet 140.143.0.227 16372
-cluster meet 140.143.0.227 16373
-```
-
-# 环境清理
-
-## 单机版
-
-停止容器以及删除容器
-
-```
-docker stop redis
-docker rm redis
-```
-
-
-
-
-
-## 集群版
-
-清理所有集群信息
-
-```
-rm -rf /docker/redis-cluster/redis{1,2,3,4,5,6}/data
-
-然后重启所有redis
-docker restart redis{1,2,3,4,5,6}
-```
-
-
-
-
-
-```
-docker run -d --name redis-6380 --net host -v /tmp/redis.conf:/usr/local/redis/redis.conf  hakimdstx/nodes-redis:4.0.1
-```
-
-
 
 
 
 # Redis配置文件详解
 
-下面是redis的配置文件介绍
+下面是redis的配置文件介绍，基础配置文件
 
-```
+```sh
 # Redis默认不是以守护进程的方式运行，可以通过该配置项修改，使用yes启用守护进程
 daemonize no
 
@@ -421,11 +458,9 @@ appendfilename appendonly.aof
 appendfsync everysec
 ```
 
+拓展优化配置文件
 
-
- 
-
-```
+```sh
 -----------------------------------------------------------------------------
 
 # daemonize no  默认情况下， redis 不是在后台运行的，如果需要在后台运行，把该项的值更改为 yes
@@ -737,242 +772,31 @@ hz 10
 aof-rewrite-incremental-fsync yes
 ```
 
+# 环境清理
 
+### 单机版
 
- 
-
-# 集群版
-
-我们分别在两台主机上个搭建3个redis节点
-
-下面以
-
-192.168.1.1
-
-192.168.1.2
-
-
-
-端口如下
-
-|  服务器ip   | redis端口 | 集群通信端口 |
-| :---------: | :-------: | :----------: |
-| 192.168.1.1 |   16371   |    26371     |
-| 192.168.1.1 |   16372   |    26372     |
-| 192.168.1.1 |   16373   |    26373     |
-| 192.168.1.2 |   16371   |    26371     |
-| 192.168.1.2 |   16372   |    26372     |
-| 192.168.1.2 |   16373   |    26373     |
-
-作为例子
-
-我们先去每台机器放3个节点的配置文件以及容器
+停止容器以及删除容器
 
 ```
-第一台
-mkdir -p /docker/redis-cluster/redis{1,2,3}/{data,conf}
-第二台
-mkdir -p /docker/redis-cluster/redis{4,5,6}/{data,conf}
+docker stop redis
+docker rm redis
 ```
 
- 然后写入一个配置文件并且复制到所有的conf下
+### 集群版
 
-```
-vim /root/redis.conf
-```
+清理所有集群信息，（此操作清空集群信息可重新搭建集群），只清理集群信息不清理redis
 
-记住修改下面的端口号为
+```sh
+rm -rf /docker/redis-cluster/redis{1,2,3,4,5,6}/data
 
-如上示例我们只修改port
-
-```
-# Redis默认不是以守护进程的方式运行，可以通过该配置项修改，使用yes启用守护进程
-daemonize no
-
-# 当Redis以守护进程方式运行时，Redis默认会把pid写入/var/run/redis.pid文件，可以通过pidfile指定
-#pidfile /var/run/redis.pid
-
-# 指定Redis监听端口，默认端口为6379，作者在自己的一篇博文中解释了为什么选用6379作为默认端口，
-#因为6379在手机按键上MERZ对应的号码，而MERZ取自意大利歌女Alessia Merz的名字
-
-port 16371
-
-# 绑定的主机地址
-#bind 0.0.0.0
-
-# 当 客户端闲置多长时间后关闭连接，如果指定为0，表示关闭该功能
-timeout 3000
-
-# 指定日志记录级别，Redis总共支持四个级别：debug、verbose、notice、warning，
-#默认为verbose
-loglevel verbose
-
-# 日志记录方式，默认为标准输出，如果配置Redis为守护进程方式运行，而这里又配置为日志
-#记录方式为标准输出，则日志将会发送给/dev/null
-logfile stdout
-
-# 设置数据库的数量，默认数据库为0，可以使用SELECT <dbid>命令在连接上指定数据库id
-databases 16
-
-# 指定在多长时间内，有多少次更新操作，就将数据同步到数据文件，可以多个条件配合
-# save <seconds> <changes>
-# Redis默认配置文件中提供了三个条件：
-save 900 1
-save 300 10
-save 60 10000
-# 分别表示900秒（15分钟）内有1个更改，300秒（5分钟）内有10个更改以及60秒内有10000个更改。
-
-# 指定存储至本地数据库时是否压缩数据，默认为yes，Redis采用LZF压缩，如果为了节省CPU时间，
-# 可以关闭该选项，但会导致数据库文件变的巨大
-rdbcompression yes
-
-# 指定本地数据库文件名，默认值为dump.rdb
-dbfilename dump.rdb
-
-# 指定本地数据库存放目录
-dir /data
-
-# 设置当本机为slav服务时，设置master服务的IP地址及端口，在Redis启动时，它会自动从master进行数据同步
-# slaveof <masterip> <masterport>
-
-# 当master服务设置了密码保护时，slav服务连接master的密码
-# masterauth bigkang
-
-# 设置Redis连接密码，如果配置了连接密码，客户端在连接Redis时需要通过AUTH <password>命令提供密码，默认关闭
-# requirepass bigkang
-
-# 设置同一时间最大客户端连接数，默认无限制，Redis可以同时打开的客户端连接数为Redis进程可以打开的最大文件描述符数，
-# 如果设置 maxclients 0，表示不作限制。当客户端连接数到达限制时，Redis会关闭新的连接并向客户端
-# 返回max number of clients reached错误信息
-maxclients 128
-
-# 指定Redis最大内存限制，Redis在启动时会把数据加载到内存中，达到最大内存后，Redis会先尝试清除已到期或即将到期的Key，
-# 当此方法处理 后，仍然到达最大内存设置，将无法再进行写入操作，但仍然可以进行读取操作。Redis新的vm机制，会把Key存放内存，
-# Value会存放在swap区
-# maxmemory <bytes>
-
-# 指定是否在每次更新操作后进行日志记录，Redis在默认情况下是异步的把数据写入磁盘，如果不开启，可能会在断电时导致一段时间内的数据丢失。
-# 因为 redis本身同步数据文件是按上面save条件来同步的，所以有的数据会在一段时间内只存在于内存中。默认为no
-appendonly no
-
-# 指定更新日志文件名，默认为appendonly.aof
-appendfilename appendonly.aof
-
-# 指定更新日志条件，共有3个可选值： 
-# no：表示等操作系统进行数据缓存同步到磁盘（快） 
-# always：表示每次更新操作后手动调用fsync()将数据写到磁盘（慢，安全） 
-# everysec：表示每秒同步一次（折衷，默认值）
-appendfsync everysec
-
-# 开启集群
-cluster-enabled yes
+然后重启所有redis
+docker restart redis{1,2,3,4,5,6}
 ```
 
-```
-添加权限
-chmod 777 /root/redis.conf
-复制到文件中
-第一台
-cp /root/redis.conf /docker/redis-cluster/redis1/conf
-cp /root/redis.conf /docker/redis-cluster/redis2/conf
-cp /root/redis.conf /docker/redis-cluster/redis3/conf
-第二台
-cp /root/redis.conf /docker/redis-cluster/redis4/conf
-cp /root/redis.conf /docker/redis-cluster/redis5/conf
-cp /root/redis.conf /docker/redis-cluster/redis6/conf
-```
+清除所有redis集群信息以及数据
 
-然后启动容器
-
-这里为什么使用host呢，因为由于docker的原因，他会给我们虚拟出来一个ip，这个ip不同于宿主机ip，这个时候在集群环境下就会出现问题，所以我们需要将网络映射到本地进行通信
-
-第一台
-
-```
-docker run -d \
---name redis1 \
---net=host \
--v /docker/redis-cluster/redis1/conf/redis.conf:/etc/redis/redis.conf \
--v /docker/redis-cluster/redis1/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
-
-docker run -d \
---name redis2 \
---net=host \
--v /docker/redis-cluster/redis2/conf/redis.conf:/etc/redis/redis.conf \
--v /docker/redis-cluster/redis2/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
-
-docker run -d \
---name redis3 \
---net=host \
--v /docker/redis-cluster/redis3/conf/redis.conf:/etc/redis/redis.conf \
--v /docker/redis-cluster/redis3/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
-```
-
-第二台
-
-```
-docker run -d \
---name redis4 \
---net=host \
--v /docker/redis-cluster/redis4/conf/redis.conf:/etc/redis/redis.conf \
--v /docker/redis-cluster/redis4/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
-
-docker run -d \
---name redis5 \
---net=host \
--v /docker/redis-cluster/redis5/conf/redis.conf:/etc/redis/redis.conf \
--v /docker/redis-cluster/redis5/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
-
-docker run -d \
---name redis6 \
---net=host \
--v /docker/redis-cluster/redis6/conf/redis.conf:/etc/redis/redis.conf \
--v /docker/redis-cluster/redis6/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
-```
-
-安装搭建已经完成了下面我们开始集群吧
-
-```
-随便进入一个容器
-docker exec -it redis1 bash
-进入bin目录
-cd /bin
-使用redis-cli进行集群
-redis-cli --cluster create 192.168.1.1:16371 192.168.1.1:16372 192.168.1.1:16373 192.168.1.2:16371 192.168.1.2:16372 192.168.1.1:16373 --cluster-replicas 1
-
-
-
-redis-cli --cluster create 39.108.158.33:16371 39.108.158.33:16372 39.108.158.33:16373 140.143.0.227:16371 140.143.0.227:16372 140.143.0.227:16373 --cluster-replicas 1
-```
-
-如果出现一直join那么需要配置公网
-
-### 公网搭建注意事项
-
-如果公网搭建一直处于连接状态，那么需要去公网哪台redis将其他节点的公网ip配置完成
-
-```
-cluster meet 39.108.158.33 16371
-cluster meet 39.108.158.33 16372
-cluster meet 39.108.158.33 16373
-cluster meet 140.143.0.227 16371
-cluster meet 140.143.0.227 16372
-cluster meet 140.143.0.227 16373
-```
-
-
-
-
-
- 
-
-```
+```sh
 rm -rf /docker/redis-cluster/redis{4,5,6}/data
 docker restart redis{4,5,6}
 
@@ -990,7 +814,7 @@ docker rm redis{4,5,6}
 
 # Java整合后问题
 
-## 第一次启动寻找内网地址
+### 第一次启动寻找内网地址
 
 ​		公网连接查询内网ip，连接超时
 

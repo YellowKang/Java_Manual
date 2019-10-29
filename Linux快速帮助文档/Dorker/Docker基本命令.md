@@ -63,7 +63,11 @@ docker kill -s 容器名或id
 docker pause 容器名或id
 ```
 
-暂停一个容器使用unpause接触
+## 解除暂停状态(unpause)
+
+```
+docker unpause 容器名或id
+```
 
 ## 重启(restart)
 
@@ -78,8 +82,6 @@ docker pause 容器名或id
 ```
 docker pause 容器名或id
 ```
-
-删除容器
 
 ## 运行(run)
 
@@ -121,14 +123,6 @@ docker stop 容器名或id
 ```
 
 将停止的容器启动
-
-## 取消暂停(unpause)
-
-```
-docker unpause 容器名或id
-```
-
-将暂停的容器取消暂停状态
 
 # 镜像仓库
 
@@ -229,16 +223,10 @@ docker images
 ## import(导入镜像)
 
 ```
- docker import  my_ubuntu_v3.tar runoob/ubuntu:v4 
+docker import my_ubuntu_v3.tar runoob/ubuntu:v4
 ```
 
 将my_ubuntu_v3.tar文件导入docker生成镜像
-
-## load(导出镜像)
-
-```
-
-```
 
 ## rmi(删除镜像)
 
@@ -250,8 +238,14 @@ docker rmi 镜像名或id
 
 ```
 docker save -o my_ubuntu_v3.tar runoob/ubuntu:v3
-
 -o :输出到的文件。
+```
+
+## load(导入镜像)
+
+```
+docker load -i my_ubuntu_v3.tar
+-i :导出的压缩文件的tar包路径
 ```
 
 ## tag(标记，类似复制)
@@ -356,7 +350,7 @@ docker diff nginx
 就能查到nginx的文件结构更改哪些
 ```
 
-## update
+## update(运维核心，CPU，内存等)
 
 ```
 docker container update [OPTIONS] CONTAINER [CONTAINER...]
@@ -403,7 +397,6 @@ CPU份额(相对权重)
 
 ```
 docker run -d -P --name web -v /webapp training/webapp python app.py
-
 挂载文件
 ```
 

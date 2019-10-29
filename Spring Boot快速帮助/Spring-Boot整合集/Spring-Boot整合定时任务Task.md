@@ -30,11 +30,13 @@ public class TestTask {
 还能使用另一种表达式来进行创建
 
 ```
-    //定时任务，每隔5秒钟进行一次定时任务如果直接写1 * * * * ？表示一分钟
-    @Scheduled(cron = "*/5 * * * * ?")
-    public void nice(){
-        System.out.println("1");
-    }
+      //定时任务，每隔5秒钟进行一次定时任务如果直接写1 * * * * ？表示一分钟
+      @Scheduled(cron = "*/5 * * * * ?")
+      //开启异步
+    	@Async
+      public void nice(){
+          System.out.println("1");
+      }
 ```
 
 下面是表达式的示例
@@ -64,3 +66,74 @@ public class TestTask {
 //    0 15 10 ? * 5L      每个月最后一个星期四的10点15分0秒触发
 //    0 15 10 ? * 5#3     每个月第三周的星期四的10点15分0秒触发
 ```
+
+
+
+```
+    /**
+     * 是否报修
+     */
+    private String applyRepair;
+
+    /**
+     * 维保结果
+     */
+    private String mainResult;
+
+    /**
+     * 维保记录
+     */
+    private String mainRecord;
+
+    /**
+     * 保养负责人ID
+     */
+    private String mainUserId;
+
+    /**
+     * 保养负责人
+     */
+    private String mainUser;
+
+    /**
+     * 实际完成日期
+     */
+    private Date finishDate;
+
+    /**
+     * 负责人电话
+     */
+    private String mainUserTel;
+
+    /**
+     * 计划点检日期
+     */
+    private Date checkPlanDate;
+
+    /**
+     * 点检周期
+     */
+    private int checkCycle;
+
+    /**
+     * 点检完成日期
+     */
+    private Date checkFinishDate;
+
+    /**
+     * 计划给油脂日期
+     */
+    private Date addGreasePlanDate;
+
+    /**
+     * 给油脂周期
+     */
+    private int addGreaseCycle;
+
+    /**
+     * 给油脂完成日期
+     */
+    private Date addGreaseFinishDate;
+
+```
+

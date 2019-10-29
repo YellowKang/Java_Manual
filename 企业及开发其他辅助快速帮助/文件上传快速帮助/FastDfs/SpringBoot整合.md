@@ -1,6 +1,6 @@
 # 引入依赖
 
-```
+```xml
         <dependency>
             <groupId>com.github.tobato</groupId>
             <artifactId>fastdfs-client</artifactId>
@@ -16,7 +16,7 @@
 
 # 编写配置
 
-```
+```properties
 
 fdfs.tracker-list[0]=ip地址:22122
 fdfs.nginx-host=http://nginx地址ip:8080
@@ -26,7 +26,7 @@ fdfs.nginx-host=http://nginx地址ip:8080
 
 # 编写工具类
 
-```
+```java
 
 @Configuration
 @Import(FdfsClientConfig.class)
@@ -125,7 +125,7 @@ public class FastDFSUtil {
 
 使用controller上传
 
-```
+```java
     @Resource
     private FastDFSUtil fastDFSUtil;
 

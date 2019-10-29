@@ -67,6 +67,8 @@ db.createUser({user:"kang",pwd:"kang",roles:[{role:'dbOwner',db:'test'}]})
 ```sql
 use test
 db.auth('kang','kang')
+
+db.createUser({user:"minexhb",pwd:"minexhb123",roles:[{role:'dbOwner',db:'minexhb-db'}]})
 ```
 
 ## 角色权限

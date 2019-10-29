@@ -6,7 +6,7 @@
 
 ​		NoSQL 不依赖业务逻辑方式存储，而以简单的key-value模式存储。因此大大的增加了数据库的扩展能力
 
-​		，没有ACID的特性，不支持事务，拥有远超于SQL的性能，
+​			没有ACID的特性，不支持事务，拥有远超于SQL的性能，
 
 ​		
 
@@ -58,11 +58,7 @@
 
 ​				示例：		keys   *				
 
-​				![../img/keys](img\keys.png)
-
-
-
-
+​				![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567759855355.png)
 
 ​					
 
@@ -70,7 +66,7 @@
 
 ​				示例		exists		
 
-​				![](img\exists.png)
+​				![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567759894943.png)
 
 
 
@@ -80,7 +76,7 @@
 
 ​				示例		type   nice		<key>表示键的名字
 
-​				![](img\type.png)
+​				![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567759910766.png)
 
 
 
@@ -90,11 +86,11 @@
 
 ​				示例		del    nice		删除哪一个key
 
-​				![](img\del1.png)
+​				![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567759954315.png)
 
 ​				返回一条影响行数，1表示true，删除成功
 
-​				![](img\del0.png)
+​				![](/Users/bigkang/Documents/笔记/Java_Manual/数据库快速帮助/Redis/img/del0.png)
 
 ​		 expire 		       <key>      <seconds>		为键值设置过期时间，单位秒
 
@@ -102,7 +98,7 @@
 
 ​			示例	expire	nice	  30		给主键nice设置过期时间为30秒
 
-​				![](img\expire.png)
+​				![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567759993016.png)
 
 ​				返回一表示true，设置成功
 
@@ -112,7 +108,7 @@
 
 ​				示例：		ttl nice		（查询上面设置的过期时间）
 
-​					![](img\ttl.png)
+​					![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567760007345.png)
 
 ​					查询到了数据，查看还有多少秒过期，-1表示永不过期，-2表示已过期
 
@@ -122,7 +118,7 @@
 
 ​				示例：        dbsize
 
-​					![](img\dbsize.png)
+​					![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567760020496.png)
 
 
 
@@ -130,14 +126,14 @@
 
 ​				示例：		Flushdb									
 
-​				![](img\flushdb.png)
+​				![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567760036639.png)
 
 ​				(甚用！！！，和删库跑路差不多)
 
 ​		Flushall									通杀全部库
-				示例：		Flushall		
+​				示例：		Flushall		
 
-​					![](img\flushall.png)
+​					![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567760050092.png)
 
 
 
@@ -244,12 +240,12 @@
 ### 字符串集合（set）的操作
 
 ​			sadd <key> <value1> <value2> .....	将一个或多个 member 元素加入到集合 key 当中，已
-											经存在于集合的 member 元素将被忽略。
+​											经存在于集合的 member 元素将被忽略。
 
 ​			smembers <key>					取出该集合的所有值
 
 ​			 sismember <key> <value>			判断集合<key>是否为含有该<value>值，有返回1，
-											没有返回0
+​											没有返回0
 
 ​			scard <key>						返回该集合的元素个数
 
@@ -280,15 +276,15 @@
 ​			 zrange <key> <start> <stop> [WITHSCORES]
 
 ​			• 返回有序集 key 中，下标在<start> <stop>之间的元素
-			• 带WITHSCORES，可以让分数一起和值返回到结果集。
+​			• 带WITHSCORES，可以让分数一起和值返回到结果集。
 
 
 
 ​			 zrangebyscore key min max [withscores][limit offset count]
 
 ​			返回有序集 key 中，所有 score 值介于 min 和 max 之间
-			(包括等于 min 或 max )的成员。有序集成员按 score 值递
-			增(从小到大)次序排列
+​			(包括等于 min 或 max )的成员。有序集成员按 score 值递
+​			增(从小到大)次序排列
 
 
 
@@ -344,11 +340,11 @@
 
 ​				例如：
 
-​					set kang 黄康
+​					set kang kang
 
 ​					
 
-​					![d](img\a.png)
+​					![d](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567760116652.png)
 
 
 
@@ -358,19 +354,13 @@
 
 ​				例如：
 
-​					get  kang
-
-​					
+​					get  kang					
 
 ​		3、扩展命令
 
 ​		4、删除
 
 ​		5、数值增减
-
-
-
-
 
 # Redis相关配置
 
@@ -467,8 +457,8 @@
 20. 指定更新日志条件，共有3个可选值： 
 
 ​    **no**：表示等操作系统进行数据缓存同步到磁盘（快） 
-    **always**：表示每次更新操作后手动调用fsync()将数据写到磁盘（慢，安全） 
-    **everysec**：表示每秒同步一次（折中，默认值）
+​    **always**：表示每次更新操作后手动调用fsync()将数据写到磁盘（慢，安全） 
+​    **everysec**：表示每秒同步一次（折中，默认值）
 
 ​    **appendfsync everysec**
 
@@ -530,20 +520,14 @@
 ​		
 
 ​	public class Demo01 {
-		public static void main(String[] args) {
-			//连接本地的 Redis 服务
-			Jedis jedis = new Jedis("127.0.0.1",6379);
-			//查看服务是否运行，打出pong表示OK
-			System.out.println("connection is OK==========>:
-			"+jedis.ping());
-		}
-	}
-
-
-
-
-
-
+​		public static void main(String[] args) {
+​			//连接本地的 Redis 服务
+​			Jedis jedis = new Jedis("127.0.0.1",6379);
+​			//查看服务是否运行，打出pong表示OK
+​			System.out.println("connection is OK==========>:
+​			"+jedis.ping());
+​		}
+​	}
 
 ### Key的获取
 
@@ -658,23 +642,23 @@
 ## RDB持久化
 
 ​		RDB的存储方式：在指定的时间间隔内将内存中的数据集快照写入磁盘，也
-						就是行话讲的Snapshot快照，它恢复时是将快照文件直接
-						读到内存里
+​						就是行话讲的Snapshot快照，它恢复时是将快照文件直接
+​						读到内存里
 
 
 
 ​		Redis会单独创建（fork）一个子进程来进行持久化，会先将数据写入
-		到一个临时文件中，待持久化过程都结束了，再用这个临时文件替换
-		上次持久化好的文件。整个过程中，主进程是不进行任何IO操作的，
-		这就确保了极高的性能如果需要进行大规模数据的恢复，且对于数据
-		恢复的完整性不是非常敏感，那RDB方式要比AOF方式更加的高效。
-		RDB的缺点是最后一次持久化后的数据可能丢失
+​		到一个临时文件中，待持久化过程都结束了，再用这个临时文件替换
+​		上次持久化好的文件。整个过程中，主进程是不进行任何IO操作的，
+​		这就确保了极高的性能如果需要进行大规模数据的恢复，且对于数据
+​		恢复的完整性不是非常敏感，那RDB方式要比AOF方式更加的高效。
+​		RDB的缺点是最后一次持久化后的数据可能丢失
 
 
 
 ​		rdb的保存的文件： 在redis.conf中配置文件名称，默认为dump.rdb
 
-​		![](img\drb.png)
+​		![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567760178559.png)
 
 
 
@@ -690,18 +674,18 @@
 
 ​		就会备份一次，
 
-​		![](img\保存策略rdb.png)
+​		![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567760194255.png)
 
 ​		stop-writes-on-bgsave-error yes
-		当Redis无法写入磁盘的话，直接关掉Redis的写操作
+​		当Redis无法写入磁盘的话，直接关掉Redis的写操作
 
 ​		rdbcompression yes
-		进行rdb保存时，将文件压缩
+​		进行rdb保存时，将文件压缩
 
 ​		rdbchecksum yes
-		在存储快照后，还可以让Redis使用CRC64算法来进行数
-		据校验，但是这样做会增加大约10%的性能消耗，如果希
-		望获取到最大的性能提升，可以关闭此功能
+​		在存储快照后，还可以让Redis使用CRC64算法来进行数
+​		据校验，但是这样做会增加大约10%的性能消耗，如果希
+​		望获取到最大的性能提升，可以关闭此功能
 
 
 
@@ -710,13 +694,13 @@
 ​				rdb的备份
 
 ​					先通过config get dir 查询rdb文件的目录
-					将*.rdb的文件拷贝到别的地方
+​					将*.rdb的文件拷贝到别的地方
 
 ​			 	rdb的恢复
 
 ​			 		先把备份的文件拷贝到工作目录下
-		 			关闭Redis
-		 			启动Redis, 备份数据会直接加载
+​		 			关闭Redis
+​		 			启动Redis, 备份数据会直接加载
 
 ​				注：清先看清楚配置文件的RDB的文件名和路径
 
@@ -736,7 +720,7 @@
 
 
 ​					在备份周期在一定间隔时间做一次备份，所以如果
-					Redis意外down掉的话，就会丢失最后一次快照后的所有修改					
+​					Redis意外down掉的话，就会丢失最后一次快照后的所有修改					
 
 ​		
 
@@ -746,7 +730,7 @@
 
 ​			 可以在redis.conf中配置文件名称，默认为 appendonly.aof
 
-​			![](img\AOF.png)
+​			![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567760207646.png)
 
 ​		这分别是是否开启。默认是关闭的而RDB默认是开启的，他的路径和RDB是一样的
 
@@ -757,8 +741,8 @@
 ​		那么如果RDB好AOF同时启动的话他会执行哪个呢？
 
 ​			AOF的备份机制和性能虽然和RDB不同, 但是备份和
-			恢复的操作同RDB一样，都是拷贝备份文件，需要
-			恢复时再拷贝到Redis工作目录下，启动系统即加载
+​			恢复的操作同RDB一样，都是拷贝备份文件，需要
+​			恢复时再拷贝到Redis工作目录下，启动系统即加载
 
 ​			**AOF和RDB同时开启，系统默认取AOF的数据**
 
@@ -769,7 +753,7 @@
 ​			 AOF文件的保存路径，同RDB的路径一致
 
 ​			 如遇到AOF文件损坏，可通过
-				redis-check-aof --fix appendonly.aof 进行恢复
+​				redis-check-aof --fix appendonly.aof 进行恢复
 
 
 

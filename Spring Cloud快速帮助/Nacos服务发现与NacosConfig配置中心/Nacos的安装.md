@@ -172,7 +172,7 @@ docker run -p 8848:8848 \
 -v /docker/nacos/conf/application.properties:/home/nacos/conf/application.properties \
 -e MODE=standalone \
 --privileged=true \
--d docker.io/nacos/nacos-server:1.1.0
+-d docker.io/nacos/nacos-server:1.1.3
 
 #如测试服务器内存不够请修改sh文件，nacos官方镜像jvm参数无效
 docker run -p 8848:8848 \

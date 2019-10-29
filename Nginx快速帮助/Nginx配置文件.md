@@ -2,7 +2,7 @@
 
 首先我们先编写配置文件
 
-```
+```sh
 user nginx;
 worker_processes auto;
 error_log /var/log/nginx/error.log;
@@ -47,14 +47,6 @@ http {
         location / {
         proxy_pass http://yuqing; 
         }
-
-        error_page 404 /404.html;
-            location = /40x.html {
-        }
-
-        error_page 500 502 503 504 /50x.html;
-            location = /50x.html {
-        }
     }
 
     upstream yuqing{
@@ -71,7 +63,7 @@ http {
 
 我们只需要配置文件添加一个server即可
 
-```
+```sh
     server {
         #监听端口号
         listen 80;
@@ -92,7 +84,7 @@ http {
 
 注意这里监听端口好为443
 
-```
+```sh
         #监听端口号
         listen 443;
         ssl             on;
@@ -112,7 +104,7 @@ http {
 
 下面以zabbix为例子，在项目前后都加上/代理路径后加上/表示绝对路径
 
-```
+```sh
  location /zabbix/ {
         proxy_pass http://10.18.81.28:7000/;
         proxy_redirect  off;
@@ -125,6 +117,27 @@ http {
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 86400;
 }
+```
 
+# 代理Tcp端口
+
+### 代理mysql
+
+我们代理172.17.58.91:3306这个ip的这个端口，我们本地从13106监听端口号
+
+```nginx
+stream {
+    upstream cloudsocket {
+       hash $remote_addr consistent;
+      # $binary_remote_addr;
+       server 172.17.58.91:3306 weight=5 max_fails=3 fail_timeout=30s;
+    }
+    server {
+       listen 13106;#数据库服务器监听端口
+       proxy_connect_timeout 10s;
+       proxy_timeout 300s;#设置客户端和代理服务之间的超时时间，如果5分钟内没操作将自动断开。
+       proxy_pass cloudsocket;
+    }
+}
 ```
 

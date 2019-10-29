@@ -159,7 +159,7 @@ docker restart mysql-slave
 
 ## 执行slave命令
 
-我们先去主机mysql中查询binlog日志的信息
+我们先去《去master节点查询信息后在slave执行》主机mysql中查询binlog日志的信息
 
 ```
 show master status
@@ -168,7 +168,7 @@ show master status
 这个信息在slave中需要用到
 
 ```
-change master to master_host='39.108.158.31', master_user='slave', master_password='123456', master_port=3301, master_log_file='mysql-bin.000001', master_log_pos= 154, master_connect_retry=30;
+change master to master_host='127.0.0.1', master_user='slave', master_password='123456', master_port=3301, master_log_file='mysql-bin.000001', master_log_pos= 154, master_connect_retry=30;
 ```
 
 创建slave配置详情
@@ -383,7 +383,7 @@ show master status;
 我们就能看到如下的数据，有可能名字不一样
 ```
 
-![](img\2master-1-1.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567391410636.png)
 
 记住这两个值，我们现在去第一台执行从命令
 
@@ -405,7 +405,7 @@ master_connect_retry：如果连接失败，重试的时间间隔，单位是秒
 上面是下面这写命令的意思
 
 ```
-change master to master_host='192.168.0.100', master_user='test2master', master_password='test2master', master_port=13302, master_log_file='mysql-bin.000001', master_log_pos=154, master_connect_retry=30;
+change master to master_host='127.0.0.1', master_user='test2master', master_password='test2master', master_port=13302, master_log_file='mysql-bin.000001', master_log_pos=154, master_connect_retry=30;
 ```
 
 如果此处配置错了可以
@@ -428,7 +428,7 @@ show slave status \G;
 
 如果我们看到就表示成功了
 
-![](C:/Users/topcom/Documents/Java%E4%BF%AE%E4%BB%99%E6%89%8B%E5%86%8C/Java_Manual/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%BF%AB%E9%80%9F%E5%B8%AE%E5%8A%A9/MYSQL/img/2master-test.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567391456432.png)
 
 ### 第二台相互主从
 
@@ -447,7 +447,7 @@ show master status;
 我们就能看到如下的数据，有可能名字不一样
 ```
 
-![](C:/Users/topcom/Documents/Java%E4%BF%AE%E4%BB%99%E6%89%8B%E5%86%8C/Java_Manual/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%BF%AB%E9%80%9F%E5%B8%AE%E5%8A%A9/MYSQL/img/2master-1-1.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567391482969.png)
 
 记住这两个值，我们现在去第二台执行从命令
 
@@ -492,7 +492,7 @@ show slave status \G;
 
 如果我们看到就表示成功了
 
-![](img\2master-test.png)
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1567391521304.png)
 
 ## 测试双主功能
 

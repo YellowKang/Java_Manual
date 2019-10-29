@@ -238,3 +238,87 @@ db.accident.aggregate([
 ])
 ```
 
+### 时间表达式格式化查询
+
+```java
+    @GetMapping("planAnalyzeByDay")
+    public List<HashMap> planAnalyzeByDay(Date date, Integer day) {
+
+        List<AggregationOperation> okOper = new ArrayList<>();
+        Criteria criteria = Criteria.where("checkStatus").is("已完成");
+
+        if (day == null || day > 10) {
+            day = 6;
+        }
+
+        if(date == null){
+            date = new Date();
+        }
+        Date dayFirstTime = DateUtil.getDayFirstTime(date);
+        dayFirstTime.setHours(dayFirstTime.getHours() - 24 * day);
+        criteria.and("planningTime").gte(dayFirstTime);
+
+
+        okOper.add(Aggregation.match(criteria));
+
+        ProjectionOperation okTimFromat = Aggregation.project("time").andExpression("{ '$dateToString': { format: '%m/%d', date: '$planningTime' } }").as("time");
+        okOper.add(okTimFromat);
+
+        GroupOperation time = Aggregation.group("time").count().as("value");
+        okOper.add(time);
+        Aggregation aggregation = Aggregation.newAggregation(okOper);
+        AggregationResults<HashMap> check_plan = mongoTemplate.aggregate(aggregation, "check_plan", HashMap.class);
+        return check_plan.getMappedResults();
+    }
+```
+
+### 显示Mongo执行语句
+
+properties版本
+
+```properties
+logging.level.org.springframework.data.mongodb.core.MongoTemplate: DEBUG
+```
+
+yaml版本
+
+```properties
+logging:
+  level:
+    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
+```
+
+### 多重聚合
+
+按照时间加上类型进行聚合
+
+mongo语法
+
+```sql
+db.supervise_process.aggregate([
+    {$group:{_id:{hosr:"$hosr",type:"$type"},count:{$sum:1}}},
+    {$sort:{"_id.hosr":-1}}
+])
+```
+
+效果如下，我们可以看到聚合的id变成了小时加上类型，然后统计数量
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1570605919019.png)
+
+Java Data Api
+
+我们这里将聚合字段设置为两个而不是直接设置为某一个字段，其他的还是和以前一样
+
+```java
+List<AggregationOperation> aggOper = new ArrayList<>();
+List<Field> list = new ArrayList<>();
+Fields from = Fields.from(Fields.field("hosr", "hosr"), Fields.field("type", "type"));
+GroupOperation count = Aggregation.group(from).count().as("count");
+aggOper.add(count);
+aggOper.add(Aggregation.sort(new Sort(Sort.Direction.DESC,"hosr")));
+Aggregation aggregation = Aggregation.newAggregation(aggOper);
+AggregationResults<HashMap> aggregate = mongoTemplate.aggregate(aggregation, "supervise_process", HashMap.class);
+
+return aggregate.getMappedResults();
+```
+

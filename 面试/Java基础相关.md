@@ -6,7 +6,7 @@
 
 ​	ConcurrentmodificationException		
 
-​	这个异常是在多线程操作集合的时候产生的写并发写入的异常原因是因为操作没有加锁的对象例如ArrayList，HashSet，HashMap的时候，具体表现在高并发的添加上
+​	这个异常是在多线程操作集合的时候产生的写并发写入的异常原因是因为操作没有加锁的对象例如ArrayList，HashSet，HashMap的时候，具体表现在高并发的写上
 
 ## HashMap
 
@@ -43,7 +43,7 @@ public HashMap(int initialCapacity) {
     this(initialCapacity, DEFAULT_LOAD_FACTOR);  
 }  
   
-//默认初始化值
+//默认初始化值，默认初始化负载
 public HashMap() {  
     this.loadFactor = DEFAULT_LOAD_FACTOR; // all other fields defaulted  
 }  
@@ -59,17 +59,19 @@ public HashMap(Map<? extends K, ? extends V> m) {
 
 ### HashMap的源码，实现原理，JDK8中对HashMap做了怎样的优化。
 
-   在JDK1.6，JDK1.7中，HashMap采用数组+链表实现 ，而JDK1.8中，HashMap采用数组+链表+红黑树实现，当链表长度超过阈值（8）时，将链表转换为红黑树，这样大大减少了查找时间。 
+   在JDK1.6，JDK1.7中，HashMap采用数组+链表实现 ，而JDK1.8中，HashMap采用数组+链表+红黑树实现，当链表长度超过阈值（8）时，将链表转换为红黑树，这样大大减少了查找时间。
 
 ​	核心重点：1.6,1.7   	数组+链表
 
-​			   1.8 	数组+链表       长度超过8      ----->	转换为红黑树
+​			   		1.8 	数组+链表       长度超过8      ----->	转换为红黑树
 
 
 
 ### HaspMap扩容是怎样扩容的，为什么都是2的N次幂的大小。
 
 ​	为了能让 HashMap 存取高效，尽量较少碰撞，Hash 值的范围值-2147483648到2147483648，前后加起来大概40亿的映射空间。用之前还要先做对数组的长度取模运算，这个数组下标的计算方法是“ `(n - 1) & hash` ”。（n代表数组长度）。这也就解释了 HashMap 的长度为什么是2的幂次方。
+
+​	但是通过源码后发现，HashMap的最大长度是10亿左右，并且它的每次扩容是因为计算机底层都是采用二进制存储，在扩容计算时，我们直接进行位移操作即可快速计算，只要每次扩容不停地向左位移一位即可乘2也就是2的N次幂，我感觉更多是考虑到了计算机底层的计算而进行优化，并且它的初始化
 
 ### HashMap，HashTable，ConcurrentHashMap的区别。
 

@@ -1,6 +1,60 @@
-# !!!!!注意，请先将容器备份成文件然后进行更新
+# yum安装docker
 
-# 卸载旧版Docker
+```sh
+首先我们先更新下我们的yum，
+
+yum -y update
+
+然后安装
+
+yum install -y docker
+```
+
+# 指定yum源版本安装
+
+参考下方更新
+
+# Docker的启动关闭和查看以及操作
+
+	启动docker
+	
+		systemctl start docker.service
+	
+		service docker start 
+	
+	重新启动
+
+
+		systemctl restart docker.service
+	
+		service docker restart 
+	
+	关闭docker
+	
+		systemctl stop docker.service
+	
+		service docker stop
+	
+	查看docker状态
+	
+		systemctl status docker.service
+	
+		service docker status
+
+
+	然后我们来配置下他的的加速镜像地址，加速地址根据自身情况挑选，建议使用aliyun
+	
+	根据自己的阿里云配置
+	
+	然后vi /etc/docker/daemon.json
+	
+	把后面的那个，的逗号去掉
+
+# Docker版本升级
+
+## !!!!!注意，请先将容器备份成文件然后进行更新
+
+## 卸载旧版Docker
 
 卸载
 
@@ -8,7 +62,7 @@
 yum remove docker  docker-common docker-selinux docker-engine
 ```
 
-# 安装需要的软件包以及Yum源
+## 安装需要的软件包以及Yum源
 
 下载yum工具
 
@@ -50,7 +104,6 @@ sudo yum install docker-ce
 systemctl enable docker.service
 systemctl enable docker
 
-
 查看是否开机启动
 systemctl status docker
 
@@ -60,50 +113,15 @@ docker version
 docker info
 ```
 
-# 将yum源设置回阿里云
-
-```
-cd /etc/yum.repos.d/ 
-wget http://mirrors.aliyun.com/repo/Centos-7.repo
-mv -f CentOS-Base.repo CentOS-Base.repo.bak 
-mv -f Centos-7.repo CentOS-Base.repo
-
-yum clean all 
-yum makecache 
-yum update
-```
-
-
-
 # 一键之骚操作重装最新Docker
 
 ```
 yum -y remove docker  docker-common docker-selinux docker-engine
 sudo yum install -y yum-utils device-mapper-persistent-data lvm2
-sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 sudo yum -y install docker-ce
 systemctl start docker.service
 systemctl start docker
 systemctl enable docker.service
 systemctl enable docker
-cd /etc/yum.repos.d/ 
-wget http://mirrors.aliyun.com/repo/Centos-7.repo
-mv -f CentOS-Base.repo CentOS-Base.repo.bak 
-mv -f Centos-7.repo CentOS-Base.repo
-
-yum clean all 
-yum makecache 
-yum update
 ```
-
-
-
-
-
-vim /etc/docker/daemon.json
-
-{
-
-​	 "registry-mirrors": ["https://ldlov75k.mirror.aliyuncs.com"] 
-
-} 

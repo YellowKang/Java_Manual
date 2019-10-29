@@ -2,7 +2,7 @@
 
 我们使用Boot整合Rabbit非常简单
 
-```
+```xml
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-amqp</artifactId>
@@ -13,7 +13,7 @@
 
 Yml版本
 
-```
+```properties
 spring:
   rabbitmq:
     host: 111.67.196.127
@@ -24,7 +24,7 @@ spring:
 
 Properties版本
 
-```
+```properties
 spring.rabbitmq.host=111.67.196.127
 spring.rabbitmq.port=5672
 spring.rabbitmq.username=bigkang
@@ -37,7 +37,7 @@ spring.rabbitmq.password=bigkang
 
 ## 编写消费者
 
-```
+```java
 @Component
 public class RabbitConsumer {
 
@@ -56,7 +56,7 @@ public class RabbitConsumer {
 
 直接向test的exchange中的test这个routingKey发送一条消息
 
-```
+```java
 
 @RestController
 public class SendMessageController {
@@ -75,7 +75,7 @@ public class SendMessageController {
 
 在这我们也可以使用AmqpTemplate直接向队列发送消息
 
-```
+```java
     @Autowired
     private AmqpTemplate amqpTemplate;
     

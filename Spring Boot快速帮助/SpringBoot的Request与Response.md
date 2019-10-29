@@ -1,0 +1,5 @@
+# 什么是Request和Response？
+
+Request（请求）
+
+我们知道SpringMVC使用的Http，SpringBoot默认内嵌的服务器是Tomcat，Tomcat使用的是Servlet，所以我们的一个个请求在服务器接收时都被封装成了

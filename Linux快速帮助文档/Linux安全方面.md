@@ -20,22 +20,33 @@ passwd bigkang
 vim /etc/ssh/sshd_config
 找到PermitRootLogin yes，改为no
 #PermitRootLogin yes 	 #禁止root远程登录
-PasswordAuthentication no #禁止使用基于口令认证的方式登陆
+PasswordAuthentication no #禁止使用基于口令认证的方式登陆（所有用户）
 PubkeyAuthentication yes #允许使用基于密钥认证的方式登陆
+```
 
+如果想要使用密码登录并且只限制root'的密码登录采用如下
+
+```
+#如果只想禁用掉root的远程密码登录，则使用下面这项，并且将上面设置为允许远程口令
 #禁止root使用密码登录只能使用秘钥
-PermitRootLogin prohibit-password 
+PermitRootLogin prohibit-password
+```
 
+注意操作
 
-也可以使用命令一键修改
+```
+#也可以使用命令一键修改，禁止root远程登录，！！！！！！！！！注意，使用后root无法远程登录，检查是否有其他用户能登陆后执行
 sed -i 's/\(PermitRootLogin\) yes/\1 no/' /etc/ssh/sshd_config
 
-
-#禁止root使用密码登录只能使用秘钥
-PermitRootLogin prohibit-password 
+#一键禁止root使用密码登录只能使用秘钥
 sed -i 's/\(PermitRootLogin\) yes/\1 prohibit-password/' /etc/ssh/sshd_config
 
+#一键禁止使用密码登录
+sed -i 's/\(PasswordAuthentication\) yes/\1 no/' /etc/ssh/sshd_config
 然后重启服务
+```
+
+```
 systemctl restart sshd
 ```
 
