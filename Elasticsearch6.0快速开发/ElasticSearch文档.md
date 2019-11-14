@@ -469,23 +469,15 @@ language 分词器：特定语言的分词器，不支持中文
 
 添加索引：
 
-PUT /lib/
-
-{
-
-  "settings":{
-
-      "index":{
-      
+    PUT /lib/
+    {
+      "settings":{
+    		"index":{
         "number_of_shards": 5,
-        
         "number_of_replicas": 1
-        
         }
-        
       }
-}
-
+    }
 PUT  lib
 
 查看索引信息:

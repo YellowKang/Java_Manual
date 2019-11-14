@@ -1,4 +1,4 @@
-# es常用操作
+# Es常用操作
 
 ## 启动
 
@@ -36,8 +36,6 @@ elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=E:\卓越
 elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=E:\卓越讯通\煤矿项目\河北煤矿\hb_month625.json    --searchBody  {\"query\":{\"bool\":{\"filter\":[{\"range\":{\"pubTime\":{\"gte\":1561305600000,\"lt\":1561910400000}}},{\"match_phrase\":{\"content\":\"河北\"}}]}}} &
 ```
 
-
-
 ### 导入（linux与windows相同）
 
 ```
@@ -50,17 +48,19 @@ elasticdump --output=http://10.224.0.86:19200/yuqing_2019_6/ --input=E:\卓越�
 elasticdump --output=http://172.35.0.33:20369/yuqing_2019_6/ --input=E:\卓越讯通\煤矿项目\新疆\xj_month621.json --type=data
 ```
 
-## head启动 
+## Head工具
+
+### head启动 
 
 ```
 head目录: setsid /node_modules/grunt/bin/grunt server &      
 ```
 
-## head配置文件
+### head配置文件
 
 _site/app.js 配置es集群， Gruntfile.js配置head端口
 
-## head创建模板
+### head创建模板
 
 ```
 PUT http://192.168.1.14:20269/_template/template_name
@@ -71,28 +71,26 @@ PUT http://192.168.1.14:20269/_template/template_name
  ,在mapping最上边新增一行"template":indexName  即可   
 ```
 
-## head删除模板
+### head删除模板
 
 ```
 delete  http://192.168.1.14:20269/_template/template_name   
 删除指定名称的模板    template_name为*即可删除所有模板
 ```
 
-## 根据mapping创建索引
+### 根据mapping创建索引
 
 ```
 put  http://192.168.1.14:20269/indexname  {{mapping}}
 ```
 
-## 删除索引
+### 删除索引
 
 ```
 curl -XDELETE 'http://host.IP.address:9200/logstash-*'  
 或者通过head删除
 http://10.224.0.86:19200/indexName  DELETE
 ```
-
-
 
 ## 查询所有数据总数
 

@@ -1,6 +1,8 @@
 在所有节点上进行如下操作：
  1. 设置主机名hostname，管理节点设置主机名为master
     hostnamectl set-hostname master
+    hostnamectl set-hostname node1
+    hostnamectl set-hostname node2
 	需要设置其他主机名称时，可将 master 替换为正确的主机名node1、node2即可。
  2.编辑 /etc/hosts 文件，添加域名解析。
     cat <<EOF >>/etc/hosts
@@ -9,9 +11,8 @@
     10.10.10.12 node2
     EOF
 3.关闭防火墙、selinux和swap。
-   systemctl stop firewalld
-
-   systemctl disable firewalld
+systemctl stop firewalld
+systemctl disable firewalld
 
    setenforce 0
 
@@ -74,11 +75,12 @@ systemctl enable docker && systemctl start docker
 在master上进行如下操作：
 8.部署master节点
  8.1集群初始化
+
  kubeadm init --kubernetes-version=1.14.2 \
---apiserver-advertise-address=172.19.175.233  \
+--apiserver-advertise-address=114.67.80.169  \
 --image-repository registry.aliyuncs.com/google_containers \
 --service-cidr=10.1.0.0/16 \
---pod-network-cidr=10.244.0.0/16 
+--pod-network-cidr=10.244.0.0/16
 
 
 
@@ -89,7 +91,7 @@ systemctl enable docker && systemctl start docker
 
 9.初始化完成，记录join命令
 
-  kubeadm join 172.19.175.233:6443 --token 6hycoj.mmxc3wwvckfip1k5 \
+  kubeadm join 114.67.80.169:6443 --token 6hycoj.mmxc3wwvckfip1k5 \
     --discovery-token-ca-cert-hash sha256:26a1987f705f6a1c12147ec2949c1ded70774c7833a379d24e77abcc54ea86cc 
 
 10.配置kubectl工具
@@ -142,4 +144,35 @@ systemctl enable docker && systemctl start docker
    eyJhbGciOiJSUzI1NiIsImtpZCI6IiJ9.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJkYXNoYm9hcmQtYWRtaW4tdG9rZW4tZ2M0cmsiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGFzaGJvYXJkLWFkbWluIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiYjQ3MzE3NjktOTc2Ni0xMWU5LWE4NWQtMDAxNjNlMGFmNDkzIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOmRhc2hib2FyZC1hZG1pbiJ9.eOZ-5d7icF_OPTk2L9mYrKnSqfKpK2bgd4uu3sYV2Iz95y1bOF8etXItre_baUW5-AOU22Evfs-B7ISKCnx1X2eq6pQa9jcSP5xZxfOE--S2V_kTD1_P1oJf6p6jEvD40Gl7bgk8kgvm1eMd9SqwM9CXHVqA3C8grmefuoqNBRNLTAneM-pizBMCKm32ducviWi2RuCGSotkG0F8plC_8UuxRma6sPH1s04BpCGzGU564iI3obmxbKYxR8JVUu_ROABTO0cDTXHUCXwtIk1xDv6i-UzAZYd9MrGNnNoOIADtfmRdYgeOTl39NmrlmsUFKzwJsGNDXZgYGTYeCcTvZg
 
   安装完成！
+
+
+
+
+echo "cluster.name: es-cluster
+node.name: es-master
+network.bind_host: 0.0.0.0
+network.publish_host: 114.67.80.169
+http.port: 9201
+transport.tcp.port: 9301
+http.cors.enabled: true
+http.cors.allow-origin: \"*\"
+node.master: true
+node.data: true
+discovery.zen.ping.unicast.hosts: [\"114.67.80.169:9302\",\"114.67.80.169:9303\"]
+discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-cluster1.yml
+
+
+echo "cluster.name: es-cluster
+node.name: es-data2
+network.bind_host: 0.0.0.0
+network.publish_host: 114.67.80.169
+http.port: 9203
+transport.tcp.port: 9303
+http.cors.enabled: true
+http.cors.allow-origin: \"*\"
+node.master: false
+node.data: true
+discovery.zen.ping.unicast.hosts: [\"114.67.80.169:9301\",\"114.67.80.169:9302\"]
+discovery.zen.minimum_master_nodes: 1" > /root/elasticsearch-cluster-yml/es-cluster3.yml
+
 

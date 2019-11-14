@@ -496,10 +496,3 @@ su jenkins
 vim /home/jenkins/.ssh//authorized_keys
 ```
 
-```
-docker stop beluga-gateway
-docker rm beluga-gateway
-docker rmi 152.136.68.184:5000/beluga-gateway:1.0-SNAPSHOT
-docker run -d --name beluga-gateway -p 9099:9099 152.136.68.184:5000/beluga-gateway:1.0-SNAPSHOT
-```
-

@@ -259,3 +259,93 @@ String[] copyTo() default {};
 # 条件构造器
 
 在我们很多的时候，单纯的使用spring data的接口开发无法满足我们的需求，所以我们需要进行一些复杂的实现
+
+
+
+# WebFlux整合Elasticsearch
+
+引入依赖，注意此处引入webflux依赖而不是web
+
+```xml
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+				<dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-elasticsearch</artifactId>
+        </dependency>
+```
+
+编写配置文件
+
+yaml版本
+
+```properties
+spring:
+  data:
+    elasticsearch:
+      client:
+        reactive:
+          endpoints: ["114.67.80.169:9201","114.67.80.169:9202","114.67.80.169:9203"]
+```
+
+properties版本
+
+```properties
+spring.data.elasticsearch.client.reactive.endpoints[0]=114.67.80.169:9201
+spring.data.elasticsearch.client.reactive.endpoints[1]=114.67.80.169:9202
+spring.data.elasticsearch.client.reactive.endpoints[2]=114.67.80.169:9203
+```
+
+编写实体类
+
+```java
+@Data
+@Document(indexName = "testes",type = "test")
+@Mapping(mappingPath = "mapping/test.json")
+public class TestEs {
+
+    @Id
+    private String id;
+    private String name;
+    private String email;
+    private String address;
+    private Integer age;
+    private String url;
+    private String title;
+
+}
+```
+
+编写Dao层
+
+```java
+public interface TestEsDao extends ReactiveSortingRepository<TestEs,String> {
+
+}
+```
+
+直接使用controller调用《注：演示环境快速使用，正式环境请编写service以及实现》
+
+```java
+@RequestMapping("test")
+@RestController
+public class TestFlux {
+
+    @Autowired
+    private TestEsDao testEsDao;
+    
+    @GetMapping("getEs")
+    public Flux<TestEs> getEs(){
+        return testEsDao.findAll();
+    }
+
+    @PostMapping("save")
+    public Mono<TestEs> saveEs(@RequestBody TestEs testEs){
+        return testEsDao.save(testEs);
+    }
+
+}
+```
+

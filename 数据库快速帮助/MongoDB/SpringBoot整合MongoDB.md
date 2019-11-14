@@ -288,7 +288,7 @@ logging:
     org.springframework.data.mongodb.core.MongoTemplate: DEBUG
 ```
 
-### 多重聚合
+### 聚合
 
 按照时间加上类型进行聚合
 
@@ -320,5 +320,76 @@ Aggregation aggregation = Aggregation.newAggregation(aggOper);
 AggregationResults<HashMap> aggregate = mongoTemplate.aggregate(aggregation, "supervise_process", HashMap.class);
 
 return aggregate.getMappedResults();
+```
+
+# Mongo整合WebFlux
+
+这里我们采用WebFlux和Mongo进行整合
+
+### 引入依赖
+
+```xml
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb-reactive</artifactId>
+        </dependency>
+```
+
+### 编写实体类
+
+```java
+@Data
+@Document(collection = "t_user_test")
+public class User {
+
+    @Id
+    private String id;
+
+    private String username;
+
+    private String password;
+}
+
+```
+
+### 编写Dao层
+
+我们这里继承ReactiveMongoRepository，而不是MongoRepository
+
+```java
+public interface UserDao extends ReactiveMongoRepository<User,String> {
+
+
+}
+```
+
+### 编写Controller层
+
+注：这里我们直接调用Controller调用Dao层，而没有Service层，是为了演示所以简洁，正常开发中请编写Service层,我们发现ReactiveMongoTemplate也代替了MongoTemplate，这说明ReactiveMongo已经是比较成熟了，对原来的Api完全过度。
+
+```java
+@RequestMapping("test")
+@RestController
+@Api(tags = "测试WebFlux")
+public class TestFlux {
+
+    @Autowired
+    private ReactiveMongoTemplate reactiveMongoTemplate;
+
+    @Autowired
+    private UserDao userDao;
+
+    @GetMapping("getAll")
+    public Flux<User> getAll(){
+        return userDao.findAll();
+    }
+
+    @GetMapping("getById")
+    public Mono<User> getById(String id){
+      return userDao.findById(id);
+    }
+
+}
+
 ```
 

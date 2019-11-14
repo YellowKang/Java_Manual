@@ -188,7 +188,9 @@ sql_mode=STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_
 
 ​				授予用户权限
 
-
+```
+GRANT All ON * . * TO 'bigkang'@'%';
+```
 
 ​						GRANT All ON * . * TO 'huangkang'@'%';
 

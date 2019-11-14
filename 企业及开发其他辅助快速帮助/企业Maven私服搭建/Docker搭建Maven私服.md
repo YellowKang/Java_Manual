@@ -2,6 +2,9 @@
 
 ```
 mkdir -p /docker/maven-nexus/data
+
+#创建权限
+chmod /docker/maven-nexus/data
 ```
 
 # 运行容器
@@ -12,7 +15,7 @@ docker run -d \
 --restart=always \
 --privileged=true \
 -p 18081:8081 \
--v /docker/maven-nexus/data:/var/nexus-data \
+-v /docker/maven-nexus/data:/nexus-data \
 sonatype/nexus3
 ```
 然后访问8081端口就能看到界面，默认账号为：admin，默认密码为：admin123

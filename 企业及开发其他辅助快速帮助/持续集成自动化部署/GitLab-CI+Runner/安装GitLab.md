@@ -31,8 +31,6 @@ docker.io/twang2218/gitlab-ce-zh
 
 修改了之后我们会发现url和ssh上都没有端口号了
 
-![](C:/Users/topcom/Documents/Java%E4%BF%AE%E4%BB%99%E6%89%8B%E5%86%8C/Java_Manual/Git%E5%BF%AB%E9%80%9F%E5%B8%AE%E5%8A%A9/img/gitlabssh%E8%BF%9E%E6%8E%A5.png)
-
 我们就需要去修改他的配置了
 
 进入挂载目录并且编辑配置文件

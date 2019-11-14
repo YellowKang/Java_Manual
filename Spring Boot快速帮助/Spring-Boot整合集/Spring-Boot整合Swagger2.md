@@ -218,3 +218,101 @@ public class LoginController {
 ![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1569569436957.png)
 
 我们可以看到
+
+# WebFlux整合Swagger2
+
+引入依赖，由于目前Swagger2  3.0并未正式上线，所以我们引入依赖并且配置仓库地址
+
+```xml
+    <dependencies>
+				<dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger2</artifactId>
+            <version>3.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-swagger-ui</artifactId>
+            <version>3.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>io.springfox</groupId>
+            <artifactId>springfox-spring-webflux</artifactId>
+            <version>3.0.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+    <repositories>
+        <repository>
+            <id>spring-snapshots</id>
+            <url>http://repo.spring.io/snapshot</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>swagger-snapshots</id>
+            <url>http://oss.jfrog.org/artifactory/oss-snapshot-local</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+        <repository>
+            <id>spring-milestones</id>
+            <url>http://repo.spring.io/milestone</url>
+        </repository>
+    </repositories>
+```
+
+然后我们这里配置WebFlux的Swagger2
+
+此处注解改为@EnableSwagger2WebFlux
+
+```java
+@Configuration
+@EnableSwagger2WebFlux
+@Slf4j
+public class SwaggerConfig {
+
+    //获取swagger配置title
+    @Value("${swagger.title:请设置配置}")
+    private String title;
+    //获取swagger配置description
+    @Value("${swagger.description:请设置配置}")
+    private String description;
+    //获取swagger配置version
+    @Value("${swagger.version:请设置配置}")
+    private String version;
+
+    @Bean
+    public Docket webApiConfig() {
+//
+//        ParameterBuilder parameterBuilder = new ParameterBuilder();
+        List<Parameter> parameters = new ArrayList<Parameter>();
+//        parameterBuilder.name("hk") // 参数名
+//                .description("token") // 描述
+//                .modelRef(new ModelRef("string")) // 类型
+//                .parameterType("cookie") // //参数类型支持header, cookie, body, query etc
+//                .required(false).build();
+//        parameters.add(parameterBuilder.build());
+
+
+        return new Docket(DocumentationType.SWAGGER_2)
+                .globalOperationParameters(parameters) // 添加全局参数（头信息或者Cookie）
+                .apiInfo(webApiInfo())// 调用apiInfo方法,创建一个ApiInfo实例,里面是展示在文档页面信息内容
+                .select()//创建ApiSelectorBuilder对象
+                .apis(RequestHandlerSelectors.basePackage("com"))//扫描的包
+                .paths(PathSelectors.any())//过滤掉错误路径
+                .build();
+    }
+
+    private ApiInfo webApiInfo() {
+        return new ApiInfoBuilder()
+                .title(title)
+                .description(description)
+                .version(version)
+                .build();
+    }
+
+}
+```
+
