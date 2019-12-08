@@ -12,7 +12,7 @@
 
 - 邮箱：bigkangsix@qq.com
 - QQ：1360154205
-- 个人博客地址：www.bigkang.club
+- 个人博客地址：http://www.bigkang.club
 - 私人git地址：http://git.bigkang.club
 - GitHub地址：https://github.com/YellowKang/Java_Manual
 - Gitee地址：https://gitee.com/YellowKang/Java_Manual
