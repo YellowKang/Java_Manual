@@ -15,7 +15,7 @@
 spring.mail.host=smtp.qq.com
 spring.mail.username=bigkangsix@qq.com
 #次密码为授权码，不是qq密码
-spring.mail.password=weiddotviehqiefg
+spring.mail.password=qwe1221dwWQda
 
 #启用验证
 spring.mail.properties.mail.smtp.auth=true
@@ -81,12 +81,14 @@ spring.mail.properties.mail.smtp.starttls.required=fasle
 
 ## 自定义工具类发送
 
+企业邮箱发送
+
 ```
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();//直接生产一个实例
         mailSender.setHost("smtp.exmail.qq.com");
-        mailSender.setPassword("Yq123456");
+        mailSender.setPassword("qweasdzxc");
         mailSender.setPort(25);
         mailSender.setProtocol("smtp");
-        mailSender.setUsername("yuqing@bjtopcom.com");
+        mailSender.setUsername("bigkang@bjtopcom.com");
 ```
 
