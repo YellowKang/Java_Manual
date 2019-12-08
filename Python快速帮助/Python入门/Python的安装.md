@@ -1,4 +1,4 @@
-# 下载Python
+# Windows安装Python
 
 ​	首先进入官网
 
@@ -29,4 +29,33 @@
 ![](img\python安装4.png)
 
 如果出现了那么我们使用exit()命令就能退出了到此python安装完成
+
+# Linux安装Python
+
+查看版本
+
+```
+python --version
+```
+
+安装pip
+
+```
+yum -y install python-pip
+pip install --upgrade pip
+```
+
+创建pip
+
+```
+mkdir ~/.pip
+```
+
+创建配置文件
+
+```
+echo "[global]
+trusted-host=mirrors.aliyun.com
+index-url=http://mirrors.aliyun.com/pypi/simple/" > ~/.pip/pip.conf
+```
 

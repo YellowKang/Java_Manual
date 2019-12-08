@@ -49,17 +49,15 @@ docker cp  容器id:/data/db /root/test/data
 输入用户名以及密码并且选择数据库然后选择导出路径即可
 
 ```
-mongodump -h 127.0.0.1 -port 27017 -u root -p root123 -d my-db -o /tmp/mongo
+mongodump -h 192.168.1.11 -port 20168 -u minexhb -p minexhb123 -d minexhb-db -o /Users/bigkang/Documents
 ```
 
 ## 导入数据
 
 选择需要导入的数据库
 
-
-
 ```
-mongorestore -h 127.0.0.1 -port 27017 -u root -p root123 -d my-db --dir /tmp/mongo
+mongorestore -h 39.108.168.33 --port 27017 -u minexhb -p minexhb123 -d minexhb-db --dir /Users/bigkang/Documents
 ```
 
 

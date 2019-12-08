@@ -72,7 +72,7 @@ use admin
 #-----创建用户，root用户
 db.createUser({user:"root",pwd:"root",roles:[{role:'root',db:'admin'}]})
 #-----退出mongo
-exit
+exit
 ```
 
 # 给数据库创建用户
@@ -97,7 +97,7 @@ db.createUser({user:"kang",pwd:"kang",roles:[{role:'dbOwner',db:'config'}]})
 use test
 db.auth('kang','kang')
 
-db.createUser({user:"graylog",pwd:"graylog",roles:[{role:'dbOwner',db:'graylog'}]})
+db.createUser({user:"minexhb",pwd:"minexhb123",roles:[{role:'dbOwner',db:'minexhb-db'}]})
 ```
 
 ## 角色权限

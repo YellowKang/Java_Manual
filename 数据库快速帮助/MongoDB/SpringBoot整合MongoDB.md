@@ -240,6 +240,48 @@ db.accident.aggregate([
 
 ### 时间表达式格式化查询
 
+```
+db.temp_MongoDateTime.aggregate(
+   [
+     {
+       $project: {
+           "_id":0,
+           "Rec_CreateTime":1,
+          Year: { $dateToString: { format: "%Y", date: "$Rec_CreateTime" } },
+          Month: { $dateToString: { format: "%m", date: "$Rec_CreateTime" } },
+          Day: { $dateToString: { format: "%d", date: "$Rec_CreateTime" } },
+          yearMonthDay: { $dateToString: { format: "%Y-%m-%d", date: "$Rec_CreateTime" } },
+          Time: { $dateToString: { format: "%H:%M:%S:%L", date: "$Rec_CreateTime"} }
+       }
+     }
+   ]
+)
+
+%Y		->		年
+%m		->		月
+%d		->		日
+%H		->		时
+%M		->		分
+%S		->		秒
+%L		->		毫秒
+
+%Y/%m/%d						 ->			年/月/日
+%Y:%m:%d %H:%M:%S		 ->			年:月:日 时:分:秒
+
+
+
+解决时间相差8小时问题
+
+pjOperation = Aggregation.project("time").andExpression("{ $dateToString: { format: '%H时',date: {$add: {'$dateModified',28800000}}}}").as("time").and("dateModified").as("dateModified").and("value").as("value");
+
+
+注意如果使用mongo语法请使用
+['$dateModified',28800000]，由于SPEL表达式解析问题[2]表示占位参数，所以使用{}替换，经过解析之后还是[]
+
+```
+
+
+
 ```java
     @GetMapping("planAnalyzeByDay")
     public List<HashMap> planAnalyzeByDay(Date date, Integer day) {
@@ -271,6 +313,16 @@ db.accident.aggregate([
         return check_plan.getMappedResults();
     }
 ```
+
+### OR条件
+
+
+
+```java
+new Criteria().orOperator(Criteria.where("sysType").is("抽放系统").and("sid").is("4"),Criteria.where("sysType").is("安全监控系统").and("sid").is("1"));
+```
+
+
 
 ### 显示Mongo执行语句
 

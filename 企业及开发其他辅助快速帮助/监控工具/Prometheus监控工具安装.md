@@ -73,5 +73,25 @@ mkdir /docker/grafana/storage
 chmod 777 -R /docker/grafana/storage
 ```
 
+创建docker-compose文件
+
+```
+mkdir /root/grafana
+cd /root/grafana
+echo "version: '3'
+services:
+  grafana:
+    container_name: grafana
+    image: grafana/grafana
+    restart: always
+    privileged: true
+    ports:
+     - 3000:3000
+    volumes:
+     - /docker/grafana/storage:/var/lib/grafana" > docker-compose.yaml
+```
+
+
+
 Prometheus + Grafana
 

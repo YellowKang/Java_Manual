@@ -243,27 +243,147 @@ vim cluster.conf
 
 # 集群版本搭建
 
-## Linux集群搭建
+## Docker-Compose搭建（推荐）
 
-首先我们在一个目录下新建一个集群文件夹
+注意此处没有搭建mysql主从所以从库也是主库，！！！（真实环境不推荐）
 
-```sh
-mkdir nacos-cluster
+### 搭建nacos1
+
+创建目录
+
+```
+mkdir -p /docker/nacos-clust/nacos1/{log,conf}
+mkdir -p /root/nacos-clust/nacos1/
+cd /root/nacos-clust/nacos1
+touch /docker/nacos-clust/nacos1/conf/custom.properties
+
+
+echo "version: '3' 
+services:   
+  nacos1:
+    image: nacos/nacos-server:1.1.4
+    container_name: nacos1
+    ports:
+      - "8848:8848"
+      - "9555:9555"
+    #restart: always
+    privileged: true
+    environment:
+      #PREFER_HOST_MODE: 114.67.80.169
+      SPRING_DATASOURCE_PLATFORM: mysql
+      NACOS_SERVER_IP: 114.67.80.169
+      NACOS_SERVERS: 114.67.80.169:8848 182.61.2.16:8848 106.12.113.62:8848
+      MYSQL_MASTER_SERVICE_HOST: 39.108.158.33
+      MYSQL_MASTER_SERVICE_PORT: 3306
+      MYSQL_MASTER_SERVICE_DB_NAME: nacos2
+      MYSQL_MASTER_SERVICE_USER: root
+      MYSQL_MASTER_SERVICE_PASSWORD: bigkang
+      MYSQL_SLAVE_SERVICE_HOST: 39.108.158.33
+      MYSQL_SLAVE_SERVICE_PORT: 3306
+      JVM_XMS: 1g
+      JVM_XMX: 1g
+      JVM_XMN: 512m
+      JVM_MS: 128m
+      JVM_MMS: 220m
+      #NACOS_DEBUG: n
+      TOMCAT_ACCESSLOG_ENABLED: 'true'
+    volumes:
+      - /docker/nacos-clust/nacos1/log:/home/nacos/logs
+      - /docker/nacos-clust/nacos1/conf/custom.properties:/home/nacos/init.d/custom.properties" > /root/nacos-clust/nacos1/docker-compose.yaml
+docker-compose up -d
 ```
 
-然后解压三个nacos的文件放进去分别命名为nacos1，nacos2，nacos3
 
-如下图所示（别问如何解压和命名，再问自杀）
 
-![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566808242983.png)
+### 搭建nacos2
 
-然后我们先来将数据库新建好（集群版基于数据库）
+创建目录
 
-首先新建一个名叫nacos的数据库
+```
+mkdir -p /docker/nacos-clust/nacos2/{log,conf}
+mkdir -p /root/nacos-clust/nacos2/
+cd /root/nacos-clust/nacos2
+touch /docker/nacos-clust/nacos2/conf/custom.properties
 
-![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566808278655.png)
+echo "version: '3' 
+services:   
+  nacos2:
+    image: nacos/nacos-server:1.1.4
+    container_name: nacos2
+    ports:
+      - "8848:8848"
+      - "9555:9555"
+    #restart: always
+    privileged: true
+    environment:
+      #PREFER_HOST_MODE: 114.67.80.169
+      SPRING_DATASOURCE_PLATFORM: mysql
+      NACOS_SERVER_IP: 182.61.2.16
+      NACOS_SERVERS: 114.67.80.169:8848 182.61.2.16:8848 106.12.113.62:8848
+      MYSQL_MASTER_SERVICE_HOST: 39.108.158.33
+      MYSQL_MASTER_SERVICE_PORT: 3306
+      MYSQL_MASTER_SERVICE_DB_NAME: nacos2
+      MYSQL_MASTER_SERVICE_USER: root
+      MYSQL_MASTER_SERVICE_PASSWORD: bigkang
+      MYSQL_SLAVE_SERVICE_HOST: 39.108.158.33
+      MYSQL_SLAVE_SERVICE_PORT: 3306
+      JVM_XMS: 1g
+      JVM_XMX: 1g
+      JVM_XMN: 512m
+      JVM_MS: 128m
+      JVM_MMS: 220m
+      #NACOS_DEBUG: n
+      TOMCAT_ACCESSLOG_ENABLED: 'true'
+    volumes:
+      - /docker/nacos-clust/nacos1/log:/home/nacos/logs
+      - /docker/nacos-clust/nacos2/conf/custom.properties:/home/nacos/init.d/custom.properties" > /root/nacos-clust/nacos2/docker-compose.yaml
+docker-compose up -d
+```
 
-然后在里面执行sql文件，后面的用户名可以更改，密码采用的是加密算法需要去重新生成加密算法密码然后添加
+### 搭建nacos3
+
+创建目录
+
+```
+mkdir -p /docker/nacos-clust/nacos3/{log,conf}
+mkdir -p /root/nacos-clust/nacos3/
+cd /root/nacos-clust/nacos3
+touch /docker/nacos-clust/nacos3/conf/custom.properties
+
+echo "version: '3' 
+services:   
+  nacos3:
+    image: nacos/nacos-server:1.1.4
+    container_name: nacos3
+    ports:
+      - "8848:8848"
+      - "9555:9555"
+    #restart: always
+    privileged: true
+    environment:
+      #PREFER_HOST_MODE: 114.67.80.169
+      SPRING_DATASOURCE_PLATFORM: mysql
+      NACOS_SERVER_IP: 106.12.113.62
+      NACOS_SERVERS: 114.67.80.169:8848 182.61.2.16:8848 106.12.113.62:8848
+      MYSQL_MASTER_SERVICE_HOST: 39.108.158.33
+      MYSQL_MASTER_SERVICE_PORT: 3306
+      MYSQL_MASTER_SERVICE_DB_NAME: nacos2
+      MYSQL_MASTER_SERVICE_USER: root
+      MYSQL_MASTER_SERVICE_PASSWORD: bigkang
+      MYSQL_SLAVE_SERVICE_HOST: 39.108.158.33
+      MYSQL_SLAVE_SERVICE_PORT: 3306
+      JVM_XMS: 1g
+      JVM_XMX: 1g
+      JVM_XMN: 512m
+      JVM_MS: 128m
+      JVM_MMS: 220m
+      #NACOS_DEBUG: n
+      TOMCAT_ACCESSLOG_ENABLED: 'true'
+    volumes:
+      - /docker/nacos-clust/nacos3/log:/home/nacos/logs
+      - /docker/nacos-clust/nacos3/conf/custom.properties:/home/nacos/init.d/custom.properties" > /root/nacos-clust/nacos3/docker-compose.yaml
+docker-compose up -d
+```
 
 # MySQL数据初始化
 

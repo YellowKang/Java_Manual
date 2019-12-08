@@ -184,3 +184,10 @@ cat /var/log/secure
 cat /var/log/yum.log 
 ```
 
+# Table键无法自动补全
+
+```properties
+CentOS：
+					yum install -y bash-completion
+```
+

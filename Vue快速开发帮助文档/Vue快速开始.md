@@ -274,7 +274,6 @@ vue init webpack demo
             data: {
                users: [
                    {name:"黄康",gender:0},
-                   {name:"陈玲",gender:1},
                    {name:"ytt",gender:1}
                ]
             },
@@ -288,3 +287,4 @@ vue init webpack demo
 ```
 
 这样我们就避免了再显示的元素中进行修饰
+

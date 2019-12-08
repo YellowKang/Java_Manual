@@ -76,3 +76,14 @@ spring.kafka.producer.key-serializer=org.apache.kafka.common.serialization.Strin
 spring.kafka.producer.value-serializer=org.apache.kafka.common.serialization.StringSerializer
 ```
 
+# 响应式流Kafka（整合WebFlux）
+
+引入依赖
+
+```xml
+<dependency>
+	<groupId>io.projectreactor.kafka</groupId>
+	<artifactId>reactor-kafka</artifactId>
+</dependency>
+```
+

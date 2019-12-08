@@ -11,7 +11,7 @@ docker pull rancher/server
 直接运行不挂载文件，端口可以自行修改
 
 ```
-docker run --name rancher -d -p 8080:8080 rancher/server
+docker run --name rancher -d -p 18080:8080 rancher/server
 ```
 
 运行并且挂载数据文件

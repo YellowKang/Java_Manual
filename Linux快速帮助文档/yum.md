@@ -1,4 +1,4 @@
-使用工具更新yum源
+# 使用工具更新yum源
 
 下载
 
@@ -12,10 +12,11 @@
  yum-config-manager --add-repo http://mirrors.aliyun.com/repo/Centos-7.repo
 ```
 
-
-
 搜索yum源
 
 ```
 yum search docker-ce --showduplicates | sort -r
 ```
+
+# 设置阿里云yum源
+

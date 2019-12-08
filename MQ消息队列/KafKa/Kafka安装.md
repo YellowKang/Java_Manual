@@ -416,3 +416,11 @@ services:
 ```
 
 然后启动访问添加集群
+
+
+
+```
+./kafka-topics.sh --create --zookeeper 114.67.80.169:2181,182.61.2.16:2181,106.12.113.62:2181 --replication-factor 1 --partitions 1 --topic test2
+
+```
+
