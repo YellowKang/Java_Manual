@@ -43,6 +43,14 @@ docker images| grep k8s | grep -v grep| awk '{print "docker rmi "$3}'|sh
  docker update --restart=always 容器id或者容器名称
 ```
 
+或者启动时加上参数
+
+```
+docker run -d \
+--name test \
+--restart=always \
+```
+
 # 将镜像打包压缩文件
 
 打包过程可能会比较慢等待执行完毕即可
@@ -55,5 +63,15 @@ docker save -o  ****.tar  镜像名：镜像版本
 
 ```
 docker load -i ****.tar  
+```
+
+# 设置网络模式为host
+
+在Docker启动的时候都会给我们生成一个虚拟Ip，但是我们想直接使用本地的网络模式启动
+
+```
+docker run -d \
+--name test \
+--network host \
 ```
 

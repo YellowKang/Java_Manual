@@ -64,8 +64,6 @@ mongorestore -h 39.108.168.33 --port 27017 -u minexhb -p minexhb123 -d minexhb-d
 
 # MongoeExport带条件导出数据
 
-
-
 ## 导出
 
 ```
@@ -89,6 +87,12 @@ mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p t
 --type ： 输出的格式，默认为json
 -f ：输出的字段，如果-type为csv，则需要加上-f "字段名"
 -q ：输出查询条件
+```
+
+根据时间条件导出数据
+
+```
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c briefing -u anjian -p topcom123 -q  '{"dateCreated":{$gte:new Date(1570763405000)}}  -o E:/mongo/bf2.json
 ```
 
 ## 导入

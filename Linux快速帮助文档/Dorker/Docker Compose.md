@@ -27,5 +27,3 @@ chmod +x /usr/local/bin/docker-compose
 ```
 docker-compose -v
 ```
-
- docker

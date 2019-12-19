@@ -154,3 +154,42 @@ spring.cloud.nacos.discovery.namespace=905ddece-e4ac-4564-b2aa-f4cf3d568318
 
 ![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566811887709.png)
 
+# 元数据
+
+​				我们可以在服务注册时带上我们的元数据，metadata后面可以输入要附带的元数据,我们在获取服务的实例的时候就能获取到元数据的信息了，下面讲解如何获取服务实例以及信息。
+
+properties版本
+
+```
+spring.cloud.nacos.discovery.metadata.name=BigKang
+spring.cloud.nacos.discovery.metadata.email=bigkangsix@qq.com
+spring.cloud.nacos.discovery.metadata.blog=www.bigkang.club
+```
+
+yaml版本
+
+```
+spring:
+    cloud:
+        nacos:
+            discovery:
+                metadata:
+                  name: BigKang
+                  email: bigkangsix@qq.com
+                  blog: www.bigkang.club
+```
+
+
+
+# 获取服务实例
+
+```
+@Autowired
+private DiscoverClient discoveryClient;
+
+publiuc void main(){
+		// 获取用户服务的信息
+		discoveryClient.getInstances("user-server");
+}
+```
+

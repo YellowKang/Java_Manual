@@ -59,6 +59,40 @@ ZoneAvoidanceRule		默认规则，符合判断服务所在的区域的性能和�
 	这样我们就是用了根据响应时间而进行负载均衡
 	那么为什么我们能使用返回值类型给他进行算法的实现呢？那是因为我们的这七种算法类里面继承了AbstractLoadBalancerRule，而AbstractLoadBalancerRule，里面又实现了IRule，
 	所以我们要使用他的算法的核心就是IRule
-	
-	
+
 	也可以使用自定的负载均衡算法
+
+# 配置配文件动态集成负载均衡策略
+
+user-service表示用户服务针对这个用户服务我们所使用的负载均衡策略是轮询
+
+```
+user-service:
+  ribbon:
+    # 代表Ribbon使用的负载均衡策略
+    NFLoadBalancerRuleClassName: com.netflix.loadbalancer.RandomRule
+    # 每台服务器最多重试次数，但是首次调用不包括在内。
+    MaxAutoRetries: 1
+    # 最多重试多少台服务器。
+    MaxAutoRetriesNextServer: 1
+    # 无论是请求超时或者socket read timeout都进行重试。
+    OkToRetryOnAllOperations: true
+    # 服务列表刷新间隔
+    ServerListRefreshInterval: 2000
+    # 服务连接的超时时间
+    ConnectTimeout: 3000
+    # 服务读取的超时时间
+    ReadTimeout: 3000
+```
+
+# 饥饿加载
+
+​		我们在第一次访问服务的时候一旦路由到那个服务就会特别慢，这是由于懒加载的原因，当我们第一次请求的时候他再去获取服务信息进行连接并且负载均衡，我们可以使用饥饿加载来解决这个问题。
+
+properties版本
+
+```
+ribbon.eager-load.enabled=true		#开启饥饿加载
+ribbon.eager-load.clients=user-server,order-server #饥饿加载的服务使用”,“号隔开
+```
+

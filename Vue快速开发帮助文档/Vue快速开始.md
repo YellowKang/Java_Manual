@@ -18,7 +18,7 @@ vue init webpack demo
 
 # Vue基本操作
 
-## 	基本数据渲染
+## 	模板语法
 
 ​		要使用Vue.js首先引入Vue的js包，
 
@@ -48,6 +48,34 @@ vue init webpack demo
 ```
 
 这里我们操作了一个id为ni的一个元素，并且初始化了一个message数据，然后里面的内容是message，并且给他的title上绑定了一个toto的数据，在他的属性中绑定不能直接使用{{}}需要使用v-Bind
+
+或者我们将v-bind省略，如下
+
+```
+ <h1 :title="toto" id="ni">
+```
+
+
+
+或者我们在里面添加一段html代码
+
+```
+<div id="ni" v-html="message">              
+                                  
+</div>                                      
+                                            
+<script>                                    
+    new Vue({                               
+        el: '#ni',                          
+        data: {                             
+            message:"<h1>你好a</h1>",         
+            toto:"你好a的标题"                   
+        }                                   
+    });                                     
+</script>                                   
+```
+
+
 
 ## 数据双向绑定
 
@@ -169,7 +197,7 @@ vue init webpack demo
             data: {
                 users: [
                     {stuon:2001,name:"黄康",age:18},
-                    {stuon:2002,name:"陈玲",age:19},
+                    {stuon:2002,name:"Bigkang",age:19},
                     {stuon:2003,name:"康哥",age:20}
                 ]
             }

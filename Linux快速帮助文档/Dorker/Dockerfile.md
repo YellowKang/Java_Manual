@@ -25,7 +25,6 @@ ENV JAVA_HOME /usr/local/java/jdk1.8.0_171
 ENV JRE_HOME $JAVA_HOME/jre
 ENV CLASSPATH $JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar:$JRE_HOME/lib:$CLASSPATH
 ENV PATH $JAVA_HOME/bin:$PATH
-
 ```
 
 ​		这里我们可以看到他将当前目录的jdk加了进去并且配置了环境变量，然后我们直接使用Docker来构建镜像
@@ -44,8 +43,6 @@ docker run 运行，-di后台 --name指定名字，最后空格运行jdk1.8这�
 
 docker run -di --name jdk1.8 jdk1.8
 
-
-
 # 搭建Docker私有仓库
 
 ## 安装仓库
@@ -54,39 +51,33 @@ docker run -di --name jdk1.8 jdk1.8
 
 ​		如何使用Docker私有仓库？首先我们先下载仓库
 
-
-
-​			docker pull registry
-
-
+```
+docker pull registry
+```
 
 ​		首先我们现更改名字
 
+```
+docker tag docker.io/registry registry
+```
 
+​		然后删除原来的镜像
 
-​			docker tag docker.io/registry registry
-
-
-
-​		然后删除原来的docker rmi docker.io/registry
+```
+docker rmi docker.io/registry
+```
 
 ​		这样就下载下来了一个仓库然后我们运行仓库
 
-
-
-​		 	docker run -di --name registry --restart=always  -p 5000:5000 registry
-
-
+```
+docker run -d --name registry --restart=always -p 5000:5000 registry
+```
 
 ​		然后我们docker ps查看一下
 
 ​		然后我们测试一下能不能连接上
 
-
-
 ​			 curl http://localhost:5000/v2/_catalog
-
-
 
 ​		如果返回{"repositories":[]}
 
@@ -105,3 +96,64 @@ docker run -di --name jdk1.8 jdk1.8
 http://140.143.0.227:5000/v2/_catalog
 
 ​		
+
+# 构建带Ubantu的JDK镜像
+
+先去官网下载JRE环境，然后删除多余的东西重新打包
+
+下载Jre地址：[Jre地址](https://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html)
+
+下载后解压
+
+```sh
+tar -xvcf jre-8u231-linux-x64.tar.gz
+cd jre1.8.0_231
+rm -rf COPYRIGHT LICENSE README release THIRDPARTYLICENSEREADME-JAVAFX.txt THIRDPARTYLICENSEREADME.txt Welcome.html
+rm -rf   lib/plugin.jar \
+           lib/ext/jfxrt.jar \
+           bin/javaws \
+           lib/javaws.jar \
+           lib/desktop \
+           plugin \
+           lib/deploy* \
+           lib/*javafx* \
+           lib/*jfx* \
+           lib/amd64/libdecora_sse.so \
+           lib/amd64/libprism_*.so \
+           lib/amd64/libfxplugins.so \
+           lib/amd64/libglass.so \
+           lib/amd64/libgstreamer-lite.so \
+           lib/amd64/libjavafx*.so \
+           lib/amd64/libjfx*.so
+
+cd ..
+tar zcvf jre8.tar.gz jre1.8.0_231
+```
+
+
+
+然后创建Dockerfile，将jre8.tar.gz放入当前目录下，Dockerfile目录如下
+
+```sh
+FROM boystar/ubantu
+# 设置apt源
+RUN echo "deb http://mirrors.163.com/ubuntu precise main universe" > /etc/apt/sources.list
+# 安装 vim ping ifconfig ip tcpdump nc curl iptables python 常用命令
+RUN apt-get -y update && apt-get -qq -y install vim iputils-ping netcat curl
+ADD jre8.tar.gz /usr/java/jdk/
+ENV JAVA_HOME /usr/java/jdk/jre1.8.0_231
+ENV PATH ${PATH}:${JAVA_HOME}/bin
+```
+
+然后构建
+
+```
+docker build -t "xhbjdk1.8" .
+```
+
+
+
+```
+netcat
+```
+

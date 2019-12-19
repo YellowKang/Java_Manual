@@ -12,7 +12,7 @@
 
 ​		
 
-```
+```java
 //表示是一個Spring組件
 @Component
 //开启Task组件
@@ -29,7 +29,7 @@ public class TestTask {
 
 还能使用另一种表达式来进行创建
 
-```
+```java
       //定时任务，每隔5秒钟进行一次定时任务如果直接写1 * * * * ？表示一分钟
       @Scheduled(cron = "*/5 * * * * ?")
       //开启异步
@@ -41,7 +41,7 @@ public class TestTask {
 
 下面是表达式的示例
 
-```
+```java
 //    0 0 10，14，16 * * ？每天上午10点、下午两点、下午4点整触发
 //    0 0/30 9-17 * * ? 每天朝九晚五内每隔半小时触发
 //    0 15 10 ? * MON-FRI 周一至周五的上午10:15触发
@@ -67,73 +67,228 @@ public class TestTask {
 //    0 15 10 ? * 5#3     每个月第三周的星期四的10点15分0秒触发
 ```
 
+# 定时任务配置
 
+引入Lombok依赖方便打印日志
+
+```xml
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.0</version>
+            <scope>provided</scope>
+        </dependency>
+```
+
+### 创建配置文件
+
+```java
+package com.cloud.demo.actuator.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.AsyncConfigurer;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.SchedulingConfigurer;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
+import org.springframework.scheduling.config.ScheduledTaskRegistrar;
+
+import java.util.concurrent.Executor;
+import java.util.concurrent.ThreadPoolExecutor;
+
+/**
+ * @Author BigKang
+ * @Date 2019/12/11 4:30 PM
+ * @Summarize 定时任务配置
+ */
+@Configuration              // 配置类
+@EnableAsync                // 开启异步
+@EnableScheduling           // 开启定时任务
+@Slf4j                      // 日志输出
+public class SpringTaskConfig implements SchedulingConfigurer,AsyncConfigurer {
+
+    // 定时任务线程数量
+    @Value("${spring.task.pool.size:10}")
+    private Integer size;
+
+    // 定时任务线程名称前缀
+    @Value("${spring.task.pool.prefix:TaskExecutor-}")
+    private String prefix;
+
+    // 等待超时秒数
+    @Value("${spring.task.pool.seconds:600}")
+    private Integer seconds;
+
+    // 等待完成是否关闭
+    @Value("${spring.task.pool.shutdown:true}")
+    private Boolean shutdown;
+
+
+    // 异步线程池核心线程数
+    @Value("${spring.task.pool.async.core:10}")
+    private Integer asyncCore;
+
+    // 异步线程池最大线程数
+    @Value("${spring.task.pool.async.max:20}")
+    private Integer asyncMax;
+
+    // 异步线程池阻塞队列长度
+    @Value("${spring.task.pool.async.queue:1000}")
+    private Integer asyncQueueSize;
+
+    // 异步线程池活动秒数
+    @Value("${spring.task.pool.async.seconds:600}")
+    private Integer asyncSeconds;
+
+    // 异步线程池线程名称前缀
+    @Value("${spring.task.pool.async.prefix:AsyncTaskExecutor-}")
+    private String asyncPrefix;
+
+
+
+
+    /**
+     * 定时任务使用的线程池
+     * @return
+     */
+    @Bean(destroyMethod = "shutdown", name = "taskScheduler}")
+    public ThreadPoolTaskScheduler taskScheduler(){
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        // 线程数量
+        scheduler.setPoolSize(size);
+        // 线程前缀
+        scheduler.setThreadNamePrefix(prefix);
+        // 活动秒数
+        scheduler.setAwaitTerminationSeconds(seconds);
+        // 执行完毕关闭
+        scheduler.setWaitForTasksToCompleteOnShutdown(shutdown);
+        return scheduler;
+    }
+
+    /**
+     * 异步任务执行线程池
+     * @return
+     */
+    @Bean
+    public ThreadPoolTaskExecutor asyncExecutor() {
+        // 线程池
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        // 核心线程数
+        executor.setCorePoolSize(asyncCore);
+        // 最大线程数
+        executor.setMaxPoolSize(asyncMax);
+        // 阻塞队列容量
+        executor.setQueueCapacity(asyncQueueSize);
+        // KeepAlive活动秒数
+        executor.setKeepAliveSeconds(asyncSeconds);
+        // 执行线程名称前缀
+        executor.setThreadNamePrefix(asyncPrefix);
+        // 拒绝策略（当最大线程池和阻塞队列饱满，多余的线程如何处理，当前设置为调用线程处理）
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        // 初始化
+        executor.initialize();
+        return executor;
+    }
+
+    /**
+     * 将定时任务线程池注册
+     * @param scheduledTaskRegistrar
+     */
+    @Override
+    public void configureTasks(ScheduledTaskRegistrar scheduledTaskRegistrar) {
+        scheduledTaskRegistrar.setTaskScheduler(taskScheduler());
+    }
+
+    /**
+     * 返回异步线程池
+     * @return
+     */
+    @Override
+    public Executor getAsyncExecutor() {
+        return asyncExecutor();
+    }
+
+    /**
+     * 配置异步异常处理器
+     * @return
+     */
+    @Override
+    public AsyncUncaughtExceptionHandler getAsyncUncaughtExceptionHandler() {
+        return (message, method, params) -> {
+            log.error("异步任务执行出现异常, 消息： {}, 方法： {}, 参数： {}", message, method, params);
+        };
+    }
+}
 
 ```
-    /**
-     * 是否报修
-     */
-    private String applyRepair;
+
+### 使用配置文件
+
+properties版本：
+
+```
+# 同步定时任务线程池配置
+spring.task.pool.size=10																#定时任务线程数
+spring.task.pool.prefix=TaskExecutor-										#定时任务线程前缀
+spring.task.pool.seconds=600														#定时任务等待时间（秒）
+spring.task.pool.shutdown=true													#执行后是否关闭
+
+# 异步定时任务线程池配置
+spring.task.pool.async.core=10													#异步核心线程数
+spring.task.pool.async.max=20														#异步最大线程数
+spring.task.pool.async.queue=1000												#异步最大阻塞队列数量
+spring.task.pool.async.seconds=600											#活动秒数
+spring.task.pool.async.prefix=AsyncTaskExecutor-				#异步线程名称前缀
+```
+
+yaml版本
+
+```
+spring:
+    task:
+        pool:
+            async:
+                core: 10 #异步核心线程数
+                max: 20 #异步最大线程数
+                prefix: AsyncTaskExecutor- #异步线程名称前缀
+                queue: 1000 #异步最大阻塞队列数量
+                seconds: 600 #活动秒数
+            prefix: TaskExecutor- #定时任务线程前缀
+            seconds: 600 #定时任务等待时间（秒）
+            shutdown: true #执行后是否关闭
+            size: 10 #定时任务线程数
+```
+
+
+
+### 测试
+
+```java
+@Component
+@Slf4j
+public class TestPoolTask {
 
     /**
-     * 维保结果
+     * 测试同步定时任务
      */
-    private String mainResult;
+    @Scheduled(cron = "0/1 * * * * ? ") //每1秒执行一次
+    public void testSynchronous() {
+        log.info("1");
+    }
 
     /**
-     * 维保记录
+     * 测试异步定时任务
      */
-    private String mainRecord;
-
-    /**
-     * 保养负责人ID
-     */
-    private String mainUserId;
-
-    /**
-     * 保养负责人
-     */
-    private String mainUser;
-
-    /**
-     * 实际完成日期
-     */
-    private Date finishDate;
-
-    /**
-     * 负责人电话
-     */
-    private String mainUserTel;
-
-    /**
-     * 计划点检日期
-     */
-    private Date checkPlanDate;
-
-    /**
-     * 点检周期
-     */
-    private int checkCycle;
-
-    /**
-     * 点检完成日期
-     */
-    private Date checkFinishDate;
-
-    /**
-     * 计划给油脂日期
-     */
-    private Date addGreasePlanDate;
-
-    /**
-     * 给油脂周期
-     */
-    private int addGreaseCycle;
-
-    /**
-     * 给油脂完成日期
-     */
-    private Date addGreaseFinishDate;
-
+    @Scheduled(cron = "0/1 * * * * ? ") //每1秒执行一次
+    @Async
+    public void testAsync() {
+        log.info("2");
+    }
+}
 ```
 
