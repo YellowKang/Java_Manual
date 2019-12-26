@@ -38,6 +38,5 @@ management:
     health:
         elasticsearch:
             enabled: false
-
 ```
 

@@ -31,7 +31,7 @@ docker images| grep rancher | grep -v grep| awk '{print "docker rmi "$3}'|sh
 
 docker run --name rancher -d -p 9999:8080 rancher/server
 
-docker ps| grep k8s| grep -v grep| awk '{print "docker stop "$1}'|sh
+docker ps| grep k8s| grep -v grep| awk '{print "docker kill "$1}'|sh
 
 docker ps -a| grep k8s| grep -v grep| awk '{print "docker rm "$1}'|sh
 

@@ -125,3 +125,28 @@ systemctl start docker
 systemctl enable docker.service
 systemctl enable docker
 ```
+
+# 一键骚操作之安装指定版本Docker
+
+```
+yum -y remove docker  docker-common docker-selinux docker-engine
+sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+sudo yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+sudo yum install -y docker-ce-18.06.1.ce
+systemctl enable docker
+systemctl start docker
+```
+
+# 添加镜像加速
+
+```
+vim /etc/docker/daemon.json
+# 填入一下内容,登录阿里云即可获取
+{
+ "registry-mirrors": ["https://ldlov75k.mirror.aliyuncs.com"]
+}
+
+
+systemctl restart docker.service
+```
+

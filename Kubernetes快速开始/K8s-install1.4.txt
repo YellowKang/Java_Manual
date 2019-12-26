@@ -76,8 +76,8 @@ systemctl enable docker && systemctl start docker
 8.部署master节点
  8.1集群初始化
 
- kubeadm init --kubernetes-version=1.14.2 \
---apiserver-advertise-address=114.67.80.169  \
+kubeadm init --kubernetes-version=1.14.2 \
+--apiserver-advertise-address=172.16.16.5  \
 --image-repository registry.aliyuncs.com/google_containers \
 --service-cidr=10.1.0.0/16 \
 --pod-network-cidr=10.244.0.0/16

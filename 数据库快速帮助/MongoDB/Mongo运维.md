@@ -120,3 +120,72 @@ mongoimport  -h 39.108.158.33 --port 27017 -d test -c coalRiskProbability -u big
 ## 修改字段名
 
 db.getCollection('synonymsList').update({}, {$rename : {"name_status" : "status"}}, false, true)
+
+# Mongo索引优化
+
+
+
+## 语句分析
+
+​				我们使用mongo的性能分析器explian，他和我们mysql中的explian关键字是一样的，他们的效果也类似，都是分析此次sql执行的效率以及性能分析等等。
+
+​				我们随便拿一个集合来进行测试。
+
+```
+
+```
+
+
+
+## 创建索引
+
+
+
+## 查询索引
+
+我们使用getIndexes方法即可查询相应集合的索引
+
+```
+db.{集合名称}.getIndexes()
+```
+
+返回的数据如下
+
+```
+[
+    {
+        "v" : 2,
+        "key" : {
+            "_id" : 1
+        },
+        "name" : "_id_",
+        "ns" : "minexhb-db.sys_data_history"
+    },
+    {
+        "v" : 2,
+        "key" : {
+            "dateModified" : -1.0,
+            "sysType" : 1.0,
+            "did" : 1.0
+        },
+        "name" : "dateModified_-1_sysType_1_did_1",
+        "ns" : "minexhb-db.sys_data_history"
+    }
+]
+```
+
+集合的_id默认是添加了索引的，我们自己添加了一个索引就是第二个，下面我们来解释下他们的意思吧
+
+```
+v 									表示索引的版本，默认为1，我添加了一个所以版本变成了2，每次修改新增版本
+
+key									key表示添加的索引，如第二个，我们添加了组合索引，有3个字段
+														dateModified（修改时间）			-1     -1表示倒排
+														sysType（系统类型）			  		 1		 1表示顺排
+                            did（设备id)									 1		 1表示顺排
+                            
+name								name表示索引的名称，如果创建时不指定则按照  字段名[0]_排序规则_字段名[2]...
+
+ns									表示所在的哪个库的哪个集合的索引当前为minexhb-db库的sys_data_history集合
+```
+

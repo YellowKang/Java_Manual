@@ -27,7 +27,7 @@ default-character-set=utf8
 ```sh
 docker run -p 3306:3306 \
 --name mysql \
--e MYSQL_ROOT_PASSWORD=root \
+-e MYSQL_ROOT_PASSWORD=longgeniubi666 \
 --privileged=true \
 -v /docker/mysql/data:/var/lib/mysql \
 -v /docker/mysql/conf/my.cnf:/etc/mysql/conf.d/mysql.cnf \
