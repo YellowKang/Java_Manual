@@ -27,3 +27,10 @@ chmod +x /usr/local/bin/docker-compose
 ```
 docker-compose -v
 ```
+
+如果太慢可以将它从一台安装好的机器scp到另一台机器
+
+```
+scp docker-compose root@114.67.80.169:/usr/local/bin/docker-compose
+```
+

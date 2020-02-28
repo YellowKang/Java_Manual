@@ -431,11 +431,11 @@ public class MyUserDetailsService implements UserDetailsService {
 @EnableGlobalMethodSecurity(prePostEnabled = true,securedEnabled = true,jsr250Enabled = true)
 public class AuthServerConfig extends WebSecurityConfigurerAdapter {
 
-    @Bean
-    public BCryptPasswordEncoder passwordEncoder() {
-        // 设置默认的加密方式
-        return new BCryptPasswordEncoder();
-    }
+      @Bean
+      public BCryptPasswordEncoder passwordEncoder() {
+          // 设置默认的加密方式
+          return new BCryptPasswordEncoder();
+      }
 
     /**
      * 数据库用户认证UserDetailsService实现

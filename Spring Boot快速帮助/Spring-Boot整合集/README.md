@@ -97,3 +97,29 @@ https://docs.spring.io/spring-data/mongodb/docs/2.1.7.RELEASE/reference/html/
         </dependency>
 ```
 
+# Jpa
+
+官方文档地址：[点击进入](https://docs.spring.io/spring-data/jpa/docs/)
+
+## 依赖配置
+
+```xml
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+```
+
+# Redis
+
+官方文档地址：[点击进入](https://docs.spring.io/spring-data/redis/docs/)
+
+## 依赖配置
+
+```xml
+  	<dependency>
+  		<groupId>org.springframework.boot</groupId>
+  		<artifactId>spring-boot-starter-data-redis</artifactId>
+  	</dependency>
+```
+

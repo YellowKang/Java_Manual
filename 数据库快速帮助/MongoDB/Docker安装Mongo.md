@@ -21,9 +21,8 @@ chmod 777 /docker/mongo/conf
 chmod 777 /docker/mongo/data
 #然后直接启动容器
 docker run --name mongo -d \
--p 27018:27018 \
+-p 27018:27017 \
 --privileged=true \
--v /docker/mongo/conf:/data/configdb \
 -v /docker/mongo/data:/data/db \
 docker.io/mongo:latest \
 --auth
@@ -40,14 +39,10 @@ chmod 777 /docker/mongo/conf
 chmod 777 /docker/mongo/data
 
 #新建配置文件
-touch /docker/mongo/conf/mongo.conf
-
-#然后放入如下配置
-# mongodb.conf
+echo "
 logappend=true
-# bind_ip=127.0.0.1
 port=27018
-auth=true
+auth=true" > /docker/mongo/conf/mongo.conf
 
 #我们此处更换端口并且开启验证
 
@@ -66,13 +61,13 @@ docker.io/mongo:latest mongod -f /data/configdb/mongo.conf
 #-----进入容器
 docker exec -it mongo bash
 #-----进入mongo
-mongo
+mongo --port 27018
 #-----选中admin数据库
 use admin
 #-----创建用户，root用户
 db.createUser({user:"root",pwd:"root",roles:[{role:'root',db:'admin'}]})
 #-----退出mongo
-exit
+exit
 ```
 
 # 给数据库创建用户
@@ -80,15 +75,18 @@ exit
 首先创建数据库，如果有则选中如果没有则创建
 
 ```sql
-use test
+use admin
 ```
 
-然后创建用户
+输入admin数据库用户名密码然后创建用户
 
 user为用户名，pwd为用户密码，role为角色，db为数据库
 
+
+
 ```sql
-db.createUser({user:"kang",pwd:"kang",roles:[{role:'dbOwner',db:'config'}]})
+use nlp
+db.createUser({user:"nlp",pwd:"nlp",roles:[{role:'dbOwner',db:'nlp'}]})
 ```
 
 然后需要认证登录

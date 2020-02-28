@@ -110,7 +110,7 @@ docker restart mysql-master
 进入mysql中
 
 ```
-docker exec -it mysql-master1 bash
+docker exec -it mysql-master bash
 然后
 mysql -u root -p
 输入
@@ -162,7 +162,7 @@ docker restart mysql-slave
 我们先去《去master节点查询信息后在slave执行》主机mysql中查询binlog日志的信息
 
 ```
-show master status
+show master status;
 ```
 
 这个信息在slave中需要用到
@@ -170,6 +170,14 @@ show master status
 ```
 change master to master_host='127.0.0.1', master_user='slave', master_password='123456', master_port=3301, master_log_file='mysql-bin.000001', master_log_pos= 154, master_connect_retry=30;
 ```
+
+```
+change master to master_host='192.168.0.3', master_user='slave', master_password='123456', master_port=3301, master_log_file='mysql-bin.000001', master_log_pos= 627, master_connect_retry=30;
+```
+
+
+
+
 
 创建slave配置详情
 
@@ -189,10 +197,10 @@ master_connect_retry：如果连接失败，重试的时间间隔，单位是秒
 show slave status \G
 
 启动slave
-start slave
+start slave;
 
 再次查看状态
-show slave status
+show slave status \G
 如果发现
 Slave_IO_Running和Slave_SQL_Running都为true的话那么主从搭建成功
 ```

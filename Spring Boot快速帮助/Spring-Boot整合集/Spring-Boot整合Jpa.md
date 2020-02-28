@@ -351,3 +351,114 @@ uniqueConstraints						//属性是否添加唯一约束
 indexes											//该属性值为@Index注解数组，用于为该连接表定义多个索引
 ```
 
+## 关系映射正确使用方法
+
+### @OneToOne
+
+通常用于一个用户对应一个用户的详情，例如User对UserInfo，我们可以把UserInfo的字段也放在User中，但是我们想把它拆分成两张表，并且我们在删除User的时候级联删除掉UserInfo
+
+首先我们需要确认一个问题，这个关联关系是由User来保存还是由UserInfo进行保存，也就是我们在User中新增一个info_id，还是在UserInfo中新增一个user_id让他们关联起来。
+
+首先我们先使用第一种这个关系由user来保存
+
+我们在User中新增UserInfo，ALL表示我们可以通过User来删除创建修改Info
+
+```java
+    @OneToOne(cascade = CascadeType.ALL)
+    @JoinColumn(name = "info_id",referencedColumnName = "id")
+    private UserInfo userInfo;
+```
+
+那么我们在UserInfo中就不需要保存了
+
+
+
+那么我们再来试试将关系维护放在Info端，User端的代码就不需要@JoinColumn了，我们在User类中的Info使用mappedBy然后属性名，表示我们将关系交给info类中的user来进行关系维护。
+
+```
+    @OneToOne(cascade = CascadeType.ALL,mappedBy = "user")
+    @JsonManagedReference
+    private UserInfo userInfo;
+```
+
+我们再来看一看Info端的代码，我们可以看到我们在User中也引用了一个OneToOne然后关联user中Id
+
+```java
+    @OneToOne
+    @JsonBackReference
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private User user;
+```
+
+
+
+```java
+@JsonManagedReference
+@JsonBackReference
+```
+
+这两个注解帮助我们解决查询嵌套的问题，因为我们的User中有Info，Info中又引用了User所以会引起无限递归，所以我们在User加上JsonManagedReference，在Info中使用JsonBackReference
+
+### @OneToMany
+
+一对多的话我们就只能将关系放在Info端进行维护了，示例如下。User类代码如下
+
+```
+    @OneToMany(cascade = CascadeType.ALL,mappedBy = "user")
+    @JsonManagedReference
+    private List<UserInfo> userInfo;
+```
+
+Info类代码如下
+
+```
+@ManyToOne(cascade = {CascadeType.MERGE, CascadeType.REFRESH})
+@JsonBackReference
+@JoinColumn(name = "user_id", referencedColumnName = "id")
+private User user;
+```
+
+我们在User端放弃维护关系，将关系都保存在Info中
+
+### @ManyToMany
+
+
+
+### 级联查询优化
+
+我们在级联查询的时候，我们发现他在查询的时候竟然是分开两次进行查询的那么我们肯定需要优化一下，让他只执行一次sql，首先我们在实体类上加上注解NamedEntityGraph，然后name属性设置一个名字，再设置级联的属性节点，这里用的是属性名字，我们写上UserInfo。
+
+```java
+@NamedEntityGraph(name = "User.BYINFO",attributeNodes = {@NamedAttributeNode("userInfo")})
+public class User extends BaseJpaEntity {
+  
+    @OneToMany(cascade = CascadeType.ALL,mappedBy = "user")
+    @JsonManagedReference
+    private List<UserInfo> userInfo;
+
+}
+```
+
+然后我们再去Dao层方法上加上注解加上，在Dao层的方法上加上EntityGraph注解即可，再次查询发现sql变成了一条。
+
+```
+    @Override
+    @EntityGraph(value = "User.BYINFO", type = EntityGraph.EntityGraphType.FETCH)
+    Optional<User> findById(Long var1);
+```
+
+# Jpa多表条件构造
+
+通过
+
+```
+//两张表关联查询
+Join<User, Role> roleJoin = root.join(root.getModel().getSet("roles", Role.class), JoinType.LEFT);
+
+predicate.add(cb.like(roleJoin.get("roleName"),"%管理员%"));
+```
+
+​		首先我们需要查询用户，所以Join的实体是User，以及Role，然后我们从root中获得模型，再从模型中设置角色，然后Join的类型为左连接。
+
+​		然后add我们的查询条件为角色包含管理员的角色关联的用户，将用户查询出来。
+

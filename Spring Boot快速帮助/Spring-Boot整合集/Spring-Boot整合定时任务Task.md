@@ -60,14 +60,30 @@ public class TestTask {
 //    15/5 * * * * ?      每分钟的每15秒开始触发，每隔5秒触发一次
 //    15-30/5 * * * * ?   每分钟的15秒到30秒之间开始触发，每隔5秒触发一次
 //    0 0/3 * * * ?       每小时的第0分0秒开始，每三分钟触发一次
-//    0 15 10 ? *         MON-FRI 星期一到星期五的10点15分0秒触发
+//    0 15 10 ? * MON-FRI 星期一到星期五的10点15分0秒触发
 //    0 15 10 L * ?       每个月最后一天的10点15分0秒触发
 //    0 15 10 LW * ?      每个月最后一个工作日的10点15分0秒触发
 //    0 15 10 ? * 5L      每个月最后一个星期四的10点15分0秒触发
 //    0 15 10 ? * 5#3     每个月第三周的星期四的10点15分0秒触发
+
+MON  		星期一
+
+TUE			星期二
+
+WED			星期三
+
+THU			星期四
+
+FRI			星期五 
+
+SAT			星期六
+  
+SUN 		星期日
+  
+
 ```
 
-# 定时任务配置
+# 定时任务线程池配置以及异步配置
 
 引入Lombok依赖方便打印日志
 
@@ -290,5 +306,134 @@ public class TestPoolTask {
         log.info("2");
     }
 }
+```
+
+# 动态定时任务
+
+## 创建定时任务对象
+
+```java
+/**
+ * @Author BigKang
+ * @Date 2019/12/30 6:07 PM
+ * @Summarize 定时任务表达式对象
+ */
+@Data
+public class TaskCron {
+
+    // 定时任务表达式
+    private String cron;
+
+}
+```
+
+## 创建配置类
+
+初始化bean对象，并且将时间设置为1秒钟触发一次
+
+```java
+/**
+ * @Author BigKang
+ * @Date 2019/12/11 4:30 PM
+ * @Summarize 定时任务配置
+ */
+@Configuration              // 配置类
+@Slf4j                      // 日志输出
+public class SpringTaskConfig {
+    @Bean
+    public TaskCron taskCron(){
+        TaskCron taskCron = new TaskCron();
+        taskCron.setCron("0/1 * * * * ? ");
+        return taskCron;
+    }
+}
+```
+
+## 创建控制器修改定时任务时间间隔
+
+我们通过controller控制器的请求，直接修改定时任务的cron表达式。
+
+```java
+@RestController
+@RequestMapping("test")
+public class TestController {
+
+    @Autowired
+    private TaskCron taskCron;
+
+    @GetMapping("setCron")
+    public String str(String cron){
+        taskCron.setCron(cron);
+        return taskCron.getCron();
+    }
+}
+```
+
+我们可以看到，我们通过rest接口修改了bean对象中的表达式，最后我们就来编写定时任务吧。
+
+## 动态定时任务任务调度
+
+```java
+/**
+ * @Author BigKang
+ * @Date 2019/12/30 6:04 PM
+ * @Summarize 动态定时任务
+ */
+@Component
+@Slf4j
+public class DynamicTask implements SchedulingConfigurer {
+
+    @Autowired
+    private TaskCron taskCron;
+
+    @Override
+    public void configureTasks(ScheduledTaskRegistrar scheduledTaskRegistrar) {
+        // 需要执行的操作，定时任务操作 -》 线程
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                log.info("{}动态打印定时任务",taskCron.getCron());
+            }
+        };
+
+        // 触发器对象，重写下次触发时间方法
+        Trigger trigger = new Trigger() {
+            @Override
+            public Date nextExecutionTime(TriggerContext triggerContext) {
+                CronTrigger trigger = new CronTrigger(taskCron.getCron());
+                Date nextExecDate = trigger.nextExecutionTime(triggerContext);
+                return nextExecDate;
+            }
+        };
+
+        // 添加新任务
+        scheduledTaskRegistrar.addTriggerTask(runnable, trigger);
+    }
+
+
+}
+
+```
+
+然后我们启动就能看到日志了
+
+```java
+2019-12-30 18:18:16.005  INFO 17572 --- [ TaskExecutor-2] c.cloud.demo.actuator.task.DynamicTask   : 0/1 * * * * ? 动态打印定时任务
+2019-12-30 18:18:17.003  INFO 17572 --- [ TaskExecutor-1] c.cloud.demo.actuator.task.DynamicTask   : 0/1 * * * * ? 动态打印定时任务
+2019-12-30 18:18:18.004  INFO 17572 --- [ TaskExecutor-3] c.cloud.demo.actuator.task.DynamicTask   : 0/1 * * * * ? 动态打印定时任务
+```
+
+然后我们请求rest接口，修改定时任务的时间间隔
+
+例如将间隔修改为2秒
+
+```
+http://localhost:8080/test/setCron?cron=0/1 * * ? MON
+```
+
+请求以下以下接口即可动态执行定时任务
+
+```
+
 ```
 

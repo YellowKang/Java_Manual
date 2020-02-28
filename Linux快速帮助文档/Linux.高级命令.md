@@ -10,8 +10,6 @@ ps -ef | grep python | grep -v grep| awk '{print "kill -9 "$2}'|sh
 echo 3 > /proc/sys/vm/drop_caches   //清除页面和目录缓存
 ```
 
-
-
 # 批量删除容器
 
 ```shell
@@ -137,9 +135,7 @@ systemctl enable crond.service
 find -name "*.jar"
 ```
 
-# Linux查询java路径
-
-
+# Linux查询JDK路径
 
 ```shell
 which java
@@ -172,7 +168,7 @@ cd /var/log
 
 # 查看是否别人请求暴力破解
 
-查看请求登录记录
+CentOS查看请求登录记录
 
 ```shell
 cat /var/log/secure
@@ -189,5 +185,11 @@ cat /var/log/yum.log
 ```properties
 CentOS：
 					yum install -y bash-completion
+```
+
+# 查看当前系统TCP连接
+
+```
+
 ```
 

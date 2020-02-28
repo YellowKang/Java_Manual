@@ -445,3 +445,11 @@ public class TestFlux {
 
 ```
 
+```
+{
+"sendUrl":"http://gzmkjcglj.com/uploadData/",
+"startDate":"2019-12-1",
+"endDate":"2019-12-30"
+}
+```
+

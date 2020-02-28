@@ -1,72 +1,65 @@
-# 使用addCorsMappings配置统一跨域
+# 统一跨域
 
 项目中编写config包，然后新建类CorsConfig
 
 ```
+
+/**
+ * @Author BigKang
+ * @Date 2020/1/7 3:23 PM
+ * @Summarize 自定义公共Web配置
+ */
 @Configuration
-public class CorsConfig implements WebMvcConfigurer {
- 
-    @Override  
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")  
-                .allowedOrigins("*")  
-                .allowCredentials(true)  
-                .allowedMethods("GET", "POST", "DELETE", "PUT")  
-                .maxAge(3600);  
-    }  
- 
-}  
-```
+public class CustomWebCommonConfig{
 
-# 使用Filter统一配置跨域
+    /**
+     * 跨域配置
+     * @return
+     */
+    @Bean
+    public FilterRegistrationBean corsFilter() {
+        //1.添加CORS配置信息
+        CorsConfiguration config = new CorsConfiguration();
+        config.addAllowedOrigin("*");
+        config.setAllowCredentials(true);
+        //3) 允许的请求方式
+        config.addAllowedMethod("OPTIONS");
+        config.addAllowedMethod("HEAD");
+        config.addAllowedMethod("GET");
+        config.addAllowedMethod("PUT");
+        config.addAllowedMethod("POST");
+        config.addAllowedMethod("DELETE");
+        config.addAllowedMethod("PATCH");
+        config.setMaxAge(3600L);
+        // 4）允许的头信息
+        config.addAllowedHeader("*");
 
-在spring中配置bean对象，能被容器管理到，SpringBootApplication或者configretion等等
+        //2.添加映射路径，我们拦截一切请求
+        UrlBasedCorsConfigurationSource configSource = new UrlBasedCorsConfigurationSource();
+        configSource.registerCorsConfiguration("/**", config);
 
-```
-	@Bean
-	public Filter corsFilter() {
-		return new CorsFilter();
-	}
-```
-
-然后编写CorsFilter类，在里面写入
-
-```
-public class CorsFilter implements Filter {
-
-    @Override
-    public void init(FilterConfig filterConfig) throws ServletException {
-
+        //3.返回新的CorsFilter.
+        FilterRegistrationBean bean = new FilterRegistrationBean(new CorsFilter(configSource));
+        bean.setOrder(0);
+        return bean;
     }
 
-    @Override
-    public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain) throws IOException, ServletException {
+}
+```
 
-        HttpServletResponse response = (HttpServletResponse) servletResponse;
-        HttpServletRequest request = (HttpServletRequest) servletRequest;
-        Collection<String> origins = response.getHeaders("Access-Control-Allow-Origin");
-        if(null!=origins&&origins.size()>0){
+# 在线测试
 
-        }else {
-            if(!StringUtils.isEmpty(request.getHeader("Origin"))){
-                response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
-                response.setHeader("Access-Control-Allow-Credentials", "true");
-                response.setHeader("Access-Control-Allow-Headers", "Content-Type");
-                response.setHeader("Access-Control-Allow-Headers", request.getHeader("Access-Control-Request-Headers"));
-                response.setHeader("Access-Control-Allow-Methods", request.getHeader("Access-Control-Request-Method"));
-                response.setHeader("Allow", response.getHeader("Access-Control-Allow-Methods"));
+打开浏览器，然后F12，点击Console控制台，直接执行js即可测试
 
-            }}
-        if(request.getMethod().equalsIgnoreCase(HttpMethod.OPTIONS.toString())){
-            return;
-        }
-        chain.doFilter(servletRequest,servletResponse);
-    }
 
-    @Override
-    public void destroy() {
 
-    }
+```
+var xhr = new XMLHttpRequest();
+xhr.open('GET', 'http://localhost:8083/actuator');
+xhr.send(null);
+xhr.onload = function(e) {
+    var xhr = e.target;
+    console.log(xhr.responseText);
 }
 ```
 
