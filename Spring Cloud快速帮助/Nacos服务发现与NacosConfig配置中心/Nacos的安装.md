@@ -257,6 +257,25 @@ mkdir -p /root/nacos-clust/nacos1/
 cd /root/nacos-clust/nacos1
 touch /docker/nacos-clust/nacos1/conf/custom.properties
 
+echo "#spring.security.enabled=false
+#management.security=false
+#security.basic.enabled=false
+#nacos.security.ignore.urls=/**
+#management.metrics.export.elastic.host=http://localhost:9200
+# metrics for prometheus
+management.endpoints.web.exposure.include=*
+server.port=8841
+# metrics for elastic search
+#management.metrics.export.elastic.enabled=false
+#management.metrics.export.elastic.host=http://localhost:9200
+
+# metrics for influx
+#management.metrics.export.influx.enabled=false
+#management.metrics.export.influx.db=springboot
+#management.metrics.export.influx.uri=http://localhost:8086
+#management.metrics.export.influx.auto-create-db=true
+#management.metrics.export.influx.consistency=one
+#management.metrics.export.influx.compressed=true" > /docker/nacos-clust/nacos1/conf/custom.properties
 
 echo "version: '3' 
 services:   
@@ -264,22 +283,21 @@ services:
     image: nacos/nacos-server:1.1.4
     container_name: nacos1
     ports:
-      - "8848:8848"
-      - "9555:9555"
-    #restart: always
+      - "8841:8841"
+    restart: always
+    network_mode: host
     privileged: true
     environment:
-      #PREFER_HOST_MODE: 114.67.80.169
       SPRING_DATASOURCE_PLATFORM: mysql
-      NACOS_SERVER_IP: 114.67.80.169
-      NACOS_SERVERS: 114.67.80.169:8848 182.61.2.16:8848 106.12.113.62:8848
-      MYSQL_MASTER_SERVICE_HOST: 39.108.158.33
-      MYSQL_MASTER_SERVICE_PORT: 3306
-      MYSQL_MASTER_SERVICE_DB_NAME: nacos2
+      NACOS_SERVER_IP: 192.168.0.3
+      NACOS_SERVERS: 192.168.0.3:8841 192.168.0.3:8842 192.168.0.3:8843
+      MYSQL_MASTER_SERVICE_HOST: 192.168.0.3
+      MYSQL_MASTER_SERVICE_PORT: 3301
+      MYSQL_MASTER_SERVICE_DB_NAME: nacos
       MYSQL_MASTER_SERVICE_USER: root
-      MYSQL_MASTER_SERVICE_PASSWORD: bigkang
-      MYSQL_SLAVE_SERVICE_HOST: 39.108.158.33
-      MYSQL_SLAVE_SERVICE_PORT: 3306
+      MYSQL_MASTER_SERVICE_PASSWORD: 123456
+      MYSQL_SLAVE_SERVICE_HOST: 192.168.0.3
+      MYSQL_SLAVE_SERVICE_PORT: 3302
       JVM_XMS: 1g
       JVM_XMX: 1g
       JVM_XMN: 512m
@@ -305,28 +323,47 @@ mkdir -p /root/nacos-clust/nacos2/
 cd /root/nacos-clust/nacos2
 touch /docker/nacos-clust/nacos2/conf/custom.properties
 
+echo "#spring.security.enabled=false
+#management.security=false
+#security.basic.enabled=false
+#nacos.security.ignore.urls=/**
+#management.metrics.export.elastic.host=http://localhost:9200
+# metrics for prometheus
+management.endpoints.web.exposure.include=*
+server.port=8842
+# metrics for elastic search
+#management.metrics.export.elastic.enabled=false
+#management.metrics.export.elastic.host=http://localhost:9200
+
+# metrics for influx
+#management.metrics.export.influx.enabled=false
+#management.metrics.export.influx.db=springboot
+#management.metrics.export.influx.uri=http://localhost:8086
+#management.metrics.export.influx.auto-create-db=true
+#management.metrics.export.influx.consistency=one
+#management.metrics.export.influx.compressed=true" > /docker/nacos-clust/nacos2/conf/custom.properties
+
 echo "version: '3' 
 services:   
   nacos2:
     image: nacos/nacos-server:1.1.4
     container_name: nacos2
     ports:
-      - "8848:8848"
-      - "9555:9555"
-    #restart: always
+      - "8842:8842"
+    restart: always
+    network_mode: host
     privileged: true
     environment:
-      #PREFER_HOST_MODE: 114.67.80.169
       SPRING_DATASOURCE_PLATFORM: mysql
-      NACOS_SERVER_IP: 182.61.2.16
-      NACOS_SERVERS: 114.67.80.169:8848 182.61.2.16:8848 106.12.113.62:8848
-      MYSQL_MASTER_SERVICE_HOST: 39.108.158.33
-      MYSQL_MASTER_SERVICE_PORT: 3306
-      MYSQL_MASTER_SERVICE_DB_NAME: nacos2
+      NACOS_SERVER_IP: 192.168.0.3
+      NACOS_SERVERS: 192.168.0.3:8841 192.168.0.3:8842 192.168.0.3:8843
+      MYSQL_MASTER_SERVICE_HOST: 192.168.0.3
+      MYSQL_MASTER_SERVICE_PORT: 3301
+      MYSQL_MASTER_SERVICE_DB_NAME: nacos
       MYSQL_MASTER_SERVICE_USER: root
-      MYSQL_MASTER_SERVICE_PASSWORD: bigkang
-      MYSQL_SLAVE_SERVICE_HOST: 39.108.158.33
-      MYSQL_SLAVE_SERVICE_PORT: 3306
+      MYSQL_MASTER_SERVICE_PASSWORD: 123456
+      MYSQL_SLAVE_SERVICE_HOST: 192.168.0.3
+      MYSQL_SLAVE_SERVICE_PORT: 3302
       JVM_XMS: 1g
       JVM_XMX: 1g
       JVM_XMN: 512m
@@ -335,7 +372,7 @@ services:
       #NACOS_DEBUG: n
       TOMCAT_ACCESSLOG_ENABLED: 'true'
     volumes:
-      - /docker/nacos-clust/nacos1/log:/home/nacos/logs
+      - /docker/nacos-clust/nacos2/log:/home/nacos/logs
       - /docker/nacos-clust/nacos2/conf/custom.properties:/home/nacos/init.d/custom.properties" > /root/nacos-clust/nacos2/docker-compose.yaml
 docker-compose up -d
 ```
@@ -350,28 +387,47 @@ mkdir -p /root/nacos-clust/nacos3/
 cd /root/nacos-clust/nacos3
 touch /docker/nacos-clust/nacos3/conf/custom.properties
 
+echo "#spring.security.enabled=false
+#management.security=false
+#security.basic.enabled=false
+#nacos.security.ignore.urls=/**
+#management.metrics.export.elastic.host=http://localhost:9200
+# metrics for prometheus
+management.endpoints.web.exposure.include=*
+server.port=8843
+# metrics for elastic search
+#management.metrics.export.elastic.enabled=false
+#management.metrics.export.elastic.host=http://localhost:9200
+
+# metrics for influx
+#management.metrics.export.influx.enabled=false
+#management.metrics.export.influx.db=springboot
+#management.metrics.export.influx.uri=http://localhost:8086
+#management.metrics.export.influx.auto-create-db=true
+#management.metrics.export.influx.consistency=one
+#management.metrics.export.influx.compressed=true" > /docker/nacos-clust/nacos3/conf/custom.properties
+
 echo "version: '3' 
 services:   
   nacos3:
     image: nacos/nacos-server:1.1.4
     container_name: nacos3
     ports:
-      - "8848:8848"
-      - "9555:9555"
-    #restart: always
+      - "8843:8843"
+    restart: always
+    network_mode: host
     privileged: true
     environment:
-      #PREFER_HOST_MODE: 114.67.80.169
       SPRING_DATASOURCE_PLATFORM: mysql
-      NACOS_SERVER_IP: 106.12.113.62
-      NACOS_SERVERS: 114.67.80.169:8848 182.61.2.16:8848 106.12.113.62:8848
-      MYSQL_MASTER_SERVICE_HOST: 39.108.158.33
-      MYSQL_MASTER_SERVICE_PORT: 3306
-      MYSQL_MASTER_SERVICE_DB_NAME: nacos2
+      NACOS_SERVER_IP: 192.168.0.3
+      NACOS_SERVERS: 192.168.0.3:8841 192.168.0.3:8842 192.168.0.3:8843
+      MYSQL_MASTER_SERVICE_HOST: 192.168.0.3
+      MYSQL_MASTER_SERVICE_PORT: 3301
+      MYSQL_MASTER_SERVICE_DB_NAME: nacos
       MYSQL_MASTER_SERVICE_USER: root
-      MYSQL_MASTER_SERVICE_PASSWORD: bigkang
-      MYSQL_SLAVE_SERVICE_HOST: 39.108.158.33
-      MYSQL_SLAVE_SERVICE_PORT: 3306
+      MYSQL_MASTER_SERVICE_PASSWORD: 123456
+      MYSQL_SLAVE_SERVICE_HOST: 192.168.0.3
+      MYSQL_SLAVE_SERVICE_PORT: 3302
       JVM_XMS: 1g
       JVM_XMX: 1g
       JVM_XMN: 512m
@@ -384,6 +440,62 @@ services:
       - /docker/nacos-clust/nacos3/conf/custom.properties:/home/nacos/init.d/custom.properties" > /root/nacos-clust/nacos3/docker-compose.yaml
 docker-compose up -d
 ```
+
+### Nginx代理
+
+创建挂载文件
+
+```sh
+mkdir -p /docker/nacos-nginx/{conf,logs}
+```
+
+创建初始配置文件
+
+
+
+添加权限
+
+```sh
+touch  /docker/nacos-nginx/conf/nginx.conf
+chmod 777 /docker/nacos-nginx/
+```
+
+文件添加如下
+
+```nginx
+vim 
+
+echo "server {
+       listen       8848;
+       server_name  localhost;
+
+       location / {
+           proxy_pass http://nacos-cluster; 
+       }
+
+}
+
+upstream nacos-cluster{
+       server 192.168.0.3:8841 weight=5;
+       server 192.168.0.3:8842 weight=5;
+       server 192.168.0.3:8843 weight=5;
+}" > /docker/nacos-nginx/conf/nginx.conf
+
+```
+
+启动容器
+
+```sh
+docker run -d \
+-p 8848:8848 \
+--name nginx-nacos-server \
+-v /docker/nacos-nginx/conf/:/etc/nginx/conf.d/ \
+-v /docker/nacos-nginx/logs:/var/log/nginx nginx
+```
+
+然后直接访问8848端口即可
+
+
 
 # MySQL数据初始化
 
