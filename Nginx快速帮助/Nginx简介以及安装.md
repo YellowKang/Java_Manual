@@ -65,6 +65,8 @@ docker run -d \
 
 	yum install nginx	这样就能安装了
 
+
+
 在Windows下正常解压就行了
 ```
 
