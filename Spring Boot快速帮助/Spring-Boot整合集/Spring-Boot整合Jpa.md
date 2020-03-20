@@ -447,7 +447,28 @@ public class User extends BaseJpaEntity {
     Optional<User> findById(Long var1);
 ```
 
-# Jpa多表条件构造
+### 级联反向查询
+
+通常我们通过用户关联多个部门，那么我们又如何根据这个部门查询多个用户呢。
+
+这是User中的多个Group的多对多的关系映射。
+
+```
+   	@ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "t_user_t_group", joinColumns = {@JoinColumn(name = "users_ID")},
+            inverseJoinColumns = {@JoinColumn(name = "groups_ID")})
+    private Set<Group> groups;
+```
+
+那么我们怎么根据这个Group来进行查询呢，我们使用findByGroupIs
+
+```
+    List<User> findByGroupsIs(Group var1);
+```
+
+如果使用条件构造器则试下下面的Join关联查询。
+
+### Jpa多表条件构造
 
 通过
 

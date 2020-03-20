@@ -1,6 +1,6 @@
 # 添加依赖
 
-```java
+```xml
         <!-- SpringBoot整合AOP -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
