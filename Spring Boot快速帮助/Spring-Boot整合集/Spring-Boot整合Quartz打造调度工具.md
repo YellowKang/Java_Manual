@@ -442,6 +442,7 @@ public class CustomJob extends QuartzJobBean {
 # 编写工具类
 
 ```java
+
 /**
  * @Author BigKang
  * @Date 2020/3/5 2:23 PM
@@ -452,6 +453,11 @@ public class CustomJob extends QuartzJobBean {
 public class QuartzUtil {
 
     public static final String DEFAULT_GROUP = "DEFAULT_GROUP";
+
+    /**
+     * 默认优先级
+     */
+    private static final Integer DEFAULT_PRIORITY = 5;
 
     /**
      * 注入调度器
@@ -513,28 +519,26 @@ public class QuartzUtil {
         return true;
     }
 
-    public boolean addJob(String jobName, String jobGroup, String cron) {
+    /**
+     * 添加Cron表达式Job任务
+     * @param classzz class对象
+     * @param cron cron表达式
+     * @param jobName 任务名称
+     * @param jobGroup 任务分组
+     * @param description 描述
+     * @param startDate 开始时间
+     * @param endDate  结束时间
+     * @param dataMap dataMap数据
+     * @param priority 优先级
+     * @return
+     */
+    public boolean addCronJob(Class classzz, String cron, String jobName, String jobGroup, String description, Date startDate, Date endDate, Map<String, Object> dataMap, int priority) {
         log.info("添加任务：{}-{}", jobGroup, jobName);
         try {
-            CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(cron);
-            CronTrigger trigger = TriggerBuilder.newTrigger()
-                    .withIdentity(TriggerKey.triggerKey(jobName, jobGroup)).withDescription(jobName)
-                    .withSchedule(scheduleBuilder).build();
-            JobDetail jobDetail = genJobDetail(CustomJob.class, jobName, jobGroup);
-            scheduler.scheduleJob(jobDetail, trigger);
-            log.info("成功添加任务：{}-{}", jobGroup, jobName);
-        } catch (SchedulerException e) {
-            log.info("添加任务失败：{}-{}", jobGroup, jobName);
-            return false;
-        }
-        return true;
-    }
-
-    public boolean addJob(Class classzz, String cron, String jobName, String jobGroup) {
-        log.info("添加任务：{}-{}", jobGroup, jobName);
-        try {
-            CronTrigger cronTrigger = genCronTrigger(classzz, cron, jobName, jobGroup);
-            JobDetail jobDetail = genJobDetail(classzz, jobName, jobGroup);
+            // 创建Cron表达式触发器
+            CronTrigger cronTrigger = genCronTrigger(classzz, cron, jobName, jobGroup, description, startDate, endDate, dataMap, priority);
+            // 创建任务详情
+            JobDetail jobDetail = genJobDetail(classzz, jobName, jobGroup, jobName);
             scheduler.scheduleJob(jobDetail, cronTrigger);
             log.info("成功添加任务：{}-{}", jobGroup, jobName);
         } catch (SchedulerException e) {
@@ -544,46 +548,28 @@ public class QuartzUtil {
         return true;
     }
 
-    /**
-     * 重载方法
-     *
-     * @param className
-     * @param jobName
-     * @param jobGroup
-     * @param cron
-     * @return
-     */
-    public boolean addJob(String className, String cron, String jobName, String jobGroup) {
-        try {
-            Class<?> classzz = Class.forName(className);
-            return addJob(classzz, jobName, jobGroup, cron);
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
+
+    public boolean addCronJob(Class classzz, String cron, String jobName, String jobGroup, Date startDate, Date endDate, Map<String, Object> dataMap, int priority){
+        return addCronJob(classzz,cron,jobName,jobGroup,"",startDate,endDate,dataMap,priority);
     }
 
-
-    public boolean addCronJob(Class classzz, String jobName, String jobGroup, String cron) {
-        log.info("添加任务：{}-{}", jobGroup, jobName);
-        try {
-            CronScheduleBuilder scheduleBuilder = CronScheduleBuilder.cronSchedule(cron);
-
-
-            CronTrigger trigger = TriggerBuilder.newTrigger()
-                    .withIdentity(TriggerKey.triggerKey(jobName, jobGroup)).withDescription(jobName)
-                    .withSchedule(scheduleBuilder).build();
-
-
-            // 创建任务详情
-            JobDetail jobDetail = genJobDetail(classzz, jobName, jobGroup, jobName);
-            scheduler.scheduleJob(jobDetail, trigger);
-            log.info("成功添加任务：{}-{}", jobGroup, jobName);
-        } catch (SchedulerException e) {
-            log.info("添加任务失败：{}-{}", jobGroup, jobName);
-            return false;
-        }
-        return true;
+    public boolean addCronJob(Class classzz, String cron, String jobName, String jobGroup, Date startDate, Date endDate, Map<String, Object> dataMap){
+        return addCronJob(classzz,cron,jobName,jobGroup,startDate,endDate,dataMap,DEFAULT_PRIORITY);
     }
+
+    public boolean addCronJob(Class classzz, String cron, String jobName, String jobGroup, Date endDate, Map<String, Object> dataMap){
+        return addCronJob(classzz,cron,jobName,jobGroup,null,endDate,dataMap);
+    }
+
+    public boolean addCronJob(Class classzz, String cron, String jobName, String jobGroup, Map<String, Object> dataMap){
+        return addCronJob(classzz,cron,jobName,jobGroup,null,dataMap);
+    }
+
+    public boolean addCronJob(String className, String cron, String jobName, String jobGroup, Map<String, Object> dataMap) throws ClassNotFoundException {
+        Class<?> classzz = Class.forName(className);
+        return addCronJob(classzz,cron,jobName,jobGroup,dataMap);
+    }
+
 
 
     /**
@@ -697,7 +683,7 @@ public class QuartzUtil {
      * @return
      */
     public CronTrigger genCronTrigger(Class classzz, String cron, String jobName, String jobGroup, Date startDate, Date endDate, Map<String, Object> dataMap) {
-        return genCronTrigger(classzz, cron, jobName, jobGroup, "Auto Create，No Description。", startDate, endDate, dataMap, 5);
+        return genCronTrigger(classzz, cron, jobName, jobGroup, "Auto Create，No Description。", startDate, endDate, dataMap, DEFAULT_PRIORITY);
     }
 
     /**
@@ -712,7 +698,6 @@ public class QuartzUtil {
 
     /**
      * 重载方法genCronTrigger
-     *
      * @return
      */
     public CronTrigger genCronTrigger(Class classzz, String cron, String jobName, String jobGroup, Date startDate, Date endDate) {
@@ -721,7 +706,6 @@ public class QuartzUtil {
 
     /**
      * 重载方法genCronTrigger
-     *
      * @return
      */
     public CronTrigger genCronTrigger(Class classzz, String cron, String jobName, String jobGroup) {
@@ -730,7 +714,6 @@ public class QuartzUtil {
 
     /**
      * 获取JobName，为空则根据规则创建
-     *
      * @param classzz
      * @param jobName
      * @return
@@ -757,8 +740,58 @@ public class QuartzUtil {
         }
         return jobGroup;
     }
-}
 
+
+    /**
+     * 获取所有定时器信息
+     * @return
+     * @throws SchedulerException
+     */
+    public List<Map> listJob() throws SchedulerException {
+        return listJob(null);
+    }
+
+    /**
+     * 根据组名获取定时器中的触发器
+     * @param group
+     * @return
+     * @throws SchedulerException
+     */
+    public List<Map> listJob(String group) throws SchedulerException {
+        List<Map> list = new CopyOnWriteArrayList<>();
+        GroupMatcher<TriggerKey> matcher;
+
+        // 组名为空获取所有组任务
+        if(StringUtils.isEmpty(group)){
+            matcher = GroupMatcher.anyGroup();
+        }else {
+            matcher = GroupMatcher.groupEquals(group);
+        }
+
+        // 获取所有的group的job信息
+        Set<TriggerKey> jobKeys = scheduler.getTriggerKeys(matcher);
+        jobKeys.forEach(v -> {
+            try {
+                Map<String,Object> map = new HashMap<>();
+                Trigger trigger = scheduler.getTrigger(v);
+                map.put("jobName",trigger.getKey());
+                map.put("startDate",trigger.getStartTime());
+                map.put("endDate",trigger.getEndTime());
+                map.put("description",trigger.getDescription());
+                map.put("data",trigger.getJobDataMap());
+                map.put("nextTime",trigger.getNextFireTime());
+                map.put("priority",trigger.getPriority());
+                map.put("status",scheduler.getTriggerState(v).name());
+                map.put("cron",((CronTrigger)trigger).getCronExpression());
+                list.add(map);
+            } catch (SchedulerException e) {
+                e.printStackTrace();
+            }
+        });
+
+        return list;
+    }
+}
 ```
 
 # 编写Controller
@@ -846,4 +879,101 @@ ERROR：出现错误
 
 
 
-org.springframework.boot.autoconfigure.quartz
+# 自定义调度器
+
+   		大多时候我们都知道整合Quartz集成的功能非常强大，但是我们有时不需要持久化到数据库中，并且Quartz本身是非常重的一个框架，我们想要单独使用它的定时器功能。
+
+只引入依赖
+
+## 创建调度器工厂
+
+解决在Job中无法注入Bean的问题
+
+```java
+import org.quartz.spi.TriggerFiredBundle;
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
+import org.springframework.scheduling.quartz.AdaptableJobFactory;
+import org.springframework.stereotype.Component;
+
+/**
+ * @Author BigKang
+ * @Date 2020/5/15 2:25 下午
+ * @Summarize 自定义定时器工厂
+ */
+@Component
+public class CustomSchedulerFactory extends AdaptableJobFactory {
+
+    /**
+     * AutowireCapableBeanFactory接口是BeanFactory的子类
+     * 可以连接和填充那些生命周期不被Spring管理的已存在的bean实例
+     */
+    private AutowireCapableBeanFactory factory;
+
+    /**
+     * 构造方法
+     * @param factory
+     */
+    public CustomSchedulerFactory(AutowireCapableBeanFactory factory) {
+        this.factory = factory;
+    }
+
+    @Override
+    protected Object createJobInstance(TriggerFiredBundle bundle) throws Exception {
+        Object job = super.createJobInstance(bundle);
+        // 进行注入（Spring管理该Bean）
+        factory.autowireBean(job);
+        return job;
+    }
+
+}
+```
+
+## 创建调度器配置
+
+```java
+
+import lombok.extern.slf4j.Slf4j;
+import org.quartz.Scheduler;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.quartz.SchedulerFactoryBean;
+
+/**
+ * @Author BigKang
+ * @Date 2020/5/15 2:25 下午
+ * @Summarize 自定义定时器配置
+ */
+@Configuration
+@Slf4j
+public class CustomSchedulerConfig {
+
+    @Autowired
+    private CustomSchedulerFactory customSchedulerFactory;
+
+    @Bean
+    public SchedulerFactoryBean schedulerFactoryBean() {
+        log.info("初始化定时器工厂......");
+        // Spring提供SchedulerFactoryBean为Scheduler提供配置信息,并被Spring容器管理其生命周期
+        SchedulerFactoryBean factory = new SchedulerFactoryBean();
+        // 设置自定义Job Factory，用于Spring管理Job bean
+        factory.setJobFactory(customSchedulerFactory);
+        log.info("初始化定时器成功......");
+        return factory;
+    }
+
+    /**
+     * 定时器Bean
+     * @return
+     */
+    @Bean
+    public Scheduler scheduler(){
+        return schedulerFactoryBean().getScheduler();
+    }
+
+}
+```
+
+
+
+采用上方工具类调用

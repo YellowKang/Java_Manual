@@ -49,7 +49,9 @@ docker cp  容器id:/data/db /root/test/data
 输入用户名以及密码并且选择数据库然后选择导出路径即可
 
 ```
-mongodump -h 192.168.1.11 -port 20168 -u minexhb -p minexhb123 -d minexhb-db -o /Users/bigkang/Documents
+mongodump -h 192.168.1.11 --port 20168 -u minexhb -p minexhb123 -d minexhb-db -o  /Users/bigkang/Documents
+
+mongodump --port 27018 -u minexhb -p minexhb123 -d minexhb-db -o  /download/xhb
 ```
 
 ## 导入数据
@@ -58,6 +60,8 @@ mongodump -h 192.168.1.11 -port 20168 -u minexhb -p minexhb123 -d minexhb-db -o 
 
 ```
 mongorestore -h 39.108.168.33 --port 27017 -u minexhb -p minexhb123 -d minexhb-db --dir /Users/bigkang/Documents
+
+mongorestore  -h 192.168.1.11 --port 20168 -u minexhb -p minexhb123 -d minexhb-db --dir /Users/bigkang/Documents/Data/xhb/minexhb-db
 ```
 
 
@@ -187,5 +191,113 @@ key									key表示添加的索引，如第二个，我们添加了组合索�
 name								name表示索引的名称，如果创建时不指定则按照  字段名[0]_排序规则_字段名[2]...
 
 ns									表示所在的哪个库的哪个集合的索引当前为minexhb-db库的sys_data_history集合
+```
+
+
+
+
+
+
+
+```
+ mongodump -h 192.168.1.11 --port 20168 -u topcom -p topcom123 -d minehn-db -o /Users/bigkang/Documents
+```
+
+
+
+
+
+```
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123  --type csv -f _id,adate,atype,atype2,province,sgjb,deathnumber -o /Users/bigkang/Documents/工具/accident.csv
+```
+
+
+
+```
+echo "[Unit]
+
+Description=Docker Application Container Engine
+
+Documentation=https://docs.docker.com
+
+After=network-online.target firewalld.service
+
+Wants=network-online.target
+
+[Service]
+
+Type=notify
+
+# the default is not to use systemd for cgroups because the delegate issues still
+
+# exists and systemd currently does not support the cgroup feature set required
+
+# for containers run by docker
+
+ExecStart=/usr/bin/dockerd
+
+ExecReload=/bin/kill -s HUP $MAINPID
+
+# Having non-zero Limit*s causes performance problems due to accounting overhead
+
+# in the kernel. We recommend using cgroups to do container-local accounting.
+
+LimitNOFILE=infinity
+
+LimitNPROC=infinity
+
+LimitCORE=infinity
+
+# Uncomment TasksMax if your systemd version supports it.
+
+# Only systemd 226 and above support this version.
+
+#TasksMax=infinity
+
+TimeoutStartSec=0
+
+# set delegate yes so that systemd does not reset the cgroups of docker containers
+
+Delegate=yes
+
+# kill only the docker process, not all processes in the cgroup
+
+KillMode=process
+
+# restart the docker process if it exits prematurely
+
+Restart=on-failure
+
+StartLimitBurst=3
+
+StartLimitInterval=60s
+
+ 
+
+[Install]
+
+WantedBy=multi-user.target" > /etc/systemd/system/docker.service
+chmod +x /etc/systemd/system/docker.service
+systemctl daemon-reload
+echo '{
+	"graph":"/data/docker",
+	"disable-legacy-registry": true
+}' > /etc/docker/daemon.json
+systemctl start docker
+```
+
+
+
+
+
+# 脚本清洗修改
+
+```
+db.sys_data_history.find({"did":"5eb64ba13610300007d9f690","atime":{"$exists":false}}).forEach(function(item){
+              var time =item.dateModified;
+              var atime = NumberInt(time.valueOf() / 1000);
+              db.sys_data_history.update({"_id":item._id} , { $set : { "atime":atime} },false,true)
+       
+    });
 ```
 

@@ -15,7 +15,7 @@
 FROM centos:7
 #指定镜像创建者信息
 MAINTAINER ITCAST
-#切换工作目录
+#切换工作目录,工作目录为sh进入容器的默认路径
 WORKDIR /usr
 RUN mkdir /usr/local/java
 #ADD 是相对路径jar,把java添加到容器中
@@ -97,6 +97,173 @@ http://140.143.0.227:5000/v2/_catalog
 
 ​		
 
+# 构建轻量级JRE基础镜像
+
+先去官网下载JRE环境，然后删除多余的东西重新打包
+
+下载Jre地址：[Jre地址](https://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html)
+
+下载后解压,删除多余jre文件,然后重新压缩包
+
+```
+mkdir /tmp/jdk
+tar -zxvf jre-8u231-linux-x64.tar.gz -C /tmp/jdk
+cd /tmp/jdk
+mv jre1.8.0_231 usr
+cd usr
+rm -rf COPYRIGHT LICENSE README* release THIRDPARTYLICENSEREADME-JAVAFX.txt THIRDPARTYLICENSEREADME.txt Welcome.html
+rm -rf   lib/plugin.jar \
+           lib/ext/jfxrt.jar \
+           bin/javaws \
+           lib/javaws.jar \
+           lib/desktop \
+           plugin \
+           lib/deploy* \
+           lib/*javafx* \
+           lib/*jfx* \
+           lib/amd64/libdecora_sse.so \
+           lib/amd64/libprism_*.so \
+           lib/amd64/libfxplugins.so \
+           lib/amd64/libglass.so \
+           lib/amd64/libgstreamer-lite.so \
+           lib/amd64/libjavafx*.so \
+           lib/amd64/libjfx*.so
+
+cd ..
+tar zcvf jre8.tar.gz usr
+```
+
+首先确认自己的当前环境变量是否有PATH，以及JAVA_HOME没有则添加
+
+然后新建Dockerfile文件
+
+```sh
+echo "FROM docker.io/jeanblanchard/alpine-glibc
+MAINTAINER bigkangsix@qq.com
+# 设置apk源
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+  && apk update
+# 直接将JDK放入根目录，为/usr/bin  
+ADD jre8.tar.gz /
+# 设置时区
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN echo 'Asia/Shanghai' > /etc/timezone" > Dockerfile
+```
+
+build镜像
+
+```
+docker build -t kang/jre1.8 . 
+docker stop run
+docker rm run
+docker run --name run -di kang/jre1.8:latest
+docker exec -it run sh
+进入容器输入java命令出现java提示即可
+```
+
+
+
+
+
+
+
+
+
+# 构建轻量级JDK基础镜像
+
+首先解压jdk基础镜像
+
+```
+mkdir /tmp/jdk
+tar -zxvf jdk-8u211-linux-x64.tar.gz -C /tmp/jdk
+cd /tmp/jdk
+mv jdk1.8.0_211 usr
+cd usr
+```
+
+删除多余文件
+
+```
+rm -rf  *src.zip \
+        "lib/missioncontrol" \
+        "lib/visualvm" \
+        "lib/"*javafx* \
+        "jre/lib/plugin.jar" \
+        "jre/lib/ext/jfxrt.jar" \
+        "jre/bin/javaws" \
+        "jre/lib/javaws.jar" \
+        "jre/lib/desktop" \
+        "jre/plugin" \
+        "jre/lib/"deploy* \
+        "jre/lib/"*javafx* \
+        "jre/lib/"*jfx* \
+        "jre/lib/amd64/libdecora_sse.so" \
+        "jre/lib/amd64/"libprism_*.so \
+        "jre/lib/amd64/libfxplugins.so" \
+        "jre/lib/amd64/libglass.so" \
+        "jre/lib/amd64/libgstreamer-lite.so" \
+        "jre/lib/amd64/"libjavafx*.so \
+        "jre/lib/amd64/"libjfx*.so \
+        "jre/bin/jjs" \
+        "jre/bin/keytool" \
+        "jre/bin/orbd" \
+        "jre/bin/pack200" \
+        "jre/bin/policytool" \
+        "jre/bin/rmid" \
+        "jre/bin/rmiregistry" \
+        "jre/bin/servertool" \
+        "jre/bin/tnameserv" \
+        "jre/bin/unpack200" \
+        "jre/lib/ext/nashorn.jar" \
+        "jre/lib/jfr.jar" \
+        "jre/lib/jfr" \
+        "jre/lib/oblique-fonts" \
+        "jre/lib/security/README.txt"
+rm -rf COPYRIGHT LICENSE README* release THIRDPARTYLICENSEREADME-JAVAFX.txt THIRDPARTYLICENSEREADME.txt Welcome.html
+cd jre
+rm -rf COPYRIGHT LICENSE README* release THIRDPARTYLICENSEREADME-JAVAFX.txt THIRDPARTYLICENSEREADME.txt Welcome.html
+```
+
+重新打包
+
+```
+cd ..
+cd ..
+tar zcvf jdk8.tar.gz usr
+```
+
+新建Dockerfile文件
+
+```
+echo "FROM docker.io/jeanblanchard/alpine-glibc
+MAINTAINER bigkangsix@qq.com
+# 设置apk源
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+  && apk update
+# 直接将JDK放入根目录，为/usr/bin  
+ADD jdk8.tar.gz /
+# 设置时区
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN echo 'Asia/Shanghai' > /etc/timezone" > Dockerfile
+```
+
+
+
+```
+docker build -t kang/jdk1.8 . 
+docker stop run
+docker rm run
+docker run --name run -di kang/jdk1.8:latest
+docker exec -it run sh
+进入容器输入java命令出现java提示即可
+```
+
+## 安装字体工具库（选装，如果没有特殊要求则不需要安装其他字体）
+
+```
+apk add font-adobe-100dpi
+```
+
 # 构建带Ubantu的JDK镜像
 
 先去官网下载JRE环境，然后删除多余的东西重新打包
@@ -106,8 +273,11 @@ http://140.143.0.227:5000/v2/_catalog
 下载后解压
 
 ```sh
-tar -xvcf jre-8u231-linux-x64.tar.gz
-cd jre1.8.0_231
+mkdir /tmp/jdk
+tar -zxvf jre-8u231-linux-x64.tar.gz -C /tmp/jdk
+cd /tmp/jdk
+mv jre1.8.0_231 usr
+cd usr
 rm -rf COPYRIGHT LICENSE README release THIRDPARTYLICENSEREADME-JAVAFX.txt THIRDPARTYLICENSEREADME.txt Welcome.html
 rm -rf   lib/plugin.jar \
            lib/ext/jfxrt.jar \
@@ -127,22 +297,19 @@ rm -rf   lib/plugin.jar \
            lib/amd64/libjfx*.so
 
 cd ..
-tar zcvf jre8.tar.gz jre1.8.0_231
+tar zcvf jre8.tar.gz usr
 ```
-
-
 
 然后创建Dockerfile，将jre8.tar.gz放入当前目录下，Dockerfile目录如下
 
 ```sh
-FROM boystar/ubantu
+echo "FROM boystar/ubantu
 # 设置apt源
+RUN touch /etc/apt/sources.list
 RUN echo "deb http://mirrors.163.com/ubuntu precise main universe" > /etc/apt/sources.list
 # 安装 vim ping ifconfig ip tcpdump nc curl iptables python 常用命令
-RUN apt-get -y update && apt-get -qq -y install vim iputils-ping netcat curl
-ADD jre8.tar.gz /usr/java/jdk/
-ENV JAVA_HOME /usr/java/jdk/jre1.8.0_231
-ENV PATH ${PATH}:${JAVA_HOME}/bin
+RUN apt-get -y update
+ADD jre8.tar.gz /" > Dockerfile
 ```
 
 然后构建
@@ -151,9 +318,50 @@ ENV PATH ${PATH}:${JAVA_HOME}/bin
 docker build -t "xhbjdk1.8" .
 ```
 
+# 关于镜像命令行无法使用中文问题
 
+我们只需要指定环境，通常都是支持中文的
 
 ```
-netcat
+ENV LANG=C.UTF-8
+```
+
+
+
+
+
+
+
+我们在Docker file 中新增参数即可
+
+测试添加jar包springboot项目以及arthas监控
+
+```
+echo "FROM kang/jdk1.8
+COPY test-web.jar /app.jar
+COPY arthas-boot.jar /arthas-boot.jar
+ENV JAVA_OPTS=""
+ENV APP_OPTS=""
+CMD java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -Dfile.encoding=UTF8 -Duser.timezone=GMT+08 -jar /app.jar $APP_OPTS
+EXPOSE 8081" > Dockerfile-app
+```
+
+```
+docker build -t test-web -f Dockerfile-app . 
+```
+
+```
+docker stop test-web
+docker rm test-web 
+
+docker run --name test-web -di -p 8081:8081 test-web
+```
+
+```
+docker images|grep none|awk '{print $3 }'|xargs docker rmi
+```
+
+```
+docker ps -a |grep /bin/sh |awk '{print $1 }'|xargs docker rm
 ```
 

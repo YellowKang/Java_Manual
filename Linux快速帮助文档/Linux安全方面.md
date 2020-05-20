@@ -77,3 +77,159 @@ chkconfig --list | grep "3:on"
 chkconfig <servername> off
 ```
 
+# 升级OpenSSH
+
+## 下载包
+
+此次升级为
+
+```
+https://www.openssl.org/source/old/1.0.2/openssl-1.0.2o.tar.gz
+https://fastly.cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-7.7p1.tar.gz
+http://www.zlib.net/zlib-1.2.11.tar.gz
+```
+
+
+
+```
+tar xf zlib-1.2.11.tar.gz
+cd zlib-1.2.11
+./configure --prefix=/usr/local/zlib
+make
+make install
+make clean
+./configure --shared
+make test
+make install
+cp zutil.h /usr/local/include
+cp zutil.c /usr/local/include
+cd ..
+```
+
+```
+tar xf openssl-1.0.2o.tar.gz
+cd openssl-1.0.2o 
+./config shared zlib
+make 
+make install
+mv /usr/bin/openssl /usr/bin/openssl.bak 
+mv /usr/include/openssl /usr/include/openssl.bak 
+ 
+ln -s /usr/local/ssl/bin/openssl /usr/bin/openssl 
+ln -s /usr/local/ssl/include/openssl /usr/include/openssl 
+ 
+echo "/usr/local/ssl/lib" > /etc/ld.so.conf.d/openssl.conf
+
+ldconfig  
+ 
+openssl version -a
+cd ..
+```
+
+```
+mv /etc/init.d/ssh /etc/init.d/ssh.old
+cp -r /etc/ssh /etc/ssh.old
+ 
+apt-get remove -y openssh-server openssh-client
+tar xf openssh-7.7p1.tar.gz
+cd openssh-7.7p1
+./configure --prefix=/usr --sysconfdir=/etc/ssh --with-zlib --without-openssl-header-check --with-ssl-dir=/usr/bin/openssl  --with-privsep-path=/var/
+lib/sshd
+make && make install
+```
+
+
+
+
+
+```
+apt-get install -y gcc
+apt-get install -y make
+cd /home/itsm/
+tar xf zlib-1.2.11.tar.gz
+cd zlib-1.2.11
+./configure
+make
+make install
+cd ..
+tar -zxvf openssl-1.1.1f.tar.gz
+cd openssl-1.1.1f
+./config shared zlib
+make
+make install
+cd ..
+mv /usr/bin/openssl /usr/bin/openssl.bak
+ln -s /usr/local/ssl/bin/openssl /usr/bin/openssl
+ln -s /usr/local/ssl/include/openssl /usr/include/openssl 
+echo "/usr/local/ssl/lib" >> /etc/ld.so.conf
+/sbin/ldconfig
+
+tar xf openssh-8.1p1.tar.gz && cd openssh-8.1p1/
+cp /etc/init.d/ssh /etc/init.d/ssh.old && cp -r /etc/ssh /etc/ssh.old
+
+
+./configure --prefix=/usr --sysconfdir=/etc/ssh --with-zlib --without-openssl-header-check --with-ssl-dir=/usr/local/openssl  --with-privsep-path=/var/lib/sshd --with-openssl-libraries=/usr/local/ssl/bin/openssl
+
+
+
+make
+make install
+ssh -V
+```
+
+```
+ssh -V
+scp /home/itsm/* 192.168.1.53:/home/itsm/
+```
+
+```
+mv /usr/bin/openssl.bak /usr/bin/openssl
+```
+
+
+
+
+
+```
+mkdir /offlinePackage
+cp -r /var/cache/apt/archives  /offlinePackage
+dpkg-scanpackages /offlinePackage/ /dev/null |gzip >/offlinePackage/Packages.gz -r
+cp /offlinePackage/Packages.gz /offlinePackage/archives/Packages.gz
+tar cvzf /offlinePackage.tar.gz /offlinePackage/
+```
+
+
+
+
+
+```
+cp /etc/apt/sources.list /etc/apt/sources.list.back
+```
+
+
+
+```
+echo "deb file:/// offlinePackage/" > /etc/apt/sources.list
+cd /
+tar -zxvf off.tar.gz
+apt-get update
+apt-get -f install
+
+```
+
+
+
+
+
+```
+sudo dpkg -i *deb
+sudo dpkg --force-depends -i *deb
+```
+
+
+
+```
+apt-get update
+apt-get upgrade
+```
+

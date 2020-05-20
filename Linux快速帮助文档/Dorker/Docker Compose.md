@@ -34,3 +34,24 @@ docker-compose -v
 scp docker-compose root@114.67.80.169:/usr/local/bin/docker-compose
 ```
 
+# Docker Compose离线安装
+
+我们可以去Github上下载相应的，Docker Compose选择相应的系统以及类型下载，如Linux 64位，选择
+
+[docker-compose-Linux-x86_64](https://github.com/docker/compose/releases/download/1.25.5/docker-compose-Linux-x86_64)
+
+![](https://img02.sogoucdn.com/app/a/100520146/62bfd62dbf220aa368f85880e59f5f9f)
+
+将相应的文件下载下来然后放入服务器上，并且复制到/usr/local/bin
+
+```
+cp /root/docker-compose /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+```
+
+然后查看版本即可
+
+```
+docker-compose -V
+```
+

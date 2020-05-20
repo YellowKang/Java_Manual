@@ -8,18 +8,18 @@ mkdir -p /docker/mysql/data
 # 编写配置文件
 
 ```sh
-vim /docker/mysql/conf/my.cnf
+touch /docker/mysql/conf/my.cnf
 ```
 
 配置文件中添加
 
 ```sh
-[mysqld]
+echo "[mysqld]
 character-set-server=utf8
 [client]
 default-character-set=utf8
 [mysql]
-default-character-set=utf8
+default-character-set=utf8" > /docker/mysql/conf/my.cnf
 ```
 
 # 启动容器
@@ -27,7 +27,7 @@ default-character-set=utf8
 ```sh
 docker run -p 3306:3306 \
 --name mysql \
--e MYSQL_ROOT_PASSWORD=longgeniubi666 \
+-e MYSQL_ROOT_PASSWORD=bigkang \
 --privileged=true \
 -v /docker/mysql/data:/var/lib/mysql \
 -v /docker/mysql/conf/my.cnf:/etc/mysql/conf.d/mysql.cnf \
@@ -73,6 +73,10 @@ docker run -p 13306:3306 \
 ```
 SET NAMES utf8;
 ```
+
+
+
+
 
 
 

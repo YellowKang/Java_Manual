@@ -42,6 +42,21 @@ dbAdminAnyDatabase：只在admin数据库中可用，赋予用户所有数据库
 root：只在admin数据库中可用。超级账号，超级权限
 ```
 
+```
+docker run --name mongotest -d \
+-p 27017:27017 \
+--privileged=true \
+-v /docker/mongo/conf:/data/configdb \
+-v /docker/mongo/data:/data/db \
+docker.io/mongo:3.4.9 mongod -f /data/configdb/mongo.conf
+```
+
+
+
+
+
+
+
 # 添加
 
 ### 添加单条数据

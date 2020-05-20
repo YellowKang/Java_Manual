@@ -52,7 +52,8 @@ public class AspectConfig {
 ```java
 @Before("testAspect()")							  	//前置通知
 		在连接点前面执行，前置通知不会影响连接点的执
-@AfterReturning("testAspect()")						//正常返回通知
+@AfterReturning(pointcut = "testAspect()",returning="result")						//正常返回通知
+public void doAfterReturning(JoinPoint joinPoint, Object result){}
 		在连接点正常执行完成后执行，如果连接点抛出异常，则不会执行。
 @AfterThrowing("testAspect()")					  	//异常返回通知
 		在连接点抛出异常后执行。 

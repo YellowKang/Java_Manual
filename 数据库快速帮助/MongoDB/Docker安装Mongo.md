@@ -95,6 +95,10 @@ db.createUser({user:"nlp",pwd:"nlp",roles:[{role:'dbOwner',db:'nlp'}]})
 use test
 db.auth('kang','kang')
 
+db.createUser({user:"kang1",pwd:"bigkang",roles:[{role:'readWriteAnyDatabase',db:'test'}]})
+
+db.createUser({user:"minexhb1",pwd:"minexhb123",roles:[{role:'dbOwner',db:'minexhb-db'}]})
+
 db.createUser({user:"minexhb",pwd:"minexhb123",roles:[{role:'dbOwner',db:'minexhb-db'}]})
 ```
 
@@ -123,6 +127,48 @@ userAdminAnyDatabase：只在admin数据库中可用，赋予用户所有数据�
 dbAdminAnyDatabase：只在admin数据库中可用，赋予用户所有数据库的dbAdmin权限。 
 root：只在admin数据库中可用。超级账号，超级权限
 ```
+
+# 认证方式修改（一般不修改，仅限制3.6以下！！！！否则启动失败并且需要修复数据库）
+
+3.0以后mongo默认都是5的认证方式，我们可以修改
+
+查看认证方式
+
+```
+db.system.version.findOne({"_id":"authSchema"})
+```
+
+修改认证方式
+
+```
+db.system.version.update({'_id':'authSchema'},{$set:{'currentVersion':3}})
+```
+
+
+
+## 流程
+
+设置mongo不带认证方式启动   -》 修改认证级别 -》 重新创建用户 -》 重启mongo带认证
+
+如果是配置文件则修改,然后重启
+
+```
+auth=false
+```
+
+如果使用Docker则删除容器重新挂载目录启动时不带--auth
+
+修改认证级别
+
+```
+db.system.version.update({'_id':'authSchema'},{$set:{'currentVersion':3}})
+```
+
+```
+db.createUser({user:"generator1",pwd:"generator123",roles:[{role:'dbOwner',db:'generator-db'}]})
+```
+
+然后设置auth为true
 
 # 创建集合
 

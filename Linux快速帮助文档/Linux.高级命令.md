@@ -193,3 +193,14 @@ CentOS：
 
 ```
 
+# 动态修改文件内容
+
+使用sed命令动态对文本内容进行修改添加新增，以及截取替换等等
+
+```
+# 第三行添加JAVA_HOME环境变量
+sed '3i\export JAVA_HOME=\/usr\/java\/jdk\/jre1.8.0_231' /etc/profile
+# 找到PATH= 在后面追加$JAVA_HOME/bin:
+sed -i 's/PATH=/&\/usr\/java\/jdk\/jre1.8.0_231\/bin:/' /etc/profile 
+```
+

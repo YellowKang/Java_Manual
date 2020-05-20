@@ -10,6 +10,106 @@ yum -y update
 yum install -y docker
 ```
 
+# Linux离线安装Docker
+
+首先下载指定Docker或者直接wget
+
+```
+https://download.docker.com/linux/static/stable/x86_64/
+```
+
+wget
+
+```
+wget https://download.docker.com/linux/static/stable/x86_64/docker-18.06.1-ce.tgz
+```
+
+解压文件
+
+```
+tar -zxvf docker-18.06.1-ce.tgz 
+```
+
+运行命令
+
+```
+sudo cp docker/* /usr/bin/
+```
+
+添加启动服务
+
+```
+echo "[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network-online.target firewalld.service
+Wants=network-online.target
+ 
+[Service]
+Type=notify
+# the default is not to use systemd for cgroups because the delegate issues still
+# exists and systemd currently does not support the cgroup feature set required
+# for containers run by docker
+ExecStart=/usr/bin/dockerd
+ExecReload=/bin/kill -s HUP $MAINPID
+# Having non-zero Limit*s causes performance problems due to accounting overhead
+# in the kernel. We recommend using cgroups to do container-local accounting.
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+# Uncomment TasksMax if your systemd version supports it.
+# Only systemd 226 and above support this version.
+#TasksMax=infinity
+TimeoutStartSec=0
+# set delegate yes so that systemd does not reset the cgroups of docker containers
+Delegate=yes
+# kill only the docker process, not all processes in the cgroup
+KillMode=process
+# restart the docker process if it exits prematurely
+Restart=on-failure
+StartLimitBurst=3
+StartLimitInterval=60s
+ 
+[Install]
+WantedBy=multi-user.target" > /etc/systemd/system/docker.service
+```
+
+重新加载服务
+
+```
+systemctl daemon-reload
+```
+
+修改默认启动路径
+
+```
+mkdir -p /etc/docker
+touch /etc/docker/daemon.json
+echo '{
+ "graph":"/data/docker"
+}' > /etc/docker/daemon.json
+```
+
+启动docker
+
+```
+systemctl start docker
+```
+
+设置开机自启docker
+
+```
+systemctl enable docker
+```
+
+查看docker状态
+
+```
+systemctl status docker
+```
+
+
+
 # 指定yum源版本安装
 
 参考下方更新
@@ -148,5 +248,17 @@ vim /etc/docker/daemon.json
 
 
 systemctl restart docker.service
+```
+
+# 修改Docker文件存储路径
+
+将docker文件存储的路径设置为data/docker，或者其他的挂载盘，可以有效地容灾
+
+```
+echo '{
+ "registry-mirrors": ["https://ldlov75k.mirror.aliyuncs.com"],
+ "graph":"/data/docker"
+}' > /etc/docker/daemon.json
+
 ```
 

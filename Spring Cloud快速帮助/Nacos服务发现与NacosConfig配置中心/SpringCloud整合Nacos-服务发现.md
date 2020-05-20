@@ -4,11 +4,11 @@
 
 ​	https://github.com/spring-cloud-incubator/spring-cloud-alibaba/wiki/%E7%89%88%E6%9C%AC%E8%AF%B4%E6%98%8E
 
-# Nacos安装搭建
+## Nacos安装搭建
 
 [Nacos安装](http://bigkang.club/articles/2019/08/26/1566809544493.html)
 
-# 注意！nacos已经毕业新版依赖为
+## 注意！nacos已经毕业新版依赖为
 
 这里采用nacos服务端1.1.0   + Springboot 2.1.6 + Springcloud Greenwich.SR2
 
@@ -58,55 +58,7 @@
     </dependencyManagement>
 ```
 
-
-
-# 添加依赖（未毕业版本）
-
-我们添加springcloud的依赖和cloudalibaba的依赖
-
-```xml
-    <properties>
-        <java.version>1.8</java.version>
-        <spring-cloud.version>Greenwich.SR1</spring-cloud.version>
-        <spring-cloud-alibaba.version>0.9.0.RELEASE</spring-cloud-alibaba.version>
-    </properties>
-        <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
-        </dependency>
-    </dependencies>
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>${spring-cloud.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-
-            <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
-                <version>${spring-cloud-alibaba.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-```
-
-# 配置文件
+## 配置文件
 
 这里端口我们采用8999，服务名我们叫做test,然后编写nacos的注册地址，这个如果有多个使用逗号隔开
 
@@ -193,3 +145,149 @@ publiuc void main(){
 }
 ```
 
+# Nacos核心功能
+
+官网Java-API地址：https://nacos.io/zh-cn/docs/sdk.html
+
+## 服务注册
+
+### 服务注册流程以及源码解析
+
+首先我们服务发现需要引入Pom文件
+
+```xml
+    		<dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+```
+
+而这个Pom文件又依赖了一个
+
+```xml
+     		<dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-alibaba-nacos-discovery</artifactId>
+        </dependency>
+```
+
+那么这个spring-cloud-alibaba-nacos-discovery就是我们的Nacos的源码了，我们知道SpringCloud是基于SpringBoot的，那么SpringBoot是有自动装配的所以我们直接查看自动装配的文件，在META-INF/spring.factories
+
+```properties
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.alibaba.cloud.nacos.NacosDiscoveryAutoConfiguration,\
+  com.alibaba.cloud.nacos.ribbon.RibbonNacosAutoConfiguration,\
+  com.alibaba.cloud.nacos.endpoint.NacosDiscoveryEndpointAutoConfiguration,\
+  com.alibaba.cloud.nacos.discovery.NacosDiscoveryClientAutoConfiguration,\
+  com.alibaba.cloud.nacos.discovery.configclient.NacosConfigServerAutoConfiguration
+org.springframework.cloud.bootstrap.BootstrapConfiguration=\
+  com.alibaba.cloud.nacos.discovery.configclient.NacosDiscoveryClientConfigServiceBootstrapConfiguration
+```
+
+我们可以看到自动装配中有这个几个类
+
+```properties
+NacosDiscoveryAutoConfiguration														
+RibbonNacosAutoConfiguration															
+NacosDiscoveryEndpointAutoConfiguration										
+NacosDiscoveryClientAutoConfiguration											
+NacosConfigServerAutoConfiguration
+```
+
+首先我们定位到NacosDiscoveryAutoConfiguration中，发现他继承了一个抽象方法，AbstractAutoServiceRegistration，这个抽象方法实现了ApplicationListener这个监听器，那么这个监听器就是帮助我们在Web服务器启动之后调用的一个事件，当触发这个事件会触发一个方法onApplicationEvent(E var1);
+
+​		这个方法调用的自己的bind方法。
+
+```java
+   	public void onApplicationEvent(WebServerInitializedEvent event) {
+        this.bind(event);
+    }
+```
+
+​		然后调用了start方法启动这个线程
+
+```java
+    /** @deprecated */
+    @Deprecated
+    public void bind(WebServerInitializedEvent event) {
+        ApplicationContext context = event.getApplicationContext();
+        if (!(context instanceof ConfigurableWebServerApplicationContext) || !"management".equals(((ConfigurableWebServerApplicationContext)context).getServerNamespace())) {
+            this.port.compareAndSet(0, event.getWebServer().getPort());
+            this.start();
+        }
+    }
+```
+
+在这个方法中有一个register方法，这个就是注册我们的服务的。
+
+```java
+  public void start() {
+        if (!this.isEnabled()) {
+            if (logger.isDebugEnabled()) {
+                logger.debug("Discovery Lifecycle disabled. Not starting");
+            }
+
+        } else {
+            if (!this.running.get()) {
+                this.context.publishEvent(new InstancePreRegisteredEvent(this, this.getRegistration()));
+                this.register();
+                if (this.shouldRegisterManagement()) {
+                    this.registerManagement();
+                }
+
+                this.context.publishEvent(new InstanceRegisteredEvent(this, this.getConfiguration()));
+                this.running.compareAndSet(false, true);
+            }
+
+        }
+    }
+```
+
+然后我们查看这个register方法
+
+```java
+	@Override
+	public void register(Registration registration) {
+
+		if (StringUtils.isEmpty(registration.getServiceId())) {
+			log.warn("No service to register for nacos client...");
+			return;
+		}
+
+		String serviceId = registration.getServiceId();
+		String group = nacosDiscoveryProperties.getGroup();
+
+    // 获取实例
+		Instance instance = getNacosInstanceFromRegistration(registration);
+
+		try {
+			namingService.registerInstance(serviceId, group, instance);
+			log.info("nacos registry, {} {} {}:{} register finished", group, serviceId,
+					instance.getIp(), instance.getPort());
+		}
+		catch (Exception e) {
+			log.error("nacos registry, {} register failed...{},", serviceId,
+					registration.toString(), e);
+		}
+	}
+```
+
+
+
+### 				
+
+## 服务心跳
+
+​				
+
+## 服务同步
+
+## Nacos CP  以及  AP
+
+
+
+
+
+## 服务健康检查
+
+​				

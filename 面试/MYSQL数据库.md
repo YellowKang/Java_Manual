@@ -112,6 +112,32 @@
 
 ![](img/MySQL%E4%B8%BB%E4%BB%8E%E9%AB%98%E5%8F%AF%E7%94%A8.png)
 
+### MySQL索引数据结构类型有几种
+
+​			两种：
+
+​					BTREE 
+
+​								采用B树的结构来存储索引数据。
+
+​					HASH
+
+​								采用Hash表的结构来存储索引数据。
+
+​					R-TREE
+
+​								R-TREE在MYSQL很少使用，仅支持geometry数据类型，支持该类型的存储引擎只有myisam、bdb、innodb、ndb、archive几种。相对于b-tree，r-tree的优势在于范围查找。							
+
+​					FULL-TEXT
+
+​								FULL-TEXT在mysql里仅有myisam支持它，而且支持full-text的字段只有char、varchar、text数据类型。full-text主要是用来代替like "%***%"效率低下的问题
+
+
+
+​					为什么默认不使用Hash索引，Hash 索引仅仅能满足"=","IN"和"<=>"查询，不能使用范围查询。由于 Hash 索引比较的是进行 Hash 运算之后的 Hash 值，所以它只能用于等值的过滤，不能用于基于范围的过滤，因为经过相应的 Hash 算法处理之后的 Hash 值的大小关系，并不能保证和Hash运算前完全一样。
+
+
+
 ### 如何保证数据库主从一致性？
 
 ​		**方案一：忽略**
@@ -130,11 +156,15 @@
 
 ​			B树的每个节点都是有data域的（指针），这无疑增大了节点大小
 
+![](https://img04.sogoucdn.com/app/a/100520146/2725917c196b18ab1c6fdac6d438c017)
+
 ​		再来看一下B+树的结构
 
 ​			B+树的特点就是，B+树所有的Data域在叶子节点 ，非叶子节点存储索引数据
 
 ​			B+树只要遍历叶子节点就可以实现整棵树的遍历
+
+​			![](https://img02.sogoucdn.com/app/a/100520146/806a20447943d69b1cf476ad0abd7e02)
 
 ### 用mysql过程中，有遇到什么问题么？
 

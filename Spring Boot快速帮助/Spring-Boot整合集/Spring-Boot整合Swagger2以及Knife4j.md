@@ -219,6 +219,64 @@ public class LoginController {
 
 我们可以看到
 
+
+
+# 升级版Knife4j
+
+Knife4j功能更加强大，同时页面更加美观
+
+将swagger依赖替换为knife4j
+
+## 引入依赖
+
+```xml
+       <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-spring-boot-starter</artifactId>
+            <version>2.0.2</version>
+        </dependency>
+
+```
+
+​	
+
+## 编写配置
+
+```java
+
+@Configuration
+@EnableSwagger2
+@EnableKnife4j
+@Slf4j
+@Import(BeanValidatorPluginsConfiguration.class)
+public class Knife4jConfig {
+
+    @Bean
+    public Docket webApiConfig() {
+        return new Docket(DocumentationType.SWAGGER_2)
+                .apiInfo(webApiInfo())// 调用apiInfo方法,创建一个ApiInfo实例,里面是展示在文档页面信息内容
+                .select()//创建ApiSelectorBuilder对象
+                .apis(RequestHandlerSelectors.basePackage("com.kang.test"))//扫描的包
+                .paths(Predicates.not(PathSelectors.regex("/error.*")))//过滤掉错误路径
+                .build();
+    }
+
+    private ApiInfo webApiInfo() {
+        return new ApiInfoBuilder()
+                .title("BigKang-----V4.0API接口文档")
+                .description("BigKang最新4.0接口文档")
+                .termsOfServiceUrl("http://bigkang.club")
+                .version("4.0")
+                .build();
+    }
+
+}
+
+
+```
+
+
+
 # WebFlux整合Swagger2
 
 引入依赖，由于目前Swagger2  3.0并未正式上线，所以我们引入依赖并且配置仓库地址

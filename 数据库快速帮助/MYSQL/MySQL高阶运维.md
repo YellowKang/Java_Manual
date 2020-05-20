@@ -318,9 +318,67 @@ set global log_queries_not_using_indexes=1;
 
 ​								记录对数据库执行更改的所有操作
 
-### 中继日志
+### 中继日志（bin-log）
 
 ​					 			中继日志也是二进制日志，用来给slave 库恢复
+
+查询所有binlog
+
+```
+show binary logs;
+```
+
+查询指定中继日志数据
+
+```
+show binlog events in 'mysql-bin.000001';
+```
+
+查询binlog日志类型
+
+```
+show variables like '%binlog_format%';
+```
+
+日志类型分为三种
+
+|   类型    |                             功能                             |
+| :-------: | :----------------------------------------------------------: |
+| STATEMENT | 基于SQL语句的复制(statement-based replication, SBR)，每一条会修改数据的sql语句会记录到binlog中。 |
+|    ROW    | 基于行的复制(row-based replication, RBR)：不记录每一条SQL语句的上下文信息，仅需记录哪条数据被修改了，修改成了什么样子了。 |
+|   MIXED   | 混合模式复制(mixed-based replication, MBR)：以上两种模式的混合使用，一般的复制使用STATEMENT模式保存binlog，对于STATEMENT模式无法复制的操作使用ROW模式保存binlog，MySQL会根据执行的SQL语句选择日志保存方式。 |
+
+修改
+
+配置文件：
+
+```properties
+#设置日志格式
+binlog_format = mixed
+
+#设置日志路径，注意路经需要mysql用户有权限写
+log-bin = /data/mysql/logs/mysql-bin.log
+
+#设置binlog清理时间
+expire_logs_days = 7
+
+#binlog每个日志文件大小
+max_binlog_size = 100m
+
+#binlog缓存大小
+binlog_cache_size = 4m
+
+#最大binlog缓存大小
+max_binlog_cache_size = 512m
+```
+
+命令修改：
+
+等等
+
+```
+set binlog_format='row';	
+```
 
 ### 事务日志(重做日志（redo log）)
 
@@ -335,3 +393,65 @@ set global log_queries_not_using_indexes=1;
 ​								保存了事务发生之前的数据的一个版本，可以用于回滚，
 
 ​								同时可以提供多版本并发控制下的读（MVCC），也即非锁定读。
+
+# 
+
+# 数据库表
+
+根据表名称获取建表语句
+
+```sql
+show create table t_user;
+```
+
+
+
+
+
+
+
+# 索引相关
+
+## 表索引
+
+查询某个表的索引
+
+查看t_user表的索引
+
+```
+show index from t_user;
+```
+
+# 事务
+
+查看事务隔离级别
+
+```sql
+show variables like 'transaction_isolation';
+```
+
+设置事务隔离级别
+
+```sql
+set transaction_isolation='read-uncommitted';						// 读未提交
+set transaction_isolation='read-committed';							// 读已提交
+set transaction_isolation='repeatable-read';						// 可重复度
+set transaction_isolation='serializable';								// 串行化
+```
+
+
+
+# MySQL系统
+
+查看MySQL系统变量参数
+
+```
+show variables;
+```
+
+查看某个具体参数
+
+```
+show variables like 'wait_timeout';				// 连接超时时间
+```
+
