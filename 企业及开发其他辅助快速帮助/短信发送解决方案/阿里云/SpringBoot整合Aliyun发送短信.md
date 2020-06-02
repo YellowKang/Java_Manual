@@ -1,45 +1,26 @@
 # 引入依赖
 
-SpringBoot依赖自行引入，注意安装lombok插件
+引入阿里云的依赖（Lombok自选）
 
-```xml
-        <dependency>
-            <groupId>com.aliyun</groupId>
-            <artifactId>aliyun-java-sdk-core</artifactId>
-            <version>4.0.3</version>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-configuration-processor</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.12</version>
-            <optional>true</optional>
-        </dependency>
-				<dependency>
-   					<groupId>org.apache.commons</groupId>
-    				<artifactId>commons-lang3</artifactId>
-    				<version>3.1</version>
-				</dependency>
-
+```
+           <dependency>
+              <groupId>com.aliyun</groupId>
+              <artifactId>aliyun-java-sdk-core</artifactId>
+              <version>4.0.3</version>
+          </dependency>
 ```
 
 # 编写配置
 
-properties版本
-
 ```properties
 # 你的access-key-id
-sms.access-key-id=11111
+sms.access-key-id=GAIsadas12321GWWwqewqeq
 # 你的access-secret
-sms.access-secret=22222
-# 默认签名
-sms.default-sign-name=小康科技
+sms.access-secret=Gqwewqedsadwqqwewwqeew
 # 默认模板Code
-sms.default-temp-code=code1
+sms.default-temp-code=SMS_19078532
+# 默认签名名称（注意乱码问题，乱码则写入工具类中）
+sms.default-sign-name=小康科技
 # 地区（默认值：cn-hangzhou），可无需修改
 sms.region=cn-hangzhou
 # API地址域名（默认值：dysmsapi.aliyuncs.com），可无需修改
@@ -48,31 +29,12 @@ sms.domain=dysmsapi.aliyuncs.com
 sms.version=2017-05-25
 ```
 
-yaml版本
 
-```properties
-sms:
-	# 你的access-key-id
-  access-key-id: 11111
-  # 你的access-secret
-  access-secret: 22222
-  # 默认签名
-  default-sign-name: 小康科技
-  # 默认模板Code
-  default-temp-code: code1
-  # 地区（默认值：cn-hangzhou），可无需修改
-  domain: dysmsapi.aliyuncs.com
-  # API地址域名（默认值：dysmsapi.aliyuncs.com），可无需修改
-  region: cn-hangzhou
-  # 版本（默认值：2017-05-25），可无需修改
-  version: 2017-05-25
-```
 
-# 编写工具类
-
-新建Java类在SpringBoot所扫描的包下，命名为AliYunSmsUtil或者AliYunSmsConfig，此处采用AliYunSmsUtil
+# 
 
 ```java
+
 import com.aliyuncs.CommonRequest;
 import com.aliyuncs.CommonResponse;
 import com.aliyuncs.DefaultAcsClient;
@@ -86,6 +48,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.util.List;
 
 /**
@@ -141,24 +104,31 @@ public class AliYunSmsUtil {
     /**
      * 默认签名名称
      */
-    private String defaultSignName;
+    private String defaultSignName = "小康科技";
 
     /**
      * 默认配置初始化
      */
-    private DefaultProfile profile = DefaultProfile.getProfile(region,accessKeyId,accessSecret);
+    private DefaultProfile profile;
 
     /**
      * 初始化client
      */
-    private IAcsClient client = new DefaultAcsClient(profile);
+    private IAcsClient client ;
 
     public AliYunSmsUtil(){
+
     }
 
     public AliYunSmsUtil(String accessKeyId,String accessSecret){
         this.accessKeyId = accessKeyId;
         this.accessSecret = accessSecret;
+    }
+
+    @PostConstruct
+    private void initSms(){
+        profile = DefaultProfile.getProfile(region,accessKeyId,accessSecret);
+        client = new DefaultAcsClient(profile);
     }
 
 
@@ -267,30 +237,6 @@ public class AliYunSmsUtil {
     }
 
 }
-```
 
-# 发送短信
-
-我们直接注入AliYunSmsUtil，然后使用默认的签名以及模板Code，类似于验证码的发送
-
-```java
-
-/**
- * @Author BigKang
- * @Date 2020/5/12 3:06 下午
- * @Summarize 测试控制器
- */
-@RequestMapping("test")
-public class TestController {
-
-    @Autowired
-    private AliYunSmsUtil smsUtil;
-
-    @PostMapping("sendSms")
-    public String sendSms(List<String> phones){
-        return smsUtil.sendSms("{\"code\":11111}",phones);
-    }
-    
-}
 ```
 

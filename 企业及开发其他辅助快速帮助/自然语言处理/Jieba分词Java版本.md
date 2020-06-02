@@ -111,7 +111,7 @@ public class JiebaDict {
 
 编写组件类
 
-```
+```java
 /**
  * @Author BigKang
  * @Date 2019/7/24 16:37

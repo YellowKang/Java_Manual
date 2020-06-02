@@ -1,8 +1,10 @@
-# 引入依赖
+# Swagger
+
+## 引入依赖
 
 除了Gateway的依赖我们还需要加入swagger依赖注意一定要是用高版本的swagger，然后是Lombok
 
-```
+```xml
         <dependency>
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger-ui</artifactId>
@@ -13,22 +15,35 @@
             <artifactId>springfox-swagger2</artifactId>
             <version>2.9.2</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
+```
+
+
+
+# Knife4j
+
+## 引入依赖
+
+```xml
+       <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-spring</artifactId>
+        </dependency>
+
         <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.2</version>
-            <scope>provided</scope>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-spring-ui</artifactId>
         </dependency>
 ```
 
-# 编写代码
+
+
+# 编写代码（swagger和Knif4j一样）
 
   我们需要编写两个类，由于Gateway和Zuul都是采用的Webflux所以直接用swagger是会报错的，所以我们需要进行改动
 
 ​	首先编写SwaggerProvider，下面是代码，这里用了lombok所以要引入lombok
 
-```
+```java
 import lombok.AllArgsConstructor;
 import org.springframework.cloud.gateway.config.GatewayProperties;
 import org.springframework.cloud.gateway.route.RouteLocator;
@@ -86,7 +101,7 @@ public class SwaggerProvider implements SwaggerResourcesProvider {
 
 ​	然后编写SwaggerHandler
 
-```
+```java
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

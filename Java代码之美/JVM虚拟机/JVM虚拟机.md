@@ -220,11 +220,79 @@ OutOfMemoryError
 
 
 
+## JVM的垃圾回收器有哪些
+
+### Serial
+
+启用方式，来在新生代和老年代使用串行收集器。
+
+```
+-XX:+UseSerialGC
+```
 
 
-# JVM 的常用参数调优
+
+### ParNew
+
+启用方式，指定使用 ParNew 作为新生代收集器。
+
+```
+-XX:+UseParNewGC
+```
+
+
+
+
+
+### Parallel
+
+```
+-XX:+UseParallelGC								新生代使用并行回收收集器，更加关注吞吐量
+-XX:+UseParallelOldGC							老年代使用并行回收收集器
+-XX:ParallelGCThreads							设置用于垃圾回收的线程数
+```
+
+
+
+### CMS(Concurrent Mark Sweep) 
+
+启用CMS垃圾回收器。
+
+```
+-XX:+UseConcMarkSweepGC         新生代使用并行收集器，老年代使用CMS+串行收集器
+```
+
+
+
+### G1
+
+启用G1
+
+```
+-XX:+UseG1GC
+```
+
+​			在HotSpot的实现中，整个堆被划分成2048左右个Region。每个Region的大小在1-32MB之间，具体多大取决于堆的大小，对于Region来说，它会有一个分代的类型，并且是唯一一个。即，每一个Region，它要么是young的，要么是old的。还有一类十分特殊的Humongous。所谓的Humongous，就是一个对象的大小超过了某一个阈值——HotSpot中是Region的1/2，那么它会被标记为Humongous。
+
+
+
+### ZGC（JDK11使用）
+
+
+
+## JVM参数手册大全
+
+```
+
+```
+
+
+
+## JVM 的常用参数调优
 
 ​		JVM的调优调的到底是什么优？
+
+
 
 -Xms1024m -Xmx1024m -XX:+PrintGCDetails
 
@@ -294,10 +362,15 @@ OutOfMemoryError
 
 ​		那么栈是先进后出，后进先出，什么和他的特点相对立呢？
 
-​		队列，队列是先进先出。后进后出的
+​		队列，队列是先进先出。后进后出的。
+
+​		那么栈到底是用来干什么的呢？
 
 
 
 # Heap堆
 
 ​		
+
+
+

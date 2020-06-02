@@ -481,3 +481,61 @@ db.supervise_process.aggregate([
 ])
 ```
 
+
+
+秒转时间，再统计死亡人数总和
+
+```
+db.accident.aggregate([
+    {$match: {"atype":"建筑施工","content":/工地/,"atime":{"$gte":1451577600}}},
+     {$project:{
+        atime:{"$multiply":["$atime", 1000]},
+        deathnumber : "$deathnumber"
+    }},
+     {$project:{
+        atime:{"$add":[ new Date(0), "$atime"]},
+        deathnumber : "$deathnumber"
+    }},
+    {
+        $project: {
+              yue: { "$dateToString": { format: "%Y年", date:"$atime"} },
+             deathnumber : "$deathnumber"
+        }
+    },
+    { $group: { _id: "$yue", count: { $sum: "$deathnumber" } } },
+    { $sort: { "_id": -1 } }
+])
+```
+
+
+
+
+
+将时间类型的毫秒+上8小时的时差，并且格式化成年
+
+```
+db.acc.aggregate([
+    {$match: {"atype":"建筑施工","content":/工地/,"atime":{"$gte":1451577600}}},
+    {
+        $project: {
+                 yue: { "$dateToString": { format: "%Y年", date:{ "$add": ["$adate",28800000]}} },
+             deathnumber : "$deathnumber"
+        }
+    },
+    { $group: { _id: "$yue", count: { $sum: "$deathnumber" } } },
+    { $sort: { "_id": -1 } }
+])
+```
+
+# Mongo脚本
+
+统计后累加返回
+
+```
+ var c1 = db.acc.find({"atype":"建筑施工","content":/建筑工地/,"sgjb":{"$in":["重大事故","特大事故"]}}).count()
+  var c2 = db.acc.find({"content":/地铁/,"sgjb":{"$in":["重大事故","特大事故"]}}).count()
+  var c3 = db.acc.find({"content":/管道/,"sgjb":{"$in":["重大事故","特大事故"]}}).count()
+ 
+ print(c1 + c2 + c3)
+```
+

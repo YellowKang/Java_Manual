@@ -374,3 +374,98 @@ public class SwaggerConfig {
 }
 ```
 
+# 工具类以及通用配置
+
+
+
+```java
+
+import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
+import com.google.common.base.Predicates;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import springfox.bean.validators.configuration.BeanValidatorPluginsConfiguration;
+import springfox.documentation.builders.ApiInfoBuilder;
+import springfox.documentation.builders.PathSelectors;
+import springfox.documentation.builders.RequestHandlerSelectors;
+import springfox.documentation.service.ApiInfo;
+import springfox.documentation.spi.DocumentationType;
+import springfox.documentation.spring.web.plugins.Docket;
+import springfox.documentation.swagger2.annotations.EnableSwagger2;
+
+/**
+ * @Author BigKang
+ * @Date 2020/3/17 4:27 PM
+ * @Summarize Swagger通用配置类
+ */
+@Configuration
+@EnableSwagger2
+@EnableKnife4j
+@Slf4j
+@Import(BeanValidatorPluginsConfiguration.class)
+public class Swagger2Config {
+
+    /**
+     * 获取swagger配置title
+     */
+    @Value("${swagger.title:请设置配置}")
+    private String title;
+
+    /**
+     * 获取swagger配置description
+     */
+    @Value("${swagger.description:请设置配置}")
+    private String description;
+
+    /**
+     * 获取swagger配置version
+     */
+    @Value("${swagger.version:请设置配置}")
+    private String version;
+
+    /**
+     * 获取swagger配置作者
+     */
+    @Value("${swagger.author:BigKang}")
+    private String author;
+
+    /**
+     * 获取swagger配置文档包路径
+     */
+    @Value("${swagger.author:org.kang.cloud}")
+    private String docPackage;
+
+    @Bean
+    public Docket webApiConfig() {
+        return new Docket(DocumentationType.SWAGGER_2)
+                // 调用apiInfo方法,创建一个ApiInfo实例,里面是展示在文档页面信息内容
+                .apiInfo(webApiInfo())
+                // 创建ApiSelectorBuilder对象
+                .select()
+                // 扫描的包
+                .apis(RequestHandlerSelectors.basePackage(docPackage))
+                // 过滤掉错误路径
+                .paths(Predicates.not(PathSelectors.regex("/error.*")))
+                .build();
+    }
+
+    /**
+     * 创建API——INFO信息
+     * @return
+     */
+    private ApiInfo webApiInfo() {
+        return new ApiInfoBuilder()
+                .contact(author)
+                .title(title)
+                .description(description)
+                .version(version)
+                .build();
+    }
+
+
+}
+```
+

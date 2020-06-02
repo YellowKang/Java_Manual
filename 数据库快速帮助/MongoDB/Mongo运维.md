@@ -83,6 +83,31 @@ mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c company_business_info -
 mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 -f content -q {"content":/电/} --type csv -o C:\Users\topcom\Desktop\mine_base.csv
 
 
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 -q '{"province":{"$in":["湖南","河南","山东","河北","浙江"]},"atime":{"$gte":1451577600},"atype":{"$ne":"道路运输"}}' -f originaltime,atype,cityinfo,deathnumber,sgjb,content --type csv -o /Users/bigkang/Documents/Data/utf8/直报数据.csv
+
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom123 -q '{"province":{"$in":["湖南","河南","山东","河北","浙江"]},"atime":{"$gte":1451577600},"atype":{"$ne":"道路运输"}}' -f originaltime,atype,cityinfo,deathnumber,sgjb,content --type csv -o /Users/bigkang/Documents/Data/utf8/5省除道路运输.csv
+
+
+
+
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom123 -q '{"content":{"$regex":"地铁"},"domestic":true}' -f originaltime,atype,cityinfo,deathnumber,sgjb,content --type csv -o /Users/bigkang/Documents/Data/utf8/地铁.csv
+
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom123 -q '{"content":{"$regex":"管道"},"domestic":true}' -f originaltime,atype,cityinfo,deathnumber,sgjb,content --type csv -o /Users/bigkang/Documents/Data/utf8/管道.csv
+
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom123 -q '{"atype":"建筑施工","content":{"$regex":"建筑工地"},"domestic":true}' -f originaltime,atype,cityinfo,deathnumber,sgjb,content --type csv -o /Users/bigkang/Documents/Data/utf8/房屋建筑.csv
+
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom123 -q '{"$or":[{"atype":"建筑施工","content":{"$regex":"建筑工地"}},{"content":{"$regex":"地铁"}},{"content":{"$regex":"管道"}}],"sgjb":{"$in":["重大事故","特大事故"]}}' -f originaltime,atype,cityinfo,deathnumber,sgjb,content --type csv -o  /Users/bigkang/Documents/Data/utf8/原因.csv
+
+
+
+iconv -f UTF8 -t gb18030 5省除道路运输.csv > 5省除道路运输_GBK.csv
+
+
+iconv -f UTF8 -t gb18030 地铁.csv > 地铁_GBK.csv
+iconv -f UTF8 -t gb18030 管道.csv > 管道_GBK.csv
+iconv -f UTF8 -t gb18030 房屋建筑.csv > 房屋建筑_GBK.csv
+
+
 -h ： 主机
 --port ：端口号
 -d ：数据库名

@@ -1,6 +1,6 @@
-## 1、首先先引入依赖
+# 首先先引入依赖
 
-```
+```xml
 	<!--整合Redis-->
     <dependency>
         <groupId>org.springframework.boot</groupId>
@@ -13,12 +13,12 @@
     </dependency>
 ```
 
-## 2、配置配置文件
+# 配置配置文件
 
-```
+```properties
   session:
-	#设置你的Sessoin类型为Redis
-	store-type: redis
+		#设置你的Sessoin类型为Redis
+		store-type: redis
   redis:
 	#选择你的数据库索引为哪一个，默认0-15数据库，这里选择索引为1的数据库存入
 	database: 1
@@ -47,7 +47,7 @@
 	然后在我们的Controller层存入Session
 	
 
-```
+```java
 //Get请求
 @GetMapping("/getAdmin")
 public String getAdmin(Integer id, Map<String,List<Admin>> map, HttpSession httpSession) {
@@ -64,12 +64,9 @@ public String getAdmin(Integer id, Map<String,List<Admin>> map, HttpSession http
 最后用我们的Redis连接工具查看是否有存入的Session就可以了
 ```
 
+## &nbsp;Redis配置集合
 
-
-
-
-## &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Redis配置集合
-
+```properties
 SPRING SESSION REDIS（RedisSessionProperties）
 
 spring.session.redis.cleanup-cron = 0 * * * * * 			#Cron 表达式用于过期的会话清理作业。
@@ -106,4 +103,94 @@ spring.redis.sentinel.master = 						#Redis服务器的名称。
 spring.redis.sentinel.nodes =                                		＃逗号分隔的“host：port”对列表。
 spring.redis.ssl = false                                				＃是否启用SSL支持。
 spring.redis.timeout =                                				＃连接超时。
+```
+
+
+
+# 简易Redis工具类
+
+下面我们简单的构建一个工具类用于做分布式锁使用，根据RedisTemplate进行拓展的
+
+```java
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Component;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @Author BigKang
+ * @Date 2020/5/26 5:04 下午
+ * @Summarize RedisTemplate工具类
+ */
+@Component
+public class RedisTemplateUtil {
+
+    /**
+     * RedisTemplate注入
+     */
+    @Autowired
+    private RedisTemplate redisTemplate;
+
+    /**
+     * 默认锁名称
+     */
+    private static final String DEFAULT_LOCK_NAME = "default_lock";
+
+    /**
+     * 默认锁时间
+     */
+    private static final Long DEFAULT_LOCK_TIME = 2L;
+
+    /**
+     * 默认锁时间单位
+     */
+    private static final TimeUnit DEFAULT_LOCK_TIME_UNIT = TimeUnit.MINUTES;
+
+
+    /**
+     * 重载获取锁方法
+     * @return
+     */
+    public Boolean getLock(){
+        return getLock(DEFAULT_LOCK_NAME);
+    }
+
+    /**
+     * 重载获取锁方法
+     * @param lockName lockName 锁名称
+     * @return
+     */
+    public Boolean getLock(String lockName){
+       return getLock(lockName,DEFAULT_LOCK_TIME);
+    }
+    /**
+     * 重载获取锁方法
+     * @param lockName 锁名称
+     * @param time 锁时间
+     * @return
+     */
+    public Boolean getLock(String lockName, Long time){
+        return getLock(lockName,time,DEFAULT_LOCK_TIME_UNIT);
+    }
+
+    /**
+     * 获取锁对象
+     * @param lockName 锁对象名称
+     * @param time 锁时间
+     * @param timeUnit 时间单位
+     * @return
+     */
+    public Boolean getLock(String lockName, Long time, TimeUnit timeUnit){
+        Boolean lock = redisTemplate.opsForValue().setIfAbsent(lockName,1);
+        if(lock){
+            redisTemplate.opsForValue().set(lockName,1 , time, timeUnit);
+        }
+        return lock;
+    }
+
+}
+
+```
 

@@ -86,6 +86,20 @@ BigKang(name=黄康, age=19, email=1360154205@qq.com)
 
 我们在早期的SSM项目中大多数都采用XML进行对象的配置，但是XML的可维护性不强，后面在3.0开始Spring就支持使用Java代码来进行初始化了。
 
+那么如果有多个xml文件则配置多个即可
+
+```java
+ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext("applicationContext.xml","customContext.xml");
+```
+
+### XML加载流程
+
+我们知道xml所加载的应用上下文是ClassPathXmlApplicationContext
+
+首先继承了AbstractXmlApplicationContext这个抽象的Xml应用上下文
+
+
+
 ### 使用Java代码进行加载
 
 在Spring3.0的时候我们加载Bean的时候就方便多了我们可以通过类+注解的方式进行加载，我们可以通过@Configuration， @Bean，以及@Import和@DependsOn
@@ -144,6 +158,146 @@ public class CustomConfig {
 
 #### @Bean
 
+首先我们新建一个类，上面放入一个@Bean注解的方法
+
+```java
+import java.util.HashMap;
+import java.util.Map;
+
+public class CustomBean {
+
+    @Bean(name = "map")
+    public Map<String,Object> map(){
+        Map<String,Object> map = new HashMap<>();
+        map.put("name","Bigkang");
+        map.put("specialty","Play Games");
+        return map;
+    }
+}
+```
+
+然后我们使用注解上下文加载，我们需要像上下文注册Bean然后进行刷新（如果不刷新则会抛出异常）
+
+```java
+    @Test
+    public void testSpring(){
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+        context.register(CustomBean.class);
+        context.refresh();
+        Map<String,Object> map = (Map) context.getBean("map");
+        System.out.println(map);
+    }
+```
+
+#### @Import
+
+我们还是使用CustomBean但是我们不去引入他，我们使用一个CustomImport进行引入
+
+```java
+@Import({CustomBean.class})
+public class CustomImport {
+
+    public String a;
+
+    public CustomImport(){
+        a = "q";
+    }
+
+}
+```
+
+然后再次获取，我们会发现map以及import自己都被初始化并且管理到了容器中了
+
+```java
+   @Test
+    public void testSpring(){
+        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
+        context.register(CustomImport.class);
+        context.refresh();
+        Map<String,Object> map = (Map) context.getBean("map");
+        System.out.println(map);
+        CustomImport bean = context.getBean(CustomImport.class);
+        System.out.println(bean.a);
+    }
+```
+
+## @DependsOn
+
+DependsOn注解是用来加在初始化方法上的，下面我们初始化两个容器，分别为CustomA，以及CustomB
+
+```java
+public class CustomA {
+
+    public CustomA(){
+        System.out.println("初始化A");
+    }
+
+}
+
+public class CustomB {
+
+    public CustomB(){
+        System.out.println("初始化B");
+    }
+
+}
+```
+
+然后我们使用一个CusotmBean来初始化他们
+
+```java
+
+public class CustomBean {
+
+    @Bean
+    public CustomA customA(){
+        return new CustomA();
+    }
+
+    @Bean
+    public CustomB customB(){
+        return new CustomB();
+    }
+
+}
+```
+
+然后我们执行代码
+
+![](https://img04.sogoucdn.com/app/a/100520146/b7d5fd8bfbbfc66a5612f50b98d9db8e)
+
+我们发现A先打印然后再打印B那么我们想初始化的时候B先初始化，那么我们在B上加上注解DependsOn
+
+我们将在A加载的时候等待customB先加载完，customB为Bean容器名称；
+
+```
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.DependsOn;
+
+public class CustomBean {
+
+
+
+    @Bean
+    @DependsOn(value = {"customB"})
+    public CustomA customA(){
+        return new CustomA();
+    }
+
+    @Bean(name = "customB")
+    public CustomB customB(){
+        return new CustomB();
+    }
+
+}
+```
+
+然后我们再次启动
+
+![](http://yanxuan.nosdn.127.net/7d83106c22f49bafc2d1d20de1d31937.png)
+
+这样就是A等待B先加载完再加载自己。
+
 
 
 # AOP切面
@@ -154,13 +308,13 @@ public class CustomConfig {
 
 ## 什么是Event事件？
 
-​			官网解释：`ApplicationContext`通过`ApplicationEvent` 类和`ApplicationListener`接口提供中的事件处理。如果将实现`ApplicationListener`接口的Bean 部署到上下文中，则每次 将Bean `ApplicationEvent`发布到时`ApplicationContext`，都会通知该Bean。本质上，这是标准的Observer设计模式。
+ 官网解释：`ApplicationContext`通过`ApplicationEvent` 类和`ApplicationListener`接口提供中的事件处理。如果将实现`ApplicationListener`接口的Bean 部署到上下文中，则每次 将Bean `ApplicationEvent`发布到时`ApplicationContext`，都会通知该Bean。本质上，这是标准的Observer设计模式。
 
-​			概述：就是我们自己编写一个事件，并且将这个事件注册到Spring的Bean工厂中，然后我们通过发布这个事件然后来进行处理，
+ 概述：就是我们自己编写一个事件，并且将这个事件注册到Spring的Bean工厂中，然后我们通过发布这个事件然后来进行处理，
 
 ## 如何使用Event事件
 
-​			首先我们需要创建一个实体类，然后继承ApplicationEvent，如下示例：
+ 首先我们需要创建一个实体类，然后继承ApplicationEvent，如下示例：
 
 ```java
 /**
@@ -183,7 +337,7 @@ public class CustomEvent extends ApplicationEvent {
 }
 ```
 
-​			然后我们需要编写一个处理监听器，我们可以看到我们将message拿出并且进行处理了。(推荐注解方式)
+ 然后我们需要编写一个处理监听器，我们可以看到我们将message拿出并且进行处理了。(推荐注解方式)
 
 ```java
 /**
@@ -221,7 +375,7 @@ public class CustomEventListener {
 }
 ```
 
-​			然后我们编写一个controller用于测试
+ 然后我们编写一个controller用于测试
 
 ```java
 /**
@@ -247,10 +401,9 @@ public class EventTestController {
     }
 
 }
-
 ```
 
-然后我们用浏览器访问地址即可。如果需要使用异步，则使用@Async即可
+然后我们用浏览器访问地址即可。如果需要使用异步，则使用[@Async](http://git.bigkang.club/Async)即可
 
 ```
 http://localhost:8080/events/sendMessage?message=%E6%B5%8B%E8%AF%95%E5%8F%91%E9%80%81
@@ -258,23 +411,12 @@ http://localhost:8080/events/sendMessage?message=%E6%B5%8B%E8%AF%95%E5%8F%91%E9%
 
 # Resources资源
 
-
-
 # i18n国际化
-
-
 
 # Validation数据校验
 
-
-
 # Data Binding数据绑定
-
-
 
 # Type Conversion类型转换
 
-
-
 # SpEL表达式
-
