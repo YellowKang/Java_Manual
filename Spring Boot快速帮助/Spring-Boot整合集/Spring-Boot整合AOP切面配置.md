@@ -357,3 +357,141 @@ public Object myprocess(ProceedingJoinPoint point,MethodUpArgs methodUpArgs) thr
     }
 ```
 
+
+
+# 利用AOP记录日志操作流程
+
+## 创建注解
+
+首先我们创建一个注解，只要是我们加上了这个注解的类，对他进行切面的时候则进行Log日志打印
+
+```java
+/**
+ * @Author BigKang
+ * @Date 2020/3/19 11:15 AM
+ * @Summarize 记录日志名称
+ */
+@Documented
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+public @interface LogName {
+
+    /**
+     * 日志记录名称
+     * @return
+     */
+    String value();
+}
+
+```
+
+## 配置切面
+
+我们会给一些
+
+```java
+/**
+ * @Author BigKang
+ * @Date 2020/3/19 10:47 AM
+ * @Summarize 操作日志Aop切面
+ */
+@Component
+@Aspect
+@Slf4j
+public class DataxLogAspect {
+
+		// 记录通过Base接口save的切面关注点
+		@Pointcut("execution(public * com.topcom.cms.mongo.base.BaseController.save*(..))")
+    public void dataxSave1(){}
+
+    // 记录某一个Controller包下面的Controller的所有save方法
+    @Pointcut("execution(public * com.topcom.*.controller.*Controller.save*(..))")
+    public void dataxSave2(){}
+
+    @Pointcut("execution(public * com.topcom.cms.mongo.base.BaseController.delete*(..))")
+    public void dataxDelete1(){}
+
+    @Pointcut("execution(public * com.topcom.*.controller.*Controller.delete*(..))")
+    public void dataxDelete2(){}
+
+
+    @Pointcut("execution(public * com.topcom.cms.mongo.base.BaseController.update*(..))")
+    public void dataxUpdate1(){}
+
+    @Pointcut("execution(public * com.topcom.*.controller.*Controller.update*(..))")
+    public void dataxUpdate2(){}
+
+    // 正常返回通知，表示添加成功，下方删除修改同理
+    @AfterReturning(returning="result", pointcut="dataxSave1() || dataxSave2()")
+    public void doAfterReturnintSave(JoinPoint joinPoint, Object result){
+				// 同构joinPoint点获取目标类，并且判断是否包含LogName注解
+        Annotation annotation = joinPoint.getTarget().getClass().getAnnotation(LogName.class);
+        if(annotation == null){
+            return;
+        }
+      	// 获取Request请求
+        ServletRequestAttributes sra =  (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = sra.getRequest();
+        LogName logName = (LogName) annotation;
+        // 通过方法创建日志实体类，并且从request中取出token解析，获取用户，插入数据库，此步骤可以省略
+        OperationDataxLog log = genDataxLog(request, joinPoint,logName,"添加");
+    		// 标记类型为添加
+        log.setType("SAVE");
+        // 将所有的返回的data数据记录
+        log.setReturnData(result);
+        operationDataxLogDao.save(log);
+    }
+
+    @AfterReturning(returning="result", pointcut="dataxDelete1() || dataxDelete2()")
+    public void doAfterReturnintDelete(JoinPoint joinPoint, Object result){
+
+        Annotation annotation = joinPoint.getTarget().getClass().getAnnotation(LogName.class);
+        if(annotation == null){
+            return;
+        }
+        ServletRequestAttributes sra =  (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = sra.getRequest();
+        LogName logName = (LogName) annotation;
+        OperationDataxLog log = genDataxLog(request, joinPoint,logName,"删除");
+
+        log.setReturnData(result);
+        log.setType("DELETE");
+        operationDataxLogDao.save(log);
+    }
+
+    @AfterReturning(returning="result", pointcut="dataxUpdate1() || dataxUpdate2()")
+    public void doAfterReturnintUpdate(JoinPoint joinPoint, Object result){
+
+        Annotation annotation = joinPoint.getTarget().getClass().getAnnotation(LogName.class);
+        if(annotation == null){
+            return;
+        }
+        ServletRequestAttributes sra =  (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = sra.getRequest();
+        LogName logName = (LogName) annotation;
+        OperationDataxLog log = genDataxLog(request, joinPoint,logName,"修改");
+
+        log.setReturnData(result);
+
+        log.setType("UPDATE");
+        operationDataxLogDao.save(log);
+    }
+
+
+}
+```
+
+## 日志使用
+
+我们只需要在类上添加一个LogName接口即可
+
+```java
+@RestController
+@RequestMapping("subjectTable")
+@Api(tags = "主题表接口")
+@LogName("主题表")
+public class SubjectTableController extends BaseController<SubjectTable, String, SubjectTableService> {
+}
+```
+

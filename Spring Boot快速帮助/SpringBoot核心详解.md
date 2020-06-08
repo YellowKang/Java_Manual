@@ -180,3 +180,70 @@ public ConfigurableApplicationContext run(String... args)
 而在SpringBoot中默认引入了tomcat的starter
 
 ![](http://yanxuan.nosdn.127.net/6da80daf67d483fd9e2947981fe1d8de.png)
+
+# SpringBoot如何实现AOP
+
+## 自动装配
+
+​			SpringBoot的自动装配实现中有一个EnableAutoConfiguration，他是定义自动装配的注解，同时在这个Jar包的META-INF下有一个spring.factories文件里面配置了许多自动装配的类，如下。
+
+
+
+此处只列举一部分，如需了解自动装配流程请翻阅SpringBoot自动装配
+
+```properties
+# Initializers
+org.springframework.context.ApplicationContextInitializer=\
+org.springframework.boot.autoconfigure.SharedMetadataReaderFactoryContextInitializer,\
+org.springframework.boot.autoconfigure.logging.AutoConfigurationReportLoggingInitializer
+
+# Application Listeners
+org.springframework.context.ApplicationListener=\
+org.springframework.boot.autoconfigure.BackgroundPreinitializer
+
+# Auto Configure
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+org.springframework.boot.autoconfigure.admin.SpringApplicationAdminJmxAutoConfiguration,\
+org.springframework.boot.autoconfigure.aop.AopAutoConfiguration,\   #这里就是自动装配的AOP的配置类了
+org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration,\
+org.springframework.boot.autoconfigure.MessageSourceAutoConfiguration,\
+```
+
+
+
+这个类如下
+
+```java
+// Configuration表示他是一个配置类
+@Configuration
+// 如果有包含这三个注解的时候才会生效，也就是引入了这几个类依赖的时候
+@ConditionalOnClass({ EnableAspectJAutoProxy.class, Aspect.class, Advice.class })
+// 并且spring.aop.auto这个属性为true的时候进行装配，默认值为false(但是在spring-configuration-metadata.json中把它设置成了true)，也就是只要我们引入AOP依赖则一定会注入
+@ConditionalOnProperty(prefix = "spring.aop", name = "auto", havingValue = "true", matchIfMissing = true)
+public class AopAutoConfiguration {
+
+  // 开启配置，同时类上加上EnableAspectJAutoProxy注解proxyTargetClass=false
+	@Configuration
+	@EnableAspectJAutoProxy(proxyTargetClass = false)
+  // 如果spring.aop.proxy-target-class是false则启用这个类的配置，默认设置为false(在spring-configuration-metadata.json中配置为了false)（matchIfMissing这个属性太恶心了，反向操作打死他）
+	@ConditionalOnProperty(prefix = "spring.aop", name = "proxy-target-class", havingValue = "false", matchIfMissing = true)
+	public static class JdkDynamicAutoProxyConfiguration {
+	}
+
+	@Configuration
+  // 开启配置，同时类上加上EnableAspectJAutoProxy注解proxyTargetClass=true
+	@EnableAspectJAutoProxy(proxyTargetClass = true)
+  // 如果为true则开启，否则不启用，也没有默认值
+	@ConditionalOnProperty(prefix = "spring.aop", name = "proxy-target-class", havingValue = "true", matchIfMissing = false)
+	public static class CglibAutoProxyConfiguration {
+	}
+
+}
+```
+
+总结：
+
+```
+		Spring-Boot-Aop的Starter中引入了依赖，所以在EnableAutoConfiguration中会找到 EnableAspectJAutoProxy.class, Aspect.class, Advice.class这几个类，并且spring.aop.auto默认值为true，所以引入了starter之后这个配置类就会启动。然后我们走到下面，spring.aop.proxy-target-class这个类，
+```
+

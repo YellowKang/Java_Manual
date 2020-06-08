@@ -300,6 +300,16 @@ public class CustomBean {
 
 
 
+## Spring  Bean对象循环依赖问题
+
+​		我们在初始化Bean对象的时候有可能出现一个Bean对象里面的属性或者是其他依赖于另一个Bean对象，然后在初始化的时候如何解决Bean对象的这个循环依赖问题。
+
+
+
+
+
+
+
 # AOP切面
 
 
