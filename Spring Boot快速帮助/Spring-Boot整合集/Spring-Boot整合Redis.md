@@ -6,7 +6,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-data-redis</artifactId>
     </dependency>
-
+		<!--根据项目决定是否引入session共享-->
     <dependency>
         <groupId>org.springframework.session</groupId>
         <artifactId>spring-session-data-redis</artifactId>
@@ -103,6 +103,22 @@ spring.redis.sentinel.master = 						#Redis服务器的名称。
 spring.redis.sentinel.nodes =                                		＃逗号分隔的“host：port”对列表。
 spring.redis.ssl = false                                				＃是否启用SSL支持。
 spring.redis.timeout =                                				＃连接超时。
+```
+
+
+
+
+
+# 整合Redission
+
+## 引入依赖
+
+```xml
+ 				<dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson-spring-boot-starter</artifactId>
+            <version>3.11.0</version>
+        </dependency>
 ```
 
 
