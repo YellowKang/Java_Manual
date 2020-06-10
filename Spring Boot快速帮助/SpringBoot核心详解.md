@@ -209,8 +209,6 @@ org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration,\
 org.springframework.boot.autoconfigure.MessageSourceAutoConfiguration,\
 ```
 
-
-
 这个类如下
 
 ```java
@@ -245,5 +243,22 @@ public class AopAutoConfiguration {
 
 ```
 		Spring-Boot-Aop的Starter中引入了依赖，所以在EnableAutoConfiguration中会找到 EnableAspectJAutoProxy.class, Aspect.class, Advice.class这几个类，并且spring.aop.auto默认值为true，所以引入了starter之后这个配置类就会启动。然后我们走到下面，spring.aop.proxy-target-class这个类，
+```
+
+```
+eval "local result = redis.call('set',KEYS[1],'bigkang','EX',20,'NX')
+if  type(result) == 'nil'
+then
+    return false
+else
+     return true
+end" 1 name
+
+eval "if redis.call('get',KEYS[1]) == ARGV[1] then
+        return redis.call('del',KEYS[1]) 
+else
+        return false
+end" 1 name "bigkang"
+
 ```
 
