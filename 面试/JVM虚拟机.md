@@ -34,6 +34,19 @@ JVM有两种运行模式Server与Client。两种模式的区别在于
 
 ​		但是启动进入稳定期长期运行之后Server模式的程序运行速度比Client要快很多。这是因为Server模式启动的JVM采用的是重量级的虚拟机，对程序采用了更多的优化；而Client模式启动的JVM采用的是轻量级的虚拟机。所以Server启动慢，但稳定后速度比Client远远要快。 
 
+### JVM启动流程
+
+​			Java的底层是采用C++实现的所以他会调用C++的代码，那么下面我们来梳理一下JVM的启动流程吧。
+
+```
+1、执行java命令，调用底层jvm.dll  Or  jvm.so类库
+2、创建一个引导类加载器实例（C++实现）
+3、C++调用Java代码创建JVM启动器，实例（sun.misc.Launcher），该类由引导类加载器负责创建其他类加载器
+4、获取运行类自己的ClassLoader，launcher.getClassLoader().loadClass("XXX.XXX.XXX.Application")如Application.java
+5、加载完成后C++发起调用，JVM执行Application类的main方法
+6、JVM程序运行结束，JVM销毁
+```
+
 
 
 ### Java类加载的过程
@@ -157,11 +170,16 @@ JVM有两种运行模式Server与Client。两种模式的区别在于
 
 如果启动类加载器无法完成加载任务（找不到需要加载的类）那么他就会将任务递交给子类，如果启动类加载器加载不了则交给扩展类加载器，拓展类加载到了那么就直接返回结果，如果还是加载不到则继续往下，如果一直加载不了那么就会无法加载此类找不到类
 
-
 java.lang.ClassNotFoundException
 ```
 
-# 
+如何测试哪些类是由哪个类加载器加载的呢
+
+```
+
+```
+
+
 
 # GC垃圾回收
 

@@ -1,5 +1,27 @@
 # Redis5.0版本+Redis-Cli
 
+### 带布隆过滤器插件版本（特殊需求）
+
+#### 自定义DockerFile
+
+首先我们
+
+```
+
+```
+
+#### 快速使用现成镜像
+
+```
+
+docker run -d \
+--name redis \
+-p 16379:6379 \
+redislabs/rebloom redis-server --requirepass 'bigkang' --loadmodule /usr/lib/redis/modules/redisbloom.so --appendonly yes 
+```
+
+
+
 ### 单机版
 
 #### 快速启动
@@ -12,12 +34,12 @@ docker run -d \
 --name redis \
 -p 6379:6379 \
 -v /docker/redis/data:/data \
-redis --requirepass 'bigkang'
+redis:5.0.5 --requirepass 'bigkang'
 
 docker run -d \
 --name redis \
 -p 16379:6379 \
-redis --requirepass 'bigkang'
+redis:5.0.5 --requirepass 'bigkang'
 ```
 
 #### 生产启动
@@ -133,7 +155,7 @@ docker run -d \
 -p 16371:6379 \
 -v /docker/redis/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
+redis:5.0.5 redis-server /etc/redis/redis.conf --appendonly yes
 ```
 
 ### 集群版
@@ -291,21 +313,21 @@ docker run -d \
 --net=host \
 -v /docker/redis-cluster/redis1/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis1/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
+redis:5.0.5 redis-server /etc/redis/redis.conf --appendonly yes
 
 docker run -d \
 --name redis2 \
 --net=host \
 -v /docker/redis-cluster/redis2/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis2/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
+redis:5.0.5 redis-server /etc/redis/redis.conf --appendonly yes
 
 docker run -d \
 --name redis3 \
 --net=host \
 -v /docker/redis-cluster/redis3/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis3/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
+redis:5.0.5 redis-server /etc/redis/redis.conf --appendonly yes
 ```
 
 第二台
@@ -316,21 +338,21 @@ docker run -d \
 --net=host \
 -v /docker/redis-cluster/redis4/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis4/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
+redis:5.0.5 redis-server /etc/redis/redis.conf --appendonly yes
 
 docker run -d \
 --name redis5 \
 --net=host \
 -v /docker/redis-cluster/redis5/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis5/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
+redis:5.0.5 redis-server /etc/redis/redis.conf --appendonly yes
 
 docker run -d \
 --name redis6 \
 --net=host \
 -v /docker/redis-cluster/redis6/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis-cluster/redis6/data:/data \
-redis redis-server /etc/redis/redis.conf --appendonly yes
+redis:5.0.5 redis-server /etc/redis/redis.conf --appendonly yes
 ```
 
 安装搭建已经完成了下面我们开始集群吧
