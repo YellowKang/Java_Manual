@@ -30,25 +30,25 @@
 
 ​		分别是
 
-```
-//此方法用于设置HashMap的初始化长度，还有负载因子
+```java
+// 此方法用于设置HashMap的初始化长度，还有负载因子
 public HashMap(int initialCapacity, float loadFactor) {  
     ...  
     this.loadFactor = loadFactor;  
     this.threshold = tableSizeFor(initialCapacity);  
 }  
 
-//此方法可以定义初始化长度
+// 此方法可以定义初始化容器长度
 public HashMap(int initialCapacity) {  
     this(initialCapacity, DEFAULT_LOAD_FACTOR);  
 }  
   
-//默认初始化值，默认初始化负载
+// 默认初始化值，默认初始化负载因子
 public HashMap() {  
-    this.loadFactor = DEFAULT_LOAD_FACTOR; // all other fields defaulted  
+    this.loadFactor = DEFAULT_LOAD_FACTOR; 
 }  
   
-
+// 将一个HashMap通过构造方法放入另一个HashMap，负载因子使用默认
 public HashMap(Map<? extends K, ? extends V> m) {  
     this.loadFactor = DEFAULT_LOAD_FACTOR;  
     putMapEntries(m, false); 
@@ -57,7 +57,7 @@ public HashMap(Map<? extends K, ? extends V> m) {
 
 
 
-### HashMap的源码，实现原理，JDK8中对HashMap做了怎样的优化。
+### JDK8中对HashMap做了怎样的优化？
 
    在JDK1.6，JDK1.7中，HashMap采用数组+链表实现 ，而JDK1.8中，HashMap采用数组+链表+红黑树实现，当链表长度超过阈值（8）时，将链表转换为红黑树，这样大大减少了查找时间。
 
@@ -67,13 +67,29 @@ public HashMap(Map<? extends K, ? extends V> m) {
 
 
 
-### HaspMap扩容是怎样扩容的，为什么都是2的N次幂的大小。
+### HaspMap是怎么进行扩容的？
+
+### 
 
 ​	为了能让 HashMap 存取高效，尽量较少碰撞，Hash 值的范围值-2147483648到2147483648，前后加起来大概40亿的映射空间。用之前还要先做对数组的长度取模运算，这个数组下标的计算方法是“ `(n - 1) & hash` ”。（n代表数组长度）。这也就解释了 HashMap 的长度为什么是2的幂次方。
 
-​	但是通过源码后发现，HashMap的最大长度是10亿左右，并且它的每次扩容是因为计算机底层都是采用二进制存储，在扩容计算时，我们直接进行位移操作即可快速计算，只要每次扩容不停地向左位移一位即可乘2也就是2的N次幂，我感觉更多是考虑到了计算机底层的计算而进行优化，并且它的初始化
+​	但是通过源码后发现，HashMap的最大长度是10亿左右，并且它的每次扩容是因为计算机底层都是采用二进制存储，在扩容计算时，我们直接进行位移操作即可快速计算，只要每次扩容不停地向左位移一位即可乘2也就是2的N次幂，我感觉更多是考虑到了计算机底层的计算而进行优化，并且它的初始化长度如下：
 
-### HashMap，HashTable，ConcurrentHashMap的区别。
+```
+static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
+```
+
+采用位运算的方式进行计算，HashMap的源码中大量的使用了位运算，因为在乘除的计算中使用位运算能更快高效的计算出结果。
+
+
+
+### 为什么HashMap扩容的大小都是2的N次幂？
+
+​	为了能让 HashMap 存取高效，尽量较少碰撞，Hash 值的范围值-2147483648到2147483648，前后加起来大概40亿的映射空间。用之前还要先做对数组的长度取模运算，这个数组下标的计算方法是“ `(n - 1) & hash` ”。（n代表数组长度）。这也就解释了 HashMap 的长度为什么是2的幂次方。
+
+​	但是通过源码后发现，HashMap的最大长度是10亿左右，并且它的每次扩容是因为计算机底层都是采用二进制存储，在扩容计算时，我们直接进行位移操作即可快速计算，只要每次扩容不停地向左位移一位即可乘2也就是2的N次幂，我感觉更多是考虑到了计算机底层的计算而进行优化，并且它的初始化值是
+
+### HashMap，HashTable，ConcurrentHashMap的区别？
 
 ​	**HashTable**
 
@@ -97,7 +113,7 @@ public HashMap(Map<? extends K, ? extends V> m) {
 
 计算index方法：index = hash & (tab.length – 1)
 
- ConcurrentHashMap
+**ConcurrentHashMap**
 
 1.6时底层采用分段的数组+链表实现，线程安全
 
@@ -107,17 +123,7 @@ public HashMap(Map<? extends K, ? extends V> m) {
 
 取消segments字段，直接采用`transient volatile HashEntry<K,V> table`保存数据，采用table数组元素作为锁，从而实现了对每一行数据进行加锁，进一步减少并发冲突的概率。 
 
-
-
-
-
-Hashtable的synchronized是针对整张Hash表的，即每次锁住整张表让线程独占，ConcurrentHashMap允许多个修改操作并发进行，其关键在于使用了锁分离技术
-
-
-
-有些方法需要跨段，比如size()和containsValue()，它们可能需要锁定整个表而而不仅仅是某个段，这需要按顺序锁定所有段，操作完毕后，又按顺序释放所有段的锁
-
-
+Hashtable的synchronized是针对整张Hash表的，即每次锁住整张表让线程独占，ConcurrentHashMap允许多个修改操作并发进行，其关键在于使用了锁分离技术有些方法需要跨段，比如size()和containsValue()，它们可能需要锁定整个表而而不仅仅是某个段，这需要按顺序锁定所有段，操作完毕后，又按顺序释放所有段的锁
 
 扩容：段内扩容（段内元素超过该段对应Entry数组长度的75%触发扩容，不会对整个Map进行扩容），插入前检测需不需要扩容，有效避免无效扩容
 

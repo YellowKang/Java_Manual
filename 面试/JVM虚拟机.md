@@ -123,6 +123,74 @@ JVM有两种运行模式Server与Client。两种模式的区别在于
 
 ​		 GC垃圾回收 
 
+### 类加载器双亲委派模型的过程以及优势
+
+加载器分别分为：
+
+```
+启动类(引导类)加载器 Bootstrap ClassLoader
+			虚拟机的一部分，由c++实现。负责加载<JAVA_HOME>/lib下的类库	
+扩展类加载器 Extension ClassLoader,
+			sun.misc.Launcher$ExtClassLoader.负责加载<JAVA_HOME>/lib/ext下的类库
+应用程序类加载器 Application ClassLoader 
+			sun.misc.Launcher$AppClassLoader, 它是System.getClassLoader()的返回值，也称为系统类加载器。
+自定义类加载器：
+			负责加载用户类路径上所指定的类库。如果应用程序没有自定义过类加载器。
+```
+
+双亲委派流程：
+
+```
+	如果一个类加载器收到了类加载的请求，它首先不会自己去尝试加载这个类，而是把这个请求委托给父类加载器去完成，每一个层次的类加载器都是如此，如果从应用层类加载器加载，那么他会将任务交给父类（扩展类加载器），扩展类加载器将任务交给启动类加载器，如果启动类加载器无法完成加载任务（找不到需要加载的类）那么他就会将任务递交给子类，如果启动类加载器加载不了则交给扩展类加载器，拓展类加载到了那么就直接返回结果，如果还是加载不到则继续往下，如果一直加载不了那么就会无法加载此类找不到类则会抛出异常java.lang.ClassNotFoundException。
+
+	流程：
+			例如查找类com.kang.Test
+			
+			应用类加载器（使我们启动的程序以及编写的代码所加载的）   -----》  交由拓展类加载器   -----》  交由启动类加载器
+				
+			-----》 如果启动类加载器有，则从启动类加载   -----》 如果没有拓展类加载器加载   -----》   如果还是没有交由应用类加载器加载 -----》 如果还是没有并且没有自定义类加载器则抛出异常java.lang.ClassNotFoundException。
+```
+
+如何测试哪些类是由哪个类加载器加载的呢，例如我们新建一个测试类
+
+```java
+public class TestJvm {
+
+    public static void main(String[] args) {
+        // String由启动类(引导类)加载器，由C++实现无法获取其类加载器
+        System.out.println(String.class.getClassLoader());
+        // 扩展类加载器负责加载<JAVA_HOME>/lib/ext下的类库所加载
+        System.out.println(SunJCE.class.getClassLoader());
+        // 应用程序类加载器所加载，也就是我们项目代码负责加载用户类路径上所指定的类库。如果应用程序没有自定义过类加载器
+        System.out.println(TestJvm.class.getClassLoader());
+    }
+
+}
+```
+
+每一个类加载器也是有父加载器的存在的，例如拓展类加载器的父加载器是启动类(引导类)加载器，应用程序类加载器的父类是扩展类加载器
+
+```java
+    public static void main(String[] args) {
+        System.out.println(String.class.getClassLoader());
+        System.out.println(SunJCE.class.getClassLoader().getParent());
+        System.out.println(TestJvm.class.getClassLoader().getParent());
+    }
+```
+
+那么这样做到底有什么好处呢？
+
+```
+1、沙箱安全机制，保护我们的基础类，如String等等JDK自带的类，防止篡改以及恶意篡改导致的系统Bug。
+2、避免重复类加载，既保护安全，并且从父加载器进行加载，如果父类有直接从父类进行加载，如果没有则从现有的类加载器进行加载。
+```
+
+
+
+### 双亲委派机制可以不遵守么？
+
+​			可以的，通过我们的自定义类加载器就能实现类加载器，我们通过自己的类加载器去进行加载，则可以打破双亲委派机制，例如非常常见Tomcat6的版本，它本身就采用了很多的自定义类加载器，并且打破了双亲委派机制，但是！！！（像java.lang.String这种类，在JVM中是受保护的，它具有沙箱安全机制，如果我们使用这个包名下相同的Class甚至引入了这样的包名，则会直接报错，并且我们通过AppClassLoader进行加载，AppClassLoader和自定义类加载器都去加载他的话，那么就会从AppClassLoader加载）
+
 ### G1
 
 ​	G1将新生代，老年代的物理空间划分取消了 ，取而代之的是，G1算法将堆划分为若干个区域（Region），它仍然属于分代收集器 。不过，这些区域的一部分包含新生代，新生代的垃圾收集依然采用暂停所有应用线程的方式，将存活对象拷贝到老年代或者Survivor空间。老年代也分成很多区域，G1收集器通过将对象从一个区域复制到另外一个区域，完成了清理工作。这就意味着，在正常的处理过程中，G1完成了堆的压缩（至少是部分堆的压缩），这样也就不会有cms内存碎片问题的存在了 
@@ -143,41 +211,50 @@ JVM有两种运行模式Server与Client。两种模式的区别在于
 
 ​	栈中的栈帧用来存储内存地址，通过PC计数器进行引用，它类似于C中的指针，可以帮助栈引用到堆中的堆内存对象
 
-### 双亲委派模型的过程以及优势
 
-​		
 
-启动类(引导类)加载器 Bootstrap ClassLoader
+类加载时加载了哪些信息到
 
-​		 虚拟机的一部分，由c++实现。负责加载<JAVA_HOME>/lib下的类库
+### 对象里面存储了哪些数据？
 
-扩展类加载器 Extension ClassLoader,
+​			在 Java 程序的运行过程中，会被创建出许许多多的对象，这些对象可能是我们自己写的一个类，也可能是 JDK 自带的一些类，那么这些被我们创建的对象他们都存储了一些什么呢？
 
-​		sun.misc.Launcher$ExtClassLoader.负责加载<JAVA_HOME>/lib/ext下的类库
-
-应用程序类加载器 Application ClassLoader 
-
-​		sun.misc.Launcher$AppClassLoader, 它是System.getClassLoader()的返回值，也称为系统类加载器。		
-
-​		负责加载用户类路径上所指定的类库。如果应用程序没有自定义过类加载器 
-
-自定义类加载器：
+​			那么我们知道的，我们可以通过这个对象获取他的类，并且获取他的属性，那么这一块他是如何存储的呢？下面就是Java对象所存储的东西：
 
 ```
-如果一个类加载器收到了类加载的请求，它首先不会自己去尝试加载这个类，而是把这个请求委托给父类加载器去完成，每一个层次的类加载器都是如此
-
-如果从应用层类加载器加载，那么他会将任务交给父类（扩展类加载器），扩展类加载器将任务交给启动类加载器
-
-如果启动类加载器无法完成加载任务（找不到需要加载的类）那么他就会将任务递交给子类，如果启动类加载器加载不了则交给扩展类加载器，拓展类加载到了那么就直接返回结果，如果还是加载不到则继续往下，如果一直加载不了那么就会无法加载此类找不到类
-
-java.lang.ClassNotFoundException
+1、Object Header（对象头）
+2、Object Alignment Padding（对象对齐填充）
+3、Object Properties（对象属性）
 ```
 
-如何测试哪些类是由哪个类加载器加载的呢
+
+
+### 什么是Object Header对象头？
+
+​			对象由对象头，对象对齐填充，对象属性所组成，对象头在整个对象的最前面，也就是头部，那么对象头其实也是由几部分进行组成的，分别是：
 
 ```
+1、Mark Word（标记指令）
+2、Klass Word（类）
+3、数组信息（如果是数组的话则会有）
+```
+
+**Mark Word**
+
+​			这部分主要用来存储对象自身的运行时数据，如Hashcode、GC分代年龄等。Mark Word的位长度为JVM的一个Word大小，也就是说32位JVM的Mark word为32位，64位JVM为64位，为了压缩这一块标记指令，Mark Word采用二进制存储，也就是01的机器码，我们使用工具jol-core进行查看发现如下：
 
 ```
+(object header)                           01 00 00 00 (00000001 00000000 00000000 00000000) (1)
+(object header)                           00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+```
+
+这8个字节就是我们的Mark Word
+
+**Klass Word**
+
+​			用于
+
+### JVM指针压缩
 
 
 

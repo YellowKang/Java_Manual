@@ -350,6 +350,132 @@ OutOfMemoryError
 
 ​					父亲又跟儿子说没钱了，这就是双亲委派机制
 
+### 打破双亲委派机制
+
+​			那么我们自己实现一个类加载器，并且拒绝掉双亲委派机制，而且重写掉我们的类。
+
+​			首先编写一个类加载器。
+
+```java
+import java.io.FileInputStream;
+
+/**
+ * @Author BigKang
+ * @Date 2020/6/15 3:23 下午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize 自定义类加载器
+ */
+public class CustomClassLoader {
+
+    /**
+     * 测试自定义类加载器静态类
+     */
+    public static class TestCustomClassLoader extends ClassLoader {
+
+        private String path;
+
+        public TestCustomClassLoader(String path){
+            this.path = path;
+        }
+
+        private byte[] loadByte(String name) throws Exception {
+            // 根据路径加载字节，这里我们把加载路径改为自己的文件中的类
+            name = name.replaceAll("\\.", "/");
+            FileInputStream fis = new FileInputStream(path + "/" + name + ".class");
+            int len = fis.available();
+            byte[] data = new byte[len];
+            fis.read(data);
+            fis.close();
+            return data;
+        }
+
+        @Override
+        public Class<?> findClass(String name) throws ClassNotFoundException {
+            try {
+                byte[] data = loadByte(name);
+                return defineClass(name, data, 0, data.length);
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new ClassNotFoundException();
+            }
+        }
+
+        /**
+         * 修改双亲委派，直接从当前类加载器加载
+         *
+         * @param name
+         * @return
+         * @throws ClassNotFoundException
+         */
+        public Class<?> loadClass(String name,Boolean resolve)
+                throws ClassNotFoundException {
+            synchronized (getClassLoadingLock(name)) {
+                Class<?> c = findLoadedClass(name);
+                if (c == null) {
+                    long t0 = System.nanoTime();
+                    try {
+                        c = findClass(name);
+                    } catch (ClassNotFoundException e) {
+                    }
+
+                    if (c == null) {
+                        long t1 = System.nanoTime();
+                        c = findClass(name);
+
+                        sun.misc.PerfCounter.getParentDelegationTime().addTime(t1 - t0);
+                        sun.misc.PerfCounter.getFindClassTime().addElapsedTimeFrom(t1);
+                        sun.misc.PerfCounter.getFindClasses().increment();
+                    }
+                }
+                if (resolve) {
+                    resolveClass(c);
+                }
+                return c;
+            }
+        }
+
+    }
+
+}
+```
+
+首先我们编写一个类从外部进行加载
+
+```java
+package com.kang.java.jvm;
+
+public class TestClass {
+    public TestClass() {
+    }
+
+    public static void printMessage() {
+        System.out.println("自定义类加载器加载");
+    }
+}
+
+```
+
+我们把它编译后放入指定的路径中
+
+首先我们打印由自定义类加载器加载，然后编译他放到目录下，根据现在的包名那么路径就是：/Users/bigkang/Documents/test/com/kang/java/jvm/TestClass.class
+
+"/Users/bigkang/Documents/test" + "/" + name + ".class"
+
+```java
+   public static void main(String[] args) throws ClassNotFoundException, IllegalAccessException, InstantiationException, NoSuchMethodException, InvocationTargetException {
+        CustomClassLoader.TestCustomClassLoader classLoader = new CustomClassLoader.TestCustomClassLoader("/Users/bigkang/Documents/test");
+        Class<?> aClass = classLoader.loadClass("com.kang.java.jvm.TestClass");
+        Object obj = aClass.newInstance();
+        Method method = aClass.getDeclaredMethod("printMessage", null);
+        method.invoke(obj, null);
+        System.out.println("类加载器是：" + aClass.getClassLoader().getClass().getName());
+    }
+```
+
+这样我们就通过了自己集成ClassLoader并且进行一个修改，从而实现打破双亲委派机制，不从应用类加载器所加载。
+
+注意：（由于我们的这个类本身就是由AppClassLoader所加载的，如果说AppClassLoader中还是有一个TestClass，那么这个类就会被AppClassLoader所加载，所以我们在idea里面将原来的类给他删除掉即可）
+
 # Stack栈
 
 ​		什么是栈？
@@ -373,4 +499,85 @@ OutOfMemoryError
 ​		
 
 
+
+# 类对象
+
+​		我们有时候初始化了一个对象，但是这个对象可能很大，我们并不知道这个类对象的一个大小，所以我们需要怎么样去计算这个对象的大小呢？
+
+首先我们引入依赖
+
+```xml
+<!-- https://mvnrepository.com/artifact/org.openjdk.jol/jol-core -->
+<dependency>
+    <groupId>org.openjdk.jol</groupId>
+    <artifactId>jol-core</artifactId>
+    <version>0.10</version>
+</dependency>
+
+```
+
+它可以帮助我们查看这个对象的大小
+
+那么我们来测试一下吧
+
+```java
+        ClassLayout layout = ClassLayout.parseInstance(new Object());
+        System.out.println(layout.toPrintable());
+```
+
+那么他就会打印信息如下
+
+```
+java.lang.Object object internals:
+ OFFSET  SIZE   TYPE DESCRIPTION            VALUE
+      0     4        (object header)        01 00 00 00 (00000001 00000000 00000000 00000000) (1)
+      4     4        (object header)        00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      8     4        (object header)        e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+     12     4        (loss due to the next object alignment)
+     
+Instance size: 16 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+那么从这里我们就能看出这分别做了4件事情，首先我们先来了解一下前两个
+
+```
+      0     4        (object header)        01 00 00 00 (00000001 00000000 00000000 00000000) (1)
+      4     4        (object header)        00 00 00 00 (00000000 00000000 00000000 00000000) (0)
+      
+      
+      这两个是我们的object header，也就是我们的对象头，用于标记我们的对象表示他是一个类，那么我们知道万物皆是Object的子类,首先这两个对象头占用了4 + 4 也就是八个比特,当然这个对象头并不是固定的01，
+      001  -》 无锁
+
+			101	 -》 偏向锁
+
+			000  -》 轻量级锁
+
+			010  -》 重量级锁
+```
+
+那么在我们的HotSpot虚拟机的Object Header中又把这个头对象分为了Mark Word（标记字段）和 Klass Pointer（类型指针）
+
+那么这个就是我们的Object的类型指针，这个指针指向了JVM虚拟机初始化的类信息，也就是我们的元空间或者说永久代中的类信息。
+
+```
+      8     4        (object header)        e5 01 00 f8 (11100101 00000001 00000000 11111000) (-134217243)
+```
+
+那么我们再往下看，这里为什么会出现一个下一个对象因为对其而丢失呢。
+
+```
+     12     4        (loss due to the next object alignment)
+```
+
+​		答案就是在我们的HotSpot虚拟机中，在64位的系统里面，我们需要根据内存空间的地址获取到内存，但是我们需要根据一段连续性的内存地址去进行查找计算，所以我们使用连续性的以8的倍数的比特去进行寻找效率会比较高，那么我们可以看到这一块就是由于缺少连续性的地址我们进行了一个填充，所以下面的信息也是比较容易看出来的。
+
+​		# 我们实例化了16个比特，由3个对象头+一个填充空间所组成
+
+​	   # Space losses表示我们损失的内存空间，0 bytes internal表示我们损失了0个内部比特，4 bytes external表示我们损失了4个外部比特，也就是我们所填充的一个空间，所以总计我们损失了 4 bytes total
+
+```sh
+Instance size: 16 bytes				
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
 
