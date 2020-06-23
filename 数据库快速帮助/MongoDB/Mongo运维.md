@@ -70,6 +70,14 @@ mongorestore  -h 192.168.1.11 --port 20168 -u minexhb -p minexhb123 -d minexhb-d
 
 ## 导出
 
+
+
+```
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom123 -f content -q {"content":/溺水/,"atime":{"$gte":1514736000}} --type csv -o C:\Users\topcom\Desktop\mine_base.csv
+```
+
+
+
 ```
 导出json
 mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 -f content -q {"content":/电/}  -o C:\Users\topcom\Desktop\accident-电.json
@@ -99,9 +107,18 @@ mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom
 mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom123 -q '{"$or":[{"atype":"建筑施工","content":{"$regex":"建筑工地"}},{"content":{"$regex":"地铁"}},{"content":{"$regex":"管道"}}],"sgjb":{"$in":["重大事故","特大事故"]}}' -f originaltime,atype,cityinfo,deathnumber,sgjb,content --type csv -o  /Users/bigkang/Documents/Data/utf8/原因.csv
 
 
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom123 -q '{"content":{"$regex":"溺水"},"atime":{"$gte":1514736000}}' -f originaltime,atype,cityinfo,deathnumber,sgjb,content --type csv -o  /Users/bigkang/Documents/Data/utf8/acc溺水.csv
+
+
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 -q '{"content":{"$regex":"溺水"},"atime":{"$gte":1514736000}}' -f originaltime,atype,cityinfo,deathnumber,sgjb,content --type csv -o  /Users/bigkang/Documents/Data/utf8/accident溺水.csv
+
+
+
 
 iconv -f UTF8 -t gb18030 5省除道路运输.csv > 5省除道路运输_GBK.csv
 
+iconv -f UTF8 -t gb18030 accident溺水.csv > accident溺水_GBK.csv
+iconv -f UTF8 -t gb18030 acc溺水.csv > acc溺水_GBK.csv
 
 iconv -f UTF8 -t gb18030 地铁.csv > 地铁_GBK.csv
 iconv -f UTF8 -t gb18030 管道.csv > 管道_GBK.csv
@@ -324,5 +341,39 @@ db.sys_data_history.find({"did":"5eb64ba13610300007d9f690","atime":{"$exists":fa
               db.sys_data_history.update({"_id":item._id} , { $set : { "atime":atime} },false,true)
        
     });
+```
+
+
+
+
+
+```
+        // 判断父类是否查询map
+        if (q.getClass().getSuperclass().equals(ScaffoldBaseMap.class)) {
+            // 判断是否需要指定字段查询
+            for (Field field : fields) {
+                field.setAccessible(true);
+                MongoSearch annotation = field.getAnnotation(MongoSearch.class);
+                if (annotation != null && annotation.type() == MongoSearchType.FIELD) {
+                    try {
+                        Object o = field.get(q);
+                        if (o != null) {
+                            ArrayList list = (ArrayList) o;
+                            if (list.size() > 0) {
+                                queryBuilder = new QueryBuilder();
+                                BasicDBObject basicDBObject = new BasicDBObject();
+                                list.forEach(v -> {
+                                    basicDBObject.put((String) v, 1);
+                                });
+                                //初始化query对象
+                                query = new BasicQuery(queryBuilder.get().toString(), basicDBObject.toJson());
+
+                            }
+                        }
+                    } catch (IllegalAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
 ```
 

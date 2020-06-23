@@ -204,3 +204,9 @@ sed '3i\export JAVA_HOME=\/usr\/java\/jdk\/jre1.8.0_231' /etc/profile
 sed -i 's/PATH=/&\/usr\/java\/jdk\/jre1.8.0_231\/bin:/' /etc/profile 
 ```
 
+# Linux服务器关机
+
+```
+shutdown -h now 
+```
+

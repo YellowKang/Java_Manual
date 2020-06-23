@@ -774,7 +774,7 @@ jsr250Enabled=true
  * @Date 2019/9/18 6:24 PM
  * @Summarize 自定义认证过滤器，支持json登录
  */
-public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
+  public class CustomAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException {

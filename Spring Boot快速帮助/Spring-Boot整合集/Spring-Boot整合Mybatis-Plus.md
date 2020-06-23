@@ -213,7 +213,7 @@ List<User> users = testMapper.selectByMap(map);
  */
 @EnableTransactionManagement
 @Configuration
-public class MybatisPlusConfig {
+public class CustomMybatisPlusConfig {
 
     /**
      * 分页插件
@@ -233,7 +233,7 @@ public class MybatisPlusConfig {
     }
 
     /**
-     * 逻辑删除功能
+     * 逻辑删除功能，新版本默认配置，此Bean在新版本已经删除
      * @return
      */
     @Bean
@@ -242,7 +242,7 @@ public class MybatisPlusConfig {
     }
 
     /**
-     * SQL执行效率插件,性能测试
+     * SQL执行效率插件,性能测试，3.2.0以上版本移除
      */
     @Bean
     @Profile({"dev","test"})// 设置 dev test 环境开启
@@ -305,7 +305,7 @@ public class TestPlus implements Serializable {
 
     @TableField(fill = FieldFill.INSERT)
     private Date createTime;
-    @TableField(fill = FieldFill.INSERT_UPDATE)
+      @TableField(fill = FieldFill.INSERT_UPDATE)
     private Date updateTime;
 
     private String address;
@@ -462,7 +462,102 @@ public class TestPlus implements Serializable {
     }
 ```
 
+## 数据安全保护
 
+也可以使用
+
+```
+
+<dependency>
+    <groupId>com.github.ulisesbocchio</groupId>
+		<artifactId>jasypt-spring-boot-starter</artifactId>
+    <version>1.8</version>
+</dependency>
+```
+
+测试启动异常注意！！！
+
+首先编写工具类
+
+```java
+
+import com.baomidou.mybatisplus.core.toolkit.AES;
+import org.bouncycastle.crypto.DataLengthException;
+import org.springframework.util.StringUtils;
+
+/**
+ * @Author BigKang
+ * @Date 2020/6/22 2:09 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize Mybatis-Plus数据保护工具类，生成数据库秘钥连接
+ */
+public class GenDatabaseKey {
+
+    public static String genKey(String host,Integer port,String db,String username,String password,String append,String key){
+        if(key == null || key.length() != 16){
+            throw new DataLengthException("秘钥长度必须等于16！");
+        }
+        StringBuffer str = new StringBuffer();
+        String url = "jdbc:mysql://"+ host + ":" + port+ "/" + db;
+        if (StringUtils.isEmpty(append)) {
+            url += "?useSSL=false&useUnicode=true&characterEncoding=utf-8";
+        }
+        str.append("\t Url:\t");
+        str.append(genKey(url,key));
+        str.append("\n");
+
+        str.append("username:\t");
+        str.append(genKey(username,key));
+        str.append("\n");
+
+        str.append("password:\t");
+        str.append(genKey(password,key));
+        str.append("\n");
+
+        return str.toString();
+    }
+
+    /**
+     * 根据data以及key生成单条值
+     * @param data
+     * @param key
+     * @return
+     */
+    public static String genKey(String data,String key){
+        String encrypt = AES.encrypt(data, key);
+        return "mpw:" + encrypt;
+    }
+}
+
+```
+
+然后进行加密,调用打印一下即可
+
+```java
+        System.out.println(GenDatabaseKey.genKey(
+                // Host地址
+                "192.168.1.11",
+                // 端口号
+                3306,
+                // 数据库名
+                "testdb",
+                // 用户名
+                "root",
+                // 密码
+                "root",
+                // Url追加设置如useSSL=false&useUnicode=true&characterEncoding=utf-8等等
+                null,
+                // 加密秘钥16位
+                "bigkangsixsixsix"));
+```
+
+
+
+## 执行SQL分析打印
+
+版本差异请直接官网阅读查看
+
+[点击进入](https://mp.baomidou.com/guide/p6spy.html)
 
 # 条件构造器
 
