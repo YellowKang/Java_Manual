@@ -1,17 +1,5 @@
 # Es常用操作
 
-## 启动
-
-```
-/bin/elasticsearch -d
-```
-
-## 停止
-
-```
-ps -ef|grep elasticsearch  根据进程id删除     kill  -9 id
-```
-
 ## elasticsearchdump 使用
 
 ### Linux导出

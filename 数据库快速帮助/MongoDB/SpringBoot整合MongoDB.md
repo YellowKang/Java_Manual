@@ -324,21 +324,7 @@ new Criteria().orOperator(Criteria.where("sysType").is("抽放系统").and("sid"
 
 
 
-### 显示Mongo执行语句
 
-properties版本
-
-```properties
-logging.level.org.springframework.data.mongodb.core.MongoTemplate: DEBUG
-```
-
-yaml版本
-
-```properties
-logging:
-  level:
-    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
-```
 
 ### 聚合
 
@@ -373,6 +359,10 @@ AggregationResults<HashMap> aggregate = mongoTemplate.aggregate(aggregation, "su
 
 return aggregate.getMappedResults();
 ```
+
+
+
+
 
 # Mongo整合WebFlux
 
@@ -451,5 +441,64 @@ public class TestFlux {
 "startDate":"2019-12-1",
 "endDate":"2019-12-30"
 }
+```
+
+
+
+# 显示Mongo执行语句
+
+properties版本
+
+```properties
+logging.level.org.springframework.data.mongodb.core.MongoTemplate: DEBUG
+```
+
+yaml版本
+
+```properties
+logging:
+  level:
+    org.springframework.data.mongodb.core.MongoTemplate: DEBUG
+```
+
+# 去掉Mongo添加数据_class
+
+这里我们创建一个MongoConverter的Bean对象我们不修改MongoTemplate
+
+```java
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.mongodb.MongoDatabaseFactory;
+import org.springframework.data.mongodb.core.convert.DefaultMongoTypeMapper;
+import org.springframework.data.mongodb.core.convert.MappingMongoConverter;
+import org.springframework.data.mongodb.core.convert.MongoConverter;
+import org.springframework.data.mongodb.core.mapping.MongoMappingContext;
+
+/**
+ * @Author BigKang
+ * @Date 2020/8/1 10:52 上午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize MongoDb配置去掉_class
+ */
+@Configuration
+public class MongoConfig {
+
+    private final MongoDatabaseFactory mongoDatabaseFactory;
+
+    public MongoConfig(MongoDatabaseFactory mongoDatabaseFactory) {
+        this.mongoDatabaseFactory = mongoDatabaseFactory;
+    }
+
+    @Bean
+    public MongoConverter mongoConverter(){
+        MappingMongoConverter converter =
+                new MappingMongoConverter(mongoDatabaseFactory, new MongoMappingContext());
+        converter.setTypeMapper(new DefaultMongoTypeMapper(null));
+
+        return converter;
+    }
+
+}
+
 ```
 

@@ -312,7 +312,6 @@ import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
 import com.google.common.base.Predicates;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -330,13 +329,12 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
  * @Date 2020/3/17 4:27 PM
  * @Summarize Swagger通用配置类
  */
-@RefreshScope
 @Configuration
 @EnableSwagger2
 @EnableKnife4j
 @Slf4j
 @Import(BeanValidatorPluginsConfiguration.class)
-public class Swagger2Config {
+public class Knife4jConfig {
 
     /**
      * 获取swagger配置title

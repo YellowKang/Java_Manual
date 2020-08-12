@@ -115,6 +115,7 @@ mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p t
 
 
 
+
 iconv -f UTF8 -t gb18030 5省除道路运输.csv > 5省除道路运输_GBK.csv
 
 iconv -f UTF8 -t gb18030 accident溺水.csv > accident溺水_GBK.csv
@@ -139,6 +140,11 @@ iconv -f UTF8 -t gb18030 房屋建筑.csv > 房屋建筑_GBK.csv
 
 ```
 mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c briefing -u anjian -p topcom123 -q  '{"dateCreated":{$gte:new Date(1570763405000)}}  -o E:/mongo/bf2.json
+
+
+mongoexport -h 192.168.1.11 --port 20168 -d minehn-db -c point_table_data -u topcom -p topcom123 -o /Users/bigkang/Downloads/test/point.json
+
+
 ```
 
 ## 导入
@@ -151,7 +157,7 @@ mongoimport  -h 192.168.1.11 --port 20168 -d anjian-db -c coal_riskprobability -
 mongoimport  -h 39.108.158.33 --port 27017 -d test -c coalRiskProbability -u bigkang -p bigkang --file C:\Users\topcom\Desktop\导出数据\风险预测\coal_riskprobability.json
 
 
-
+mongoimport -h 192.168.1.11 --port 20168 -d minehn-db -c point_table_data -u topcom -p topcom123 --file /Users/bigkang/Documents/result.json
 --type csv --headerline --ignoreBlanks --file 
 ```
 
@@ -160,6 +166,53 @@ mongoimport  -h 39.108.158.33 --port 27017 -d test -c coalRiskProbability -u big
 <https://www.cnblogs.com/lingwang3/p/6567857.html>
 
 
+
+# Mongo远程复制数据库
+
+我们可以新建一个数据库远程来进行整个库的迁移
+
+首先新建数据库
+
+```
+use kang-db-copy
+```
+
+然后创建用户
+
+```
+db.createUser({user:"kang",pwd:"kang123",roles:[{role:'dbOwner',db:'kang-db-copy'}]})
+```
+
+然后认证用户
+
+```
+db.auth("kang","kang123")
+```
+
+然后开始远程同步其他数据库的远程库，远程库账户名和密码这里设置为了一样的，可以不一样
+
+```
+db.copyDatabase(
+"kang-db",
+"kang-db-copy",
+"192.168.1.11:20168",
+"kang",
+"kang123",
+"SCRAM-SHA-1")
+```
+
+这里我们需要注意：（这里我们本地库的密码和远程的是一样的，可以不用一样）
+
+```
+"kang-db",										// 远程数据库为kang-db
+"kang-db-copy",								// 复制到本地的kang-db-copy
+"192.168.1.11:20168",					// 192.168.1.11:20168远程的数据库ip以及端口
+"kang",												// 远程mongo库的用户名
+"kang123",										// 远程mongo库的密码
+"SCRAM-SHA-1"									// 远程mongo库的认证方式
+```
+
+执行后即可同步完毕
 
 # 数据操作
 

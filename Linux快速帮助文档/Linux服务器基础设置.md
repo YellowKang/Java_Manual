@@ -173,16 +173,54 @@ fdisk /dev/xvdc
 ## 格式化磁盘
 
 ```
-mkfs.ext3　　/dev/xvdc　
+mkfs -t ext4 /dev/xvdc
 ```
 
 ## 挂载磁盘
 
-
-
 ```
 mount /dev/xvdc /data
 ```
+
+挂载完成后使用命令查看是否挂载完毕
+
+```
+mount | grep /dev/xvdc 
+```
+
+## 永久挂载（必须执行）
+
+我们挂载了之后这只是临时挂载了上去如果我们想要重启后还有效果则需要修改配置文件	
+
+首先我们查看fstab文件，这里面存储了我们永久挂载的信息
+
+```
+ cat /etc/fstab
+```
+
+一共有6个字段
+
+设备（UUID或路径指定）  挂载点  文件系统类型   defaults  转储标志  fsck顺序  
+
+如下
+
+那么我们来获取自己的UUID
+
+```
+ blkid /dev/xvdc
+ 获取到了这个uuid
+ d04f7568-91f4-496a-996e-e67cbb337300
+```
+
+然后我们在里面进行添加
+
+这里中标麒麟是ext4
+
+```
+UUID=d04f7568-91f4-496a-996e-e67cbb337300 /data                       ext4     defaults        0 0
+```
+
+
 
 # 用户
 

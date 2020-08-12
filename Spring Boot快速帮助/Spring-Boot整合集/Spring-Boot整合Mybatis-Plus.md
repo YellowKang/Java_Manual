@@ -31,29 +31,29 @@ INSERT INTO user (id, name, age, email) VALUES
 ## 引入依赖《注：基于Spring-Boot环境》
 
 ```xml
-        //依赖版本可以修改成新版本
+
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-boot-starter</artifactId>
             <version>3.0.6</version>
         </dependency>
-				//Lombok插件
-    		<dependency>
-        		<groupId>org.projectlombok</groupId>
-        		<artifactId>lombok</artifactId>
-        		<optional>1.18.0</optional>
-    		</dependency>
-    		//连接驱动
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.0</version>
+        </dependency>
+
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
         </dependency>
-        //连接池
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
-        //测试包
+
       	<dependency>
         		<groupId>org.springframework.boot</groupId>
         		<artifactId>spring-boot-starter-test</artifactId>

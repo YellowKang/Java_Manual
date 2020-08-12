@@ -147,3 +147,97 @@ proxy_set_header Host $host:$server_port;
 
 
 
+```
+stream {
+    upstream mongosocket {
+       hash $remote_addr consistent;
+      # $binary_remote_addr;
+       server 10.217.130.21:20168 weight=5 max_fails=3 fail_timeout=30s;
+    }
+    server {
+       listen 20168;#数据库服务器监听端口
+       proxy_connect_timeout 20s;
+       proxy_timeout 300s;#设置客户端和代理服务之间的超时时间，如果5分钟内没操作将自动断开。
+       proxy_pass mongosocket;
+    }
+}
+```
+
+
+
+
+
+```
+   public static final int VT_NULL = 1;
+    public static final int VT_EMPTY = 0;
+    public static final int VT_I4 = 3;
+    public static final int VT_UI1 = 17;
+    public static final int VT_I2 = 2;
+    public static final int VT_R4 = 4;
+    public static final int VT_R8 = 5;
+    public static final int VT_VARIANT = 12;
+    public static final int VT_BOOL = 11;
+    public static final int VT_ERROR = 10;
+    public static final int VT_CY = 6;
+    public static final int VT_DATE = 7;
+    public static final int VT_BSTR = 8;
+    public static final int VT_UNKNOWN = 13;
+    public static final int VT_DECIMAL = 14;
+    public static final int VT_DISPATCH = 9;
+    public static final int VT_ARRAY = 8192;
+    public static final int VT_BYREF = 16384;
+    public static final int VT_BYREF_VT_UI1 = 16401;
+    public static final int VT_BYREF_VT_I2 = 16386;
+    public static final int VT_BYREF_VT_I4 = 16387;
+    public static final int VT_BYREF_VT_R4 = 16388;
+    public static final int VT_BYREF_VT_R8 = 16389;
+    public static final int VT_BYREF_VT_BOOL = 16395;
+    public static final int VT_BYREF_VT_ERROR = 16394;
+    public static final int VT_BYREF_VT_CY = 16390;
+    public static final int VT_BYREF_VT_DATE = 16391;
+    public static final int VT_BYREF_VT_BSTR = 16392;
+    public static final int VT_BYREF_VT_UNKNOWN = 16397;
+    public static final int VT_BYREF_VT_DISPATCH = 16393;
+    public static final int VT_BYREF_VT_ARRAY = 24576;
+    public static final int VT_BYREF_VT_VARIANT = 16396;
+    public static final int VT_I1 = 16;
+    public static final int VT_UI2 = 18;
+    public static final int VT_UI4 = 19;
+    public static final int VT_I8 = 20;
+    public static final int VT_INT = 22;
+    public static final int VT_UINT = 23;
+    public static final int VT_BYREF_VT_DECIMAL = 16398;
+    public static final int VT_BYREF_VT_I1 = 16400;
+    public static final int VT_BYREF_VT_UI2 = 16402;
+    public static final int VT_BYREF_VT_UI4 = 16403;
+    public static final int VT_BYREF_VT_I8 = 16404;
+    public static final int VT_BYREF_VT_INT = 16406;
+    public static final int VT_BYREF_VT_UINT = 16407;
+    public static final int FADF_AUTO = 1;
+    public static final int FADF_STATIC = 2;
+    public static final int FADF_EMBEDDED = 4;
+    public static final int FADF_FIXEDSIZE = 16;
+    public static final int FADF_RECORD = 32;
+    public static final int FADF_HAVEIID = 64;
+    public static final int FADF_HAVEVARTYPE = 128;
+    public static final int FADF_BSTR = 256;
+    public static final int FADF_UNKNOWN = 512;
+    public static final int FADF_DISPATCH = 1024;
+    public static final int FADF_VARIANT = 2048;
+    public static final int FADF_RESERVED = 61448;
+```
+
+
+
+
+
+
+
+
+
+```
+29420
+0
+34036
+```
+

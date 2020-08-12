@@ -210,3 +210,48 @@ sed -i 's/PATH=/&\/usr\/java\/jdk\/jre1.8.0_231\/bin:/' /etc/profile
 shutdown -h now 
 ```
 
+# 命令查找以及软连接定位
+
+如何查找一个命令的地址？
+
+例如我们知道我们输入一下java或者docker然后使用下其他的命令即可
+
+首先我们需要定位这个命令在哪，也就是我们配置的Path路劲
+
+```
+ which docker
+```
+
+我们可以看到找到了这个路径
+
+```
+/usr/local/bin/docker
+```
+
+但其实这个路径也有可能并不是docker的真实地址
+
+我们再查看一下他是否有软连接
+
+```
+ls -lar /usr/local/bin/docker
+```
+
+然后我们就可以看到，由于我们这里此处是Mac版本的docker所以他指向了/Applications/Docker.app/Contents/Resources/bin/docker
+
+```
+lrwxr-xr-x  1 root  admin  54  5 27 17:29 /usr/local/bin/docker -> /Applications/Docker.app/Contents/Resources/bin/docker
+```
+
+这个/Applications/Docker.app/Contents/Resources/bin/docker路径就是真实的docker的地址了
+
+```
+104.723192453384   25.5463377136683
+104.825970646059   26.6012993799067
+ -0.102778192675   -1.0549616662384
+ 
+ mvn install -Dmaven.test.skip=true
+```
+
+![image-20200702111028318](/Users/bigkang/Library/Application Support/typora-user-images/image-20200702111028318.png)
+
+![image-20200702111137146](/Users/bigkang/Library/Application Support/typora-user-images/image-20200702111137146.png)

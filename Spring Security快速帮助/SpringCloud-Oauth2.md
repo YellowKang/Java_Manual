@@ -103,7 +103,7 @@
 
 # Oauth认证方式
 
-​			Oauth2的认证方式分为4种模式，分别是：
+​		Oauth2的认证方式分为4种模式，分别是：
 
 ​				1、授权码模式（authorization code）
 
@@ -113,13 +113,15 @@
 
 ​				4、客户端模式（client credentials）
 
-​			下面分别介绍一下4种模式的认证流程
+​		下面分别介绍一下4种模式的认证流程
 
 ## 授权码模式
 
-​			授权码模式（authorization code），授权码模式就如同上方的认证流程图一样，那么现在我们来假设一下场景，有一个第三方应用，假设他是一个小说网站（Client），然后他需要使用QQ的第三方登录，而登录的第三方QQ就是我的QQ号码，大概的流程也和图上的6步相同。
+### 授权码模式概览
 
-​			如下就是该场景的授权码模式：
+​		授权码模式（authorization code），授权码模式就如同上方的认证流程图一样，那么现在我们来假设一下场景，有一个第三方应用，假设他是一个小说网站（Client），然后他需要使用QQ的第三方登录，而登录的第三方QQ就是我的QQ号码，大概的流程也和图上的6步相同。
+
+​		如下就是该场景的授权码模式：
 
 ```
 1、小说网站（Client）发起授权请求给QQ的Oauth2，然后跳转到登录页面，我这个资源拥有者（Resource Owner）需要输入QQ号和密码，然后QQ会提示我是否授权给这个小说网站（Client）。
@@ -137,18 +139,30 @@
 
 ![](http://yanxuan.nosdn.127.net/5d1620cca4dc91e6bf4ed642490721e7.png)		
 
-​			官方文档解释：
+​		官方文档解释：
 
 ```
-							通过使用授权服务器获得授权码作为客户端和资源所有者之间的中介。代替直接从资源所有者，客户端请求授权将资源所有者定向到授权服务器（通过其[ RFC2616 ]中定义的用户代理，该代理继而指导资源所有者将授权码返回给客户端。
-							在将资源拥有者定向到客户端之前，授权码，授权服务器对资源所有者并获得授权。因为资源拥有者仅通过授权服务器，资源进行身份验证所有者的凭据永远不会与客户端共享。授权代码提供了一些重要的安全优势，例如对客户端进行身份验证的能力，以及将访问令牌直接传输给客户端，而无需通过资源所有者的用户代理传递它，并可能公开给其他人，包括资源所有者。
+				通过使用授权服务器获得授权码作为客户端和资源所有者之间的中介。代替直接从资源所有者，客户端请求授权将资源所有者定向到授权服务器（通过其[ RFC2616 ]中定义的用户代理，该代理继而指导资源所有者将授权码返回给客户端。
+				在将资源拥有者定向到客户端之前，授权码，授权服务器对资源所有者并获得授权。因为资源拥有者仅通过授权服务器，资源进行身份验证所有者的凭据永远不会与客户端共享。授权代码提供了一些重要的安全优势，例如对客户端进行身份验证的能力，以及将访问令牌直接传输给客户端，而无需通过资源所有者的用户代理传递它，并可能公开给其他人，包括资源所有者。
 ```
 
-### 授权码模式认证
+### 授权码模式认证流程
 
-首先我们请求认证服务器
+前置要求：
 
-```
+​		首先我们需要设置一个
+
+​				client_id为bigkang，
+
+​				并且scope为web，
+
+​				他的认证类型中需要包含 “authorization_code” 这个授权码模式类型才可以。
+
+第一步：
+
+​		首先我们请求认证服务器
+
+```java
 https://baidu.com/oauth/authorize?
   response_type=code&
   client_id=bigkang&
@@ -170,12 +184,14 @@ https://baidu.com/oauth/authorize?
 
 然后就可以开始登陆了，例如在百度登录完成之后，点击授权就可以跳转到http://bigkang.club?code=qqiwej1231
 
-code表示返回的code码，也就是我们的授权许可，我们需要拿着这个授权许可去获取访问令牌Token，如下
+第二步：
 
-再次请求
+​		code表示返回的code码，也就是我们的授权许可，我们需要拿着这个授权许可去获取访问令牌Token，如下
 
-```
-https://b.com/oauth/token?
+​		再次请求
+
+```java
+https://baidu.com.com/oauth/token?
  client_id=CLIENT_ID&
  client_secret=CLIENT_SECRET&
  grant_type=authorization_code&
@@ -197,9 +213,72 @@ https://b.com/oauth/token?
 
 如果我们的Code和信息都是正确的那么服务器将会返回给我们
 
+```
+{
+    "access_token": "b20e8981-b241-47d5-921c-054e3f7c38d2",
+    "token_type": "bearer",
+    "refresh_token": "77da25a0-eeec-4cac-a74b-a146049d4038",
+    "expires_in": 2189
+}
+```
+
+第三步：
+
+​		请求资源，这个时候我们就可以使用我们的access_token去获取资源了
+
+```
+https://baidu.com.com/user/info?access_token=b20e8981-b241-47d5-921c-054e3f7c38d2
+```
+
 
 
 ## 简化模式
+
+### 简化模式概览
+
+​		简化模式主要是针对我们的没有后台服务的情况下，也就是说全部都是由静态页面组成的，那么这个时候我们采用简化模式直接请求即可，简化模式帮助我们省略了需要先获取code码的步骤，我们可以登录后直接请求到access_token,那么步骤如下。
+
+​		首先再次模拟小说网站这次他不需要经过后台去使用code码再次请求了
+
+```
+1、小说网站（Client）发起授权请求给QQ的Oauth2，然后跳转到登录页面，我这个资源拥有者（Resource Owner）需要输入QQ号和密码，然后QQ会提示我是否授权给这个小说网站（Client）。
+
+2、我这个资源拥有者（Resource Owner）点击同意以后，会跳转到小说网站指定的页面，直接返回携带一个访问令牌（Access Token）。
+
+3、小说网站（Client）拿到了这个访问令牌（Access Token）之后，会拿着这个访问令牌（Access Token）去请求QQ资源服务器（Resource Server）。
+
+4、QQ资源服务器（Resource Server）检查你这个访问令牌（Access Token）没有问题了之后，就会返回相应的资源（请求的QQ信息）。
+```
+
+​				这个就是如下所说的简化模式，我们可以看到和最上面的授权码模式相比较我们省略了获取Code码，然后再使用Code去请求资源的步骤。
+
+### 简化模式认证流程
+
+前置要求：
+
+​		首先我们需要设置一个
+
+​				client_id为bigkang，
+
+​				他的认证类型中需要包含 “implicit” 这个简化模式类型才可以。
+
+第一步：
+
+​		首先我们请求认证服务器
+
+```java
+http://baidu.com/auth/oauth/authorize?
+	client_id=order-client&
+	response_type=token&
+	redirect_uri=http://bigkang.club
+
+http://localhost:8083/auth/oauth/authorize?
+	client_id=order-client&
+	response_type=token&
+	redirect_uri=http://bigkang.club
+```
+
+​				
 
 ## 密码模式
 
@@ -344,6 +423,8 @@ public class AuthorizationServerConfigurerAdapter implements AuthorizationServer
 设置clients端的信息交由Jdbc数据库进行存储，并且将client的秘钥进行加密
 
 请先初始化数据源以及加密
+
+
 
 ```java
 

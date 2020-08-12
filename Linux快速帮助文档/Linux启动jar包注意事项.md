@@ -6,6 +6,8 @@
 	
 	所以我们需要改动一下
 	
+	nohup java -jar  kang-wx-1.0.jar > springboot.log 2>&1 &
+	
 		nohup java -jar Xxx.jar > 日志文件名.log （这里可以随便写到时候会生成一个文件在启动的目录下可以查看启动日志）2>&1  &
 	
 		然后jar包启动起来之后就Ctrl加z返回然后直接退出远程的服务器就行了

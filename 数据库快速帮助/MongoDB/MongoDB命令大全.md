@@ -539,3 +539,19 @@ db.acc.aggregate([
  print(c1 + c2 + c3)
 ```
 
+
+
+循环遍历修改
+
+```javascript
+# 首先查询数据保存到data中
+var data = db.getCollection('dataSource').find({})
+# forEach循环遍历
+data.forEach(function(item){
+		# 设置元素item的age为18
+    item.age = 18
+    # 将元素添加回去（保存操作）
+    db.dataSource.save(item)
+})
+```
+
