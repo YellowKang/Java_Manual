@@ -75,3 +75,29 @@ docker run -d \
 --network host \
 ```
 
+# Docker资源管理
+
+​		首先我们查看Docker的系统资源	
+
+```
+docker system df
+```
+
+​		-V能查看相应的详细信息
+
+```
+docker system df -v
+```
+
+​		释放掉所有的未使用的Docker的volumes资源
+
+```
+docker system prune --volumes
+```
+
+​		释放掉所有的未使用的镜像和容器，包括暂停的容器（谨慎使用）
+
+```
+docker system prune -a
+```
+

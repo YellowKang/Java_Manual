@@ -234,11 +234,23 @@ db.getCollection('synonymsList').update({}, {$rename : {"name_status" : "status"
 
 ```
 
-
-
 ## 创建索引
 
+​		我们使用createIndex来创建索引，在我们的Mongo3.0.0之前都是采用ensureIndex方法，之后的版本也能使用，但是推荐使用createIndex
 
+```
+db.集合名称.createIndex({"属性名":排序方式})
+```
+
+​		那么我们首先来看看我们创建一个组合索引，假设我们有一个学生（student）集合，我们分别以年龄的升序进行索引，并且使用分数进行降序索引，组成年龄和分数的组合索引，并且我们把它取名字为：student_age_score
+
+​		这样我们就创建了索引了	
+
+```
+db.student.createIndex({"age":1,"score":-1},{"name":"student_age_score"})
+```
+
+​		那么我们需要注意下，我们使用索引的时候我们和mysql也是类似的，都是从左到右进行索引，那么我们在查询时尽量也要遵循从左到右，尤其聚合时候的管道等情况下，并且索引尽量不要添加太多个否则会引起写入的性能问题。
 
 ## 查询索引
 
@@ -291,20 +303,6 @@ ns									表示所在的哪个库的哪个集合的索引当前为minexhb-db�
 
 
 
-
-
-
-```
- mongodump -h 192.168.1.11 --port 20168 -u topcom -p topcom123 -d minehn-db -o /Users/bigkang/Documents
-```
-
-
-
-
-
-```
-mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123  --type csv -f _id,adate,atype,atype2,province,sgjb,deathnumber -o /Users/bigkang/Documents/工具/accident.csv
-```
 
 
 
@@ -394,6 +392,33 @@ db.sys_data_history.find({"did":"5eb64ba13610300007d9f690","atime":{"$exists":fa
               db.sys_data_history.update({"_id":item._id} , { $set : { "atime":atime} },false,true)
        
     });
+```
+
+暴力流脚本修改
+
+```
+var prefix = "YMGS.CSLK.GDXT.205_";
+var dl = "_Ia";
+var dy = "_Uab";
+var kg = "_Sign_Kx2";
+var yggl = "_P";
+var glys = "_cos";
+var mineName = "永煤公司陈四楼";
+var sysType = "电力系统";
+var deviceCount = 28;
+var ids = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25]
+
+for(i = 0;i < ids.length;i++){
+   print(prefix+ids[i]+dl)
+   db.point_table_data.update({"sysType":sysType,"mineName":mineName,"_id":prefix+ids[i]+dl},{ $set : { "mappingField" :"电流","deviceId":deviceCount} },{multi:true})
+  db.point_table_data.update({"sysType":sysType,"mineName":mineName,"_id":prefix+ids[i]+dy},{ $set : { "mappingField" :"电压","deviceId":deviceCount} },{multi:true})
+  db.point_table_data.update({"sysType":sysType,"mineName":mineName,"_id":prefix+ids[i]+kg},{ $set : { "mappingField" :"安装地点","deviceId":deviceCount} },{multi:true})
+  db.point_table_data.update({"sysType":sysType,"mineName":mineName,"_id":prefix+ids[i]+yggl},{ $set : { "mappingField" :"有功功率","deviceId":deviceCount} },{multi:true})
+  db.point_table_data.update({"sysType":sysType,"mineName":mineName,"_id":prefix+ids[i]+glys},{ $set : { "mappingField" :"功率因数","deviceId":deviceCount} },{multi:true})
+  deviceCount+=1;
+
+}
+print(deviceCount)
 ```
 
 
