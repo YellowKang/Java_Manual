@@ -11,15 +11,27 @@
         </dependency>
 ```
 
-# 编写配置
+# 官方文档地址
+
+​		官方文档地址为：
+
+​		我们直接修改url中的版本即可
+
+```
+https://docs.spring.io/spring-data/elasticsearch/docs/4.0.3.RELEASE/reference/html/#reference
+```
+
+
+
+# 配置连接
+
+## 配置Transport连接
 
 这里我们写入es的地址9300端口，然后配置它的集群名称，这个可以在es配置文件查看，默认elasticsearch
 
 注意：这里填写地址为通信地址不是rest地址，并且注意cluster-name，必须和es的一样。
 
 注意：我们这里使用的是采用的`TransportClient`从ES7开始不推荐使用，在ES8以后会将其删除掉，我们以后都会使用高级的Rest Client进行连接，也就是我们的9200端口
-
-
 
 yml版本：
 
@@ -40,6 +52,64 @@ spring.data.elasticsearch.cluster-nodes=111.67.196.127:9300
 spring.data.elasticsearch.repositories.enabled=true
 spring.data.elasticsearch.cluster-name=docker-cluster
 ```
+
+## 自定义高级Rest连接
+
+​		我们使用自定义的高级Rest连接，首先编写配置
+
+```properties
+spring:
+  data:
+    elasticsearch:
+      client:
+        rest: 192.168.1.11:9200,192.168.1.12:9200,192.168.1.13:9200
+```
+
+​		然后我们创建一个配置类ElasticsearchConfig
+
+```java
+
+import org.elasticsearch.client.RestHighLevelClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.elasticsearch.client.ClientConfiguration;
+import org.springframework.data.elasticsearch.client.RestClients;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientException;
+
+/**
+ * @Author BigKang
+ * @Date 2020/8/24 5:14 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize Elasticsearch配置
+ */
+@Configuration
+public class ElasticsearchConfig {
+
+    @Value("${spring.data.elasticsearch.client.rest:null}")
+    private String urls;
+
+    /**
+     * 创建Elasticsearch高级Rest连接
+     * @return
+     */
+    @Bean
+    public RestHighLevelClient restHighLevelClient(){
+        if(StringUtils.isEmpty(urls) || "null".equals(urls)){
+            throw new RestClientException("Elasticsearch HighLevel Client Url is Null！");
+        }
+        String[] esUrls = urls.split(",");
+        ClientConfiguration clientConfiguration = ClientConfiguration.builder()
+                .connectedTo(esUrls)
+                .build();
+        return RestClients.create(clientConfiguration).rest();
+    }
+
+}
+```
+
+
 
 # 编写代码
 

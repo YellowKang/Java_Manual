@@ -38,7 +38,7 @@ docker cp  容器id:/data/db /root/test/data
 
 
 
-# MongoDump迁移数据
+# MongoDump迁移数据（整库）
 
 ## 导出数据
 
@@ -66,7 +66,7 @@ mongorestore  -h 192.168.1.11 --port 20168 -u minexhb -p minexhb123 -d minexhb-d
 
 
 
-# MongoeExport带条件导出数据
+# MongoeExport带条件导出数据（单表）
 
 ## 导出
 
@@ -146,6 +146,29 @@ mongoexport -h 192.168.1.11 --port 20168 -d minehn-db -c point_table_data -u top
 
 
 ```
+
+## 特殊导出
+
+时间条件
+
+```
+例如我们以时间方式导出
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c briefing -u anjian -p topcom123 -q '{"dateCreated":{"$gte":{"$date":1577861725000}}}' -o /Users/bigkang/Documents/data.json
+```
+
+模糊查询
+
+```
+{"name":{"$regex":"bigkang"}}
+```
+
+Long类型防止精度丢失
+
+```
+{ "_id" : 1, "volume" : { "$numberLong" : "2980000" }, "date" : { "$date" : "2014-03-13T13:47:42.483-0400" } }
+```
+
+
 
 ## 导入
 
@@ -302,86 +325,15 @@ ns									表示所在的哪个库的哪个集合的索引当前为minexhb-db�
 
 
 
+## 删除索引
 
-
-
+首先我们使用命令查询出这个索引，然后根绝名称
 
 ```
-echo "[Unit]
+db.sys_data_history.getIndexes()
 
-Description=Docker Application Container Engine
-
-Documentation=https://docs.docker.com
-
-After=network-online.target firewalld.service
-
-Wants=network-online.target
-
-[Service]
-
-Type=notify
-
-# the default is not to use systemd for cgroups because the delegate issues still
-
-# exists and systemd currently does not support the cgroup feature set required
-
-# for containers run by docker
-
-ExecStart=/usr/bin/dockerd
-
-ExecReload=/bin/kill -s HUP $MAINPID
-
-# Having non-zero Limit*s causes performance problems due to accounting overhead
-
-# in the kernel. We recommend using cgroups to do container-local accounting.
-
-LimitNOFILE=infinity
-
-LimitNPROC=infinity
-
-LimitCORE=infinity
-
-# Uncomment TasksMax if your systemd version supports it.
-
-# Only systemd 226 and above support this version.
-
-#TasksMax=infinity
-
-TimeoutStartSec=0
-
-# set delegate yes so that systemd does not reset the cgroups of docker containers
-
-Delegate=yes
-
-# kill only the docker process, not all processes in the cgroup
-
-KillMode=process
-
-# restart the docker process if it exits prematurely
-
-Restart=on-failure
-
-StartLimitBurst=3
-
-StartLimitInterval=60s
-
- 
-
-[Install]
-
-WantedBy=multi-user.target" > /etc/systemd/system/docker.service
-chmod +x /etc/systemd/system/docker.service
-systemctl daemon-reload
-echo '{
-	"graph":"/data/docker",
-	"disable-legacy-registry": true
-}' > /etc/docker/daemon.json
-systemctl start docker
+db.sys_data_history.dropIndex("sys_data_history.dateModified-and-warning-and-sysType")
 ```
-
-
-
-
 
 # 脚本清洗修改
 

@@ -212,31 +212,58 @@ public class TestEsayExcel {
     private String price;
 ```
 
+# 通用监听工具类
+
+编写通用工具类ExcelListener
+
+```java
+
+import com.alibaba.excel.context.AnalysisContext;
+import com.alibaba.excel.event.AnalysisEventListener;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/**
+ * @Author BigKang
+ * @Date 2020/8/21 4:29 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize Excel监听工具
+ */
+@Data
+@Slf4j
+public class ExcelListener<T> extends AnalysisEventListener<T> {
+    private List<T> list;
+
+    public ExcelListener() {
+        list = new CopyOnWriteArrayList<>();
+    }
+
+    @Override
+    public void invoke(T t, AnalysisContext analysisContext) {
+        list.add(t);
+    }
+
+    @Override
+    public void doAfterAllAnalysed(AnalysisContext analysisContext) {
+//        log.info("解析数据完成");
+//        log.info("一共：读取{}条数据",list.size());
+    }
+}
+
+```
+
 # 进行写入
 
-```
-FROM boystar/ubantu
-# 设置apt源
-RUN echo "deb http://mirrors.163.com/ubuntu precise main universe" > /etc/apt/sources.list
-# 安装 vim ping ifconfig ip tcpdump nc curl iptables python 常用命令
-RUN apt-get -y update && apt-get -qq -y install vim iputils-ping netcat curl
-COPY so /usr/lib
-RUN touch /test.log
-CMD ["tail","-f","/test.log"]
-```
 
 
 
-```
-FROM xhbjdk1.8
-COPY target/coalmine-xhb-0.0.1-SNAPSHOT.jar coalmine-xhb.jar
-ENV JAVA_OPTS=""
-ENV APP_OPTS=""
-RUN mkdir -p /xhb/lib
-COPY so //usr/lib
-RUN echo '/xhb/lib' >> /etc/ld.so.conf
-RUN ldconfig
-CMD [ "sh", "-c", "java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -Dfile.encoding=UTF8 -Duser.timezone=GMT+08 -jar /coalmine-xhb.jar $APP_OPTS" ]
-EXPOSE 8234
-```
+
+
+
+# 注意
+
+
 

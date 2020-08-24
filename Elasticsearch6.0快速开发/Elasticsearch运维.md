@@ -16,13 +16,9 @@ http://ip地址:9200/_cat
 
 就可以看到很多的命令
 
-![](img\Es operations-1.png)
-
-# Es数据导入导出
+# Es数据迁移
 
 ## Elasticsearchdump
-
-## elasticdump 安装
 
 先安装node.js   官网： https://nodejs.org/en/download/  选择版本 下载 安装 
 执行命令：  nmp install
@@ -39,8 +35,6 @@ elasticdump --output=http://10.224.0.86:19200/yuqing_2019_6/ --input=E:\卓越�
 --新疆
 elasticdump --output=http://172.35.0.33:20369/yuqing_2019_6/ --input=E:\卓越讯通\煤矿项目\新疆\xj_month621.json --type=data
 ```
-
-
 
 ### 导出
 
@@ -66,10 +60,6 @@ elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=E:\卓越
 elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=E:\卓越讯通\煤矿项目\河北煤矿\hb_month625.json    --searchBody  {\"query\":{\"bool\":{\"filter\":[{\"range\":{\"pubTime\":{\"gte\":1561305600000,\"lt\":1561910400000}}},{\"match_phrase\":{\"content\":\"河北\"}}]}}} &
 ```
 
-
-
-
-
 # 查询所有数据总数
 
 ```
@@ -86,7 +76,7 @@ PUT index01/_settings  {"number_of_replicas": 2}
 
 ## 查询分片以及副本信息
 
-我们通过cat 
+我们通过cat
 
 ```
 http://182.61.2.16:19201/_cat/shards
@@ -279,8 +269,6 @@ ignore_idle_threads						是否过滤空闲线程
 			
 ```
 
-
-
 # 集群
 
 ## 集群健康查询
@@ -357,8 +345,6 @@ http://182.61.2.16:19201/_cluster/pending_tasks
 ```http
 http://182.61.2.16:19201/_cluster/reroute
 ```
-
-
 
 ## 集群更新设置
 
