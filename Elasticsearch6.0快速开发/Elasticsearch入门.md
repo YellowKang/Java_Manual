@@ -186,44 +186,100 @@
 
 ​		DELETE（删除）
 
+## 全局参数
+
+​		Elasticsearch给我们提供了全局参数帮助我们在使用接口时可以设置很多参数，下面就是各个参数
+
+```properties
+# 过滤数据
+?filter_path=***,***											# 表示只获取哪些属性，例如我只想获取设置中的主shard和副本信息其他的字段我不想要查询
+											原路径为：GET /索引名/_settings
+											过滤后为：GET /test_file/_settings？filter_path=test_file.settings.index.number*
+											这样我们就可以将多余的信息过滤掉，使用逗号隔开可以获取多个,filter_path可以和_source一起使用过滤多余数据
+						
+```
+
+
+
+```properties
+# 返回数据参数设置
+?pretty=true															# 将返回的数据json进行格式化，更加方便阅读
+?format=yaml															# 将返回的数据以yaml的方式进行格式化返回
+```
+
+
+
 ## Mapping(映射)
 
 ### 新建Mapping
 
-新建一个Mapping，设置分片3片副本0个，然后类型是books，然后配置它的字段title，类型为text
+​		我们索引已经建立好了，现在我们需要向里面新建Mapping，使用以下方式，假设我们的索引为myindex，类型为books，现在我们对name，以及发布时间publish_date不进行索引
 
+```json
+PUT /myindex/_mapping/books
+{
+    "properties": {
+        "title": {
+            "type": "text"
+        },
+        "name": {
+            "type": "text",
+            "index": false
+        },
+        "publish_date": {
+            "type": "date",
+            "index": false
+        },
+        "price": {
+            "type": "double"
+        }
+    }
+}
 ```
+
+### 新建索引+Mapping
+
+​		新建一个Mapping，设置分片3片副本0个，然后类型是books，然后配置它的字段title，类型为text，我们可以在创建的时候就设置mapping，index表示我们是否进行索引
+
+```json
 PUT /myindex
 {
- "settings":{
-	"number_of_shards" : 3,
-	"number_of_replicas" : 0
-},
- "mappings":{
-  "books":{
-    "properties":{
-        "title":{"type":"text"},
-        "name":{"type":"text","index":false},
-        "publish_date":{"type":"date","index":false},
-        "price":{"type":"double"},
-        "number":{"type":"integer"}
+    "settings": {
+        "number_of_shards": 3,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "books": {
+            "properties": {
+                "title": {
+                    "type": "text"
+                },
+                "name": {
+                    "type": "text",
+                    "index": false
+                },
+                "publish_date": {
+                    "type": "date",
+                    "index": false
+                },
+                "price": {
+                    "type": "double"
+                }
+            }
+        }
     }
-  }
- }
 }
 ```
 
 ### 查看Mapping
 
-如何查看mapping的属性设置呢？
+​		如何查看mapping的属性设置呢？我们直接使用Get方式+_mapping即可查询模板映射
 
 ```
-
+GET /索引名/_mapping
 ```
 
-
-
-### 新建Mapping属性
+### Mapping属性定制
 
 #### 定制类型
 
@@ -245,30 +301,22 @@ PUT /myindex
 这个属性可以直接加在类型上"dynamic": "strict",例如，那么这个类型就是不可变的了，如果我们新建了mapping中没有的字段那么就会报错
 
 ```
-PUT /myindex
+PUT /myindex/_mapping/books
 {
- "settings":{
-	"number_of_shards" : 3,
-	"number_of_replicas" : 0
-},
- "mappings":{
-  "books":{
     "dynamic": "strict",
-    "properties":{
-        "title":{"type":"text"},
-        "name":{"type":"text","index":false},
-        "publish_date":{"type":"date","index":false},
-        "price":{"type":"double"},
-        "number":{"type":"integer"}
+    "properties": {
+        "number": {
+            "type": "integer"
+        }
     }
-  }
- }
 }
 ```
 
 
 
 #### 属性配置
+
+​		//  是否在_source之外存储一份，例如用于stored_fields属性查询出来，相当于我们将这数据额外存储了一份
 
 ```
 "title":{
@@ -277,7 +325,7 @@ PUT /myindex
 }
 ```
 
-​    //是否单独设置此字段的是否存储而从_source字段中分离，默认是false，如果设置只能搜索，不能获取值
+​		// 分词索引，不分词是：false,设置成false，字段将不会被索引
 
 ```
 "title":{
@@ -286,7 +334,7 @@ PUT /myindex
 }
 ```
 
-//分词，不分词是：false,设置成false，字段将不会被索引
+
 
 ```
 "title":{
@@ -477,8 +525,10 @@ expand_wildcards
 
 ​		我们先来查看docment1这个索引的设置信息
 
-```
-GET /docment1/_settings
+```properties
+GET /docment1/_settings															# 查看索引设置信息
+			
+GET /docment1/_settings?flat_settings=true					# 查看索引设置信息，并且将设置以Key的properties形式返回而不是json，设置为false则返回json，默认不设置的话则为false
 ```
 
 ​		查看所有的索引信息
@@ -486,6 +536,8 @@ GET /docment1/_settings
 ```
 GET _all/_settings
 ```
+
+
 
 ### 删除索引
 
@@ -500,6 +552,27 @@ DELETE docment2
 ## Document（文档）
 
 ### 添加文档
+
+​		参数属性
+
+```properties
+?op_type=create							指定操作类型为create，如果文档不存在则创建，如果存在则报错
+或者跟上
+_create
+
+		示例:
+				PUT /docment2/test/3?op_type=create	
+				PUT /docment2/test/3/_create
+				
+				
+?timeout=5m									指定超时为5分钟
+
+
+?routing=user1							指定routing路由同样一份数据指定不同的路由，那么他就不是相同的数据
+														例如创建时创建一个user1，路由一个user2路由，就算ID是一样的，那么他的路由不同我们也能根据路由查询到不一样的数据
+																	?routing=user1
+																	?routing=user2
+```
 
 ​		指定id进行创建文档
 
@@ -528,7 +601,7 @@ PUT /docment1/test/1
 ```
 POST /docment1/test
 {
-    "name":"BigKang",
+  "name":"BigKang",
   "age":19,
   "sex":"男",
   "address":"四川达州开江",
@@ -543,9 +616,32 @@ POST /docment1/test
 }
 ```
 
+​		添加文档后他会给我们返回相应的信息
+
+```properties
+{
+  "_index" : "docment1",				#  索引名称
+  "_type" : "test",							#	 type名称
+  "_id" : "1",									#  
+  "_version" : 1,								#  版本
+  "result" : "created",					#  返回结果，created则为创建
+  "_shards" : {
+    "total" : 2,								#  一共操作了多少shard，如5主分片，1副本集，则为2，分片一条副本一条，如果2副本集则为3
+    "successful" : 2,						#  成功条数
+    "failed" : 0								#  失败条数
+  },
+  "_seq_no" : 0,								#  序列号
+  "_primary_term" : 1
+}
+```
+
+
+
 ### 查看文档
 
-查看所有索引的所有文档
+
+
+​		查看所有索引的所有文档
 
 ```
 GET _search
@@ -556,23 +652,55 @@ GET _search
 }
 ```
 
-查看docment1索引test类型Id为1的文档
+​		查看docment1索引test类型Id为1的文档
 
 ```
 GET /docment1/test/1
 ```
 
-查看所有docment1下面test的文档
+​		查询存储的sotre文档,表示我们在前面的Mapping是否额外存储了一份数据，用于查询设置了stored为true的属性
+
+```
+?stored_fields=age,name
+```
+
+​		通过路由查询相应路由的数据
+
+```
+GET /docment2/test/12?routing=user6
+
+例如我们添加时，制定了routing，那么我们根据ID查询的时候指定上routing即可查询出相应的ruting，否则则根据词频获取最高的id的数据
+注意：只有针对单个id时有效，并且只能指定一个routing
+PUT /docment2/test/12?routing=user6
+```
+
+​		查看所有docment1下面test的文档
 
 ```
 GET /docment1/test/_search
 ```
 
-查看docment1下面test类型id为1的文档的name和age属性值，这样就能只查看name和age了
+​		查看docment1下面test类型id为1的文档的name和age属性值，这样就能只查看name和age了
+
+```properties
+GET /docment1/test/1?_source=age,name
+
+并且我们可以设置true或者false，true表示全部查询，false表示都不查询
+
+_source_includes表示只查询哪几个			可以使用*号通配符
+_source_excludes表示排除哪几个				 可以使用*号通配符
+```
+
+查看文档以及Id是否存在
 
 ```
-GET /docment1/test/1?_source=age,name
+HEAD docment2/test/1
+
+存在返回：					200 - OK
+不存在返回：			  404 - Not Found
 ```
+
+
 
 #### 批量查询文档
 
@@ -634,9 +762,9 @@ GET /docment2/test/_mget
 
 ### 更新文档
 
-更新文档（覆盖掉以前的文档），这样就把以前的文档覆盖掉了但是如果有一个字段没有设置那么那个字段也就会丢失
+​		更新文档（覆盖掉以前的文档），这样就把以前的文档覆盖掉了但是如果有一个字段没有设置那么那个字段也就会丢失
 
-```
+```properties
 PUT /docment1/test/1
 {
   "name":"黄康",
@@ -644,13 +772,19 @@ PUT /docment1/test/1
   "sex":"男",
   "address":"四川达州开江",
   "emaile":"bigkang@126.com",
-  "like":"股票，游戏，户外"
+  "like":"股票，游戏，户外",
+  "groupid" : [
+      13,
+      14,
+      15,
+      19
+    ]
 }
 ```
 
-更新文档不覆盖，更新id为1的文档的age为19
+​		更新文档不覆盖，更新id为1的文档的age为19
 
-```
+```properties
 POST /docment1/test/1/_update
 {
   "doc": {
@@ -659,13 +793,160 @@ POST /docment1/test/1/_update
 }
 ```
 
+​		并且我们是可以使用脚本来进行文档的更新的,例如我们把id为9的age+=4
+
+```properties
+# 对数字类型进行操作
+POST /docment1/test/9/_update
+{
+    "script" : {
+        "source": "ctx._source.age += params.count",
+        "lang": "painless",
+        "params" : {
+            "count" : 4
+        }
+    }
+}
+
+# 对数组进行操作,例如我们向数组中添加上一个元素，值为19
+POST /docment1/test/9/_update
+{
+    "script" : {
+        "source": "ctx._source.groupid.add(params.tag)",
+        "lang": "painless",
+        "params" : {
+            "tag" : 12
+        }
+    }
+}
+# 我们查找groupid这个属性下包含19的，并且将19这个元素删除
+POST /docment1/test/9/_update
+{
+    "script" : {
+        "source": "if (ctx._source.groupid.contains(params.tag)) { ctx._source.groupid.remove(ctx._source.groupid.indexOf(params.tag)) }",
+        "lang": "painless",
+        "params" : {
+            "tag" : 12
+        }
+    }
+}
+# 我们将new_field字段
+POST /docment1/test/9/_update
+{
+    "script" : "ctx._source.new_field = 'value_of_new_field'"
+}
+```
+
+
+
 ### 删除文档
 
-删除docment1这个索引的test类型的id等于1的这个文档
+​		删除docment1这个索引的test类型的id等于1的这个文档
 
-```
+```properties
 DELETE /docment1/test/1
 ```
+
+​		删除指定routing的数据
+
+```properties
+DELETE /docment2/test/12?routing=user1
+```
+
+​		删除指定超时时间
+
+```properties
+DELETE /docment2/test/12?timeout=5m
+```
+
+​		按查询条件删除，删除address中包含开江的数据，这里的删除逻辑和查询是一样的
+
+```properties
+POST /docment2/_delete_by_query
+{
+  "query": { 
+    "match": {
+      "address": "开江"
+    }
+  }
+}
+```
+
+​		支持多个索引删除数据
+
+```properties
+POST docment2,docment3/_delete_by_query
+{
+  "query": { 
+    "match": {
+      "address": "开江"
+    }
+  }
+}
+```
+
+​		支持批量删除条数自定义，设置每批次5000，默认为1000条，这里的条数指Elasticsearch内部删除时每批次，并不是每次执行就只删除5000，例如一万条数据，Elasticsearch会把它分成2批进行删除，然后返回删除1w条成功。
+
+```properties
+POST docment2,docment3/_delete_by_query?scroll_size=5000
+{
+  "query": { 
+    "match": {
+      "address": "开江"
+    }
+  }
+}
+```
+
+​		除了标准的参数，如`pretty`，删除通过查询API也持`refresh`，`wait_for_completion`，`wait_for_active_shards`，`timeout`，和`scroll`。
+
+```
+		refresh请求完成后，发送将会刷新通过查询删除的所有分片。这与删除API的refresh 参数不同，删除API的参数仅导致接收到删除请求的分片被刷新。也不同于delete API，它不支持wait_for
+		
+		wait_for_completion=false则Elasticsearch将执行一些预检检查，启动请求，然后返回task ，可与Tasks API 一起使用来取消或获取任务的状态。Elasticsearch还将在上创建此任务的记录作为文档.tasks/task/${taskId}。您可以根据自己的喜好保留或删除此文件。完成后，将其删除，以便Elasticsearch可以回收其使用的空间。
+		
+		wait_for_active_shards控制在进行请求之前必须激活多少个分片副本。有关 详细信息，请参见此处。timeout控制每个写入请求等待不可用的碎片变为可用的时间。两者在Bulk API中的工作方式完全相同 。由于_delete_by_query使用滚动搜索，你还可以指定scroll参数来控制多长时间保持“搜索上下文”活着，例如?scroll=10m。默认情况下是5分钟。
+		
+		requests_per_second可以被设置为任何正十进制数（1.4，6， 1000等）和节流的速率删除由删除操作的查询问题批次通过填充每批与等待时间。将设置requests_per_second为可以禁用节流-1。
+		
+		由于批处理是作为单个_bulk请求发出的，因此较大的批处理大小将导致Elasticsearch创建许多请求，然后等待一会儿再开始下一组请求。这是“突发”而不是“平滑”。默认值为-1。
+```
+
+​		删除时的相应示例如下
+
+```properties
+{
+  "took" : 147,										# 从整个操作开始到结束的毫秒数。
+  "timed_out": false,							# true如果通过查询执行删除期间执行的任何请求已超时， 则设置此标志。
+  "total": 119,										# 成功处理的文档数。
+  "deleted": 119,									# 成功删除的文档数。
+  "batches": 1,										# 通过按查询删除而撤回的滚动响应数。
+  "version_conflicts": 0,					# 被查询删除导致的版本冲突数量。
+  "noops": 0,											# 对于要通过查询删除的字段，该字段始终等于零。它仅存在，以便按查询删除，按查询更新和重新索引API会返回具有相同结构的响应。
+  "retries": {										# 通过查询删除尝试的重试次数。
+    "bulk": 0,										# bulk是重试的批量操作数
+    "search": 0										# search是重试的搜索操作数。
+  },
+  "throttled_millis": 0,					# 要求遵守的毫秒数requests_per_second。
+  "requests_per_second": -1.0,		# 在通过查询删除期间有效执行的每秒请求数。
+  "throttled_until_millis": 0,		# 在_delete_by_query响应中，该字段应始终等于零。它只有在使用Task API时才有意义，它表示下一次（自epoch以来的毫秒数）受限制的请求将再次执行以符合requests_per_second。
+  "failures" : [ ]								# 如果在此过程中有任何不可恢复的错误，则表示一系列失败。如果这是非空的，则由于这些失败，请求中止。按查询删除是使用批处理实现的，任何失败都会导致整个过程中止，但是当前批处理中的所有失败都将收集到阵列中。您可以使用该conflicts选项来防止重新索引在版本冲突时中止。
+}
+```
+
+​		查询所有的删除任务
+
+```properties
+GET _tasks?detailed=true&actions=*/delete/byquery
+```
+
+​		通过taskId查询
+
+```properties
+GET /_tasks/Jf-d1OQQS_-8HLzO6WXmlg:10938869
+```
+
+
 
 ## Query DSL（DSL查询语句）
 

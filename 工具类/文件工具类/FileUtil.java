@@ -1,7 +1,9 @@
-package com.kang.liquibase;
+package com.topcom.emergency.utils;
 
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @Author BigKang
@@ -190,6 +192,98 @@ public class FileUtil {
     }
 
     /**
+     * 输入流按行转换List字符串集合
+     * @param is
+     * @return
+     */
+    public static List<String> inputStreamConvertList(InputStream is) {
+        List<String> list = new ArrayList<>();
+        InputStreamReader isr = new InputStreamReader(is);
+        BufferedReader read = new BufferedReader(isr);
+        try {
+            String line;
+            line = read.readLine();
+            while (line != null) {
+                list.add(line);
+                line = read.readLine();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (null != isr) {
+                    isr.close();
+                    isr.close();
+                }
+                if (null != read) {
+                    read.close();
+                    read = null;
+                }
+                if (null != is) {
+                    is.close();
+                    is = null;
+                }
+            } catch (IOException e) {
+            }
+        }
+        return list;
+    }
+
+    /**
+     * 文件按行左右插入字符
+     * @param filePath
+     * @param left
+     * @param right
+     * @return
+     */
+    public static Boolean fileLineLeftRightInsert(String filePath,String left,String right){
+        File file = checkGetFile(filePath);
+        return fileLineLeftRightInsert(file,left,right);
+    }
+
+
+    /**
+     * 文件行左右分别插入
+     * @param file
+     * @param left
+     * @param right
+     * @return
+     */
+    public static Boolean fileLineLeftRightInsert(File file,String left,String right){
+        InputStream inputStream = checkFileGetInputStream(file);
+        List<String> list = inputStreamConvertList(inputStream);
+        return writeStringListToFile(file,list,left,right,false);
+    }
+
+
+    public static Boolean writeStringListToFile(File file,List<String> list,String left,String right,Boolean append){
+        FileWriter fileWriter = null;
+        try {
+            fileWriter = new FileWriter(file,append);
+            for (String str : list) {
+                if(left != null){
+                    fileWriter.write(left);
+                }
+                fileWriter.write(str);
+                if(right != null){
+                    fileWriter.write(right);
+                }
+                fileWriter.write("\n");
+            }
+        } catch (IOException e) {
+            return  false;
+        } finally {
+            try {
+                fileWriter.close();
+            } catch (IOException e) {
+
+            }
+        }
+        return true;
+    }
+
+
+    /**
      * 检查并且返回输入流
      *
      * @param file
@@ -203,6 +297,17 @@ public class FileUtil {
             e.printStackTrace();
         }
         return null;
+    }
+
+    /**
+     * 检查文件
+     *
+     * @param filePath
+     */
+    public static File checkGetFile(String filePath) {
+        File file = new File(filePath);
+        checkFile(file);
+        return file;
     }
 
     /**
@@ -242,6 +347,8 @@ public class FileUtil {
         return fileExists(file);
     }
 
+
+
     /**
      * 文件是否存在
      *
@@ -255,5 +362,34 @@ public class FileUtil {
         } else {
             return false;
         }
+    }
+
+    /**
+     * 获取文件前缀名称
+     * @param originalFilename
+     * @return
+     */
+    public static String getFilePrefixName(String originalFilename) {
+        int index = originalFilename.lastIndexOf(".");
+        if(index != -1){
+            return originalFilename.substring(0,index);
+        }
+        return originalFilename;
+    }
+
+    /**
+     * 获取文件后缀类型
+     * @param originalFilename
+     * @return
+     */
+    public static String getFileSuffixType(String originalFilename) {
+        int index = originalFilename.lastIndexOf(".");
+        if(index != -1){
+            return originalFilename.substring(index+1);
+        }
+        return originalFilename;
+    }
+
+    public static void main(String[] args) {
     }
 }

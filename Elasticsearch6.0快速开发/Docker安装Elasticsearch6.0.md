@@ -1204,6 +1204,22 @@ docker run -d \
 		默认情况下，Elasticsearch配置JVM写致命错误日志的默认日志目录（这是/var/log/elasticsearch对RPM和Debian的软件包分发，并logs 在Elasticsearch安装的根目录下 的tar和zip压缩文件分布）。这些是JVM在遇到致命错误（例如，分段错误）时生成的日志。如果该路径不适合于接收的日志，则应修改条目-XX:ErrorFile=...中 jvm.options到备用路径。
 ```
 
+## 其他设置
+
+​		禁止多Index执行时，路径上也带有Index，导致Body中的Index覆盖了Url上的Index，我们使用[multi-search](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/search-multi-search.html), [multi-get](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-multi-get.html), and [bulk](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-bulk.html) 等等API都会有这个问题的出现
+
+​		如：
+
+​			curl localhost:9200/test/_mget?pretty -d '{"docs":[{"_index":"test1","_id":1},{"_index":"test2","_id":2}]}'
+
+​			请求体中的test1和test2覆盖了test，实际上没有使用到，那么我们设置如下设置，重启Es后出现如下请求则会报错
+
+```properties
+rest.action.multi.allow_explicit_index: false
+```
+
+
+
 # Elasticsearch系统配置（Docker启动无需设置）
 
 ​		设置打开文件最大数
