@@ -537,6 +537,38 @@ GET /docment1/_settings?flat_settings=true					# 查看索引设置信息，并�
 GET _all/_settings
 ```
 
+#### 查看索引分片信息
+
+​		例如我们查询index1这个索引的分片信息
+
+```properties
+GET /index1/_search_shards
+```
+
+​		会给我们返回如下信息
+
+```properties
+{
+    "nodes": {
+    		# 节点Id
+        "3BNmLEOFQbeneOzUgALLQw": {
+        		# 节点名称
+            "name": "es-node2",
+            "ephemeral_id": "5jKaQQCQRhCghc_B9VKhrg",
+            "transport_address": "172.16.16.5:19302",
+            "attributes": {
+                "ml.machine_memory": "4142190592",
+                "ml.max_open_jobs": "20",
+                "xpack.installed": "true",
+                "ml.enabled": "true"
+            }
+        }
+    },
+    "indices": {
+        "index1": {}
+    },
+```
+
 
 
 ### 删除索引
@@ -549,9 +581,146 @@ DELETE docment2
 
 ​		删除之后所有这个索引相关数据都没了
 
+### 重新索引
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-reindex.html)
+
+​		重新索引表示我们根据某一个索引重新建立索引一份新的索引并且同步数据，也可以称为复制。
+
+```properties
+POST _reindex
+{
+  "source":{
+    "index":"test_boot"
+  },
+  "dest": {
+    "index": "test_boot_news"
+  }
+}
+```
+
+​		我们还可以设置是否保留版本值分别有两种方式，在reindex的时候所有的Version默认都是internal，所以重新索引后版本号标记都会变成1。
+
+```properties
+# 将索引文档的Version重置为1
+POST _reindex
+{
+  "source":{
+    "index":"test_boot"
+  },
+  "dest": {
+    "index": "test_boot_news",
+    "version_type": "internal"
+  }
+}
+
+# 保留原来的Version版本以及历史版本信息
+POST _reindex
+{
+  "source":{
+    "index":"test_boot"
+  },
+  "dest": {
+    "index": "test_boot_news",
+    "version_type": "external"
+  }
+}
+```
+
+​		并且我们可以添加查询语句进行查询，如下，我们只查询age为41的数据，并且把它添加到test_boot_news中
+
+```properties
+POST _reindex
+{
+  "source":{
+    "index":"test_boot",
+    "query": {
+      "term": {
+        "age": 41
+      }
+    }
+  },
+  "dest": {
+    "index": "test_boot_news"
+  }
+}
+```
+
+​		指定我们重新索引的类型，op_type设置为create，如果我们从以前的index索引过来有相同id的数据那么则会抛出异常，不进行同步
+
+```properties
+POST _reindex
+{
+  "source":{
+    "index":"test_boot",
+    "query": {
+      "term": {
+        "age": 41
+      }
+    }
+  },
+  "dest": {
+    "index": "test_boot_news",
+    "op_type": "create"
+  }
+}
+```
+
+​		我们还能从多个类型的文档进行重新索引，并且我们索引到指定的那个type
+
+```properties
+POST _reindex
+{
+    "source": {
+        "index": [
+            "index1",
+            "index2"
+        ],
+        "type": [
+            "type1",
+            "type2"
+        ]
+    },
+    "dest": {
+        "index": "index_new",
+        "type": "type_new"
+    }
+}
+```
+
+​		我们也能指定进行索引的类型，以及根据哪个字段进行排序，并且索引age和name字段,然后使用脚本修改将age+4
+
+```properties
+POST _reindex
+{
+    "size": 10000,
+    "source": {
+        "index": "index1",
+        "sort": {
+            "age": "desc"
+        },
+        "_source":["age","name"]
+    },
+    "dest": {
+        "index": "index_new"
+    },
+    "script": {
+        "source": "ctx._source.age += params.count",
+        "lang": "painless",
+        "params" : {
+            "count" : 4
+        }
+    }
+}
+```
+
+
+
 ## Document（文档）
 
 ### 添加文档
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-index_.html)
 
 ​		参数属性
 
@@ -639,7 +808,7 @@ POST /docment1/test
 
 ### 查看文档
 
-
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-get.html)
 
 ​		查看所有索引的所有文档
 
@@ -691,7 +860,7 @@ _source_includes表示只查询哪几个			可以使用*号通配符
 _source_excludes表示排除哪几个				 可以使用*号通配符
 ```
 
-查看文档以及Id是否存在
+​		查看文档以及Id是否存在
 
 ```
 HEAD docment2/test/1
@@ -700,7 +869,103 @@ HEAD docment2/test/1
 不存在返回：			  404 - Not Found
 ```
 
+​		查询分词向量分析，例如我们对文档字段进行分析（注意只对文本分词字段有效），例如我们分析content这个字段
 
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-termvectors.html)
+
+​		以及我们的多索引向量分析
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-multi-termvectors.html)
+
+```properties
+GET /test_pinyin/test/1/_termvectors?fields=content
+```
+
+​		相应如下：
+
+```properties
+{
+	# 索引名称
+  "_index" : "test_pinyin",
+  # 索引类型
+  "_type" : "test",
+  # Id
+  "_id" : "1",
+  # 版本
+  "_version" : 1,
+  # 是否存在
+  "found" : true,
+  # 消耗的毫秒数
+  "took" : 2,
+  # 词向量分析
+  "term_vectors" : {
+  	# 分析的字段content
+    "content" : {
+    	# 字段统计
+      "field_statistics" : {
+      	# 文档频率总和（此字段中所有术语的文档频率总和）
+        "sum_doc_freq" : 47,
+        # 文件计数（有多少文件包含此字段）
+        "doc_count" : 2,
+        # 总术语频率的总和（此字段中每个术语的总术语频率的总和）
+        "sum_ttf" : 52
+      },
+      # 分词条例
+      "terms" : {
+      	# 分词结果
+        "东西" : {
+        	# 词频
+          "term_freq" : 1,
+          # 向量
+          "tokens" : [
+            {
+            	# 位置
+              "position" : 7,
+              # 起始偏移量
+              "start_offset" : 6,
+              # 结束偏移量
+              "end_offset" : 8
+            }
+          ]
+        },
+        "小米" : {
+          "term_freq" : 1,
+          "tokens" : [
+            {
+              "position" : 0,
+              "start_offset" : 0,
+              "end_offset" : 2
+            }
+          ]
+        },
+        "手机" : {
+          "term_freq" : 1,
+          "tokens" : [
+            {
+              "position" : 3,
+              "start_offset" : 2,
+              "end_offset" : 4
+            }
+          ]
+        },
+        "有点" : {
+          "term_freq" : 1,
+          "tokens" : [
+            {
+              "position" : 5,
+              "start_offset" : 4,
+              "end_offset" : 6
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+
+```
+
+​		
 
 #### 批量查询文档
 
@@ -758,9 +1023,357 @@ GET /docment2/test/_mget
 }
 ```
 
+#### scroll（游标查询）
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/search-request-scroll.html#scroll-search-context)
+
+​		scroll（游标查询）主要是用于我们需要查询大量的数据时所使用，他的作用是帮助我们查询一些数据，但是这些数据量又特别大，并且如果使用分页的话性能不理想，所以我们使用scroll（游标查询），相当于我们查询一批数据，然后给这个数据定义一个游标，例如查询300w条数据，我们每次查询10w条，那么我们查询10w条然后将游标记录在10w，这时候会给我们一个游标id，我们根据这个游标id在进行查询，他从10w开始到20w的数据，然后我们根据这个游标Id再进行查询直至我们的数据查询完毕为止，如下我们来使用一下游标查询。
+
+​		目前我们测试以1条为例，然后游标时间为5秒，如果在5秒钟左右我们没有对这个游标进行操作那么他则会从我们Es的上下文中删除。
+
+```properties
+GET /index1/doc1/_search?scroll=5s
+{
+  "size": 1
+}
+```
+
+​		那么则会给我们返回如下数据
+
+```properties
+{
+	# 游标Id
+  "_scroll_id" : "DnF1ZXJ5VGhlbkZldGNoBQAAAAAACC6AFkUwMk9PMXJPUUgyLV9KYkkyRFZLYXcAAAAAAAeedBZKZi1kMU9RUVNfLThITHpPNldYbWxnAAAAAAAILn8WRTAyT08xck9RSDItX0piSTJEVkthdwAAAAAAB552FkpmLWQxT1FRU18tOEhMek82V1htbGcAAAAAAAeedRZKZi1kMU9RUVNfLThITHpPNldYbWxn",
+  "took" : 15,
+  # 是否超时
+  "timed_out" : false,
+  # 分片信息
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 3,
+    "max_score" : 1.0,
+    "hits" : [
+			查询的数据
+    ]
+  }
+}
+```
+
+​			然后我们再根据这个游标ID进行查询即可
+
+```properties
+POST _search/scroll
+{
+    "scroll": "1s", 
+    "scroll_id" : "DnF1ZXJ5VGhlbkZldGNoBQAAAAAAAIRaFjNCTm1MRU9GUWJlbmVPelVnQUxMUXcAAAAAAACEWBYzQk5tTEVPRlFiZW5lT3pVZ0FMTFF3AAAAAAAAhFkWM0JObUxFT0ZRYmVuZU96VWdBTExRdwAAAAAACC62FkUwMk9PMXJPUUgyLV9KYkkyRFZLYXcAAAAAAAgutxZFMDJPTzFyT1FIMi1fSmJJMkRWS2F3"
+}
+```
+
+​			然后我们一直进行游标请求，直至返回中没有数据表示我们查询完成，至此游标查询完毕。
+
+​			那么游标查询默认是没有上限的，我们可以在Es的节点配置中，也就是我们每个节点锁打开的scroll数量
+
+```properties
+search.max_open_scroll_context
+```
+
+​			我们也可以查看节点状态,查看我们的游标
+
+```properties
+GET _nodes/stats/indices/search
+```
+
+​			以及删除游标
+
+```properties
+# 删除所有游标
+DELETE /_search/scroll/_all
+
+# 删除一条或者多条，使用逗号隔开
+DELETE /_search/scroll/DnF1ZXJ5VGhlbkZldGNoBQAAAAAAAIRaFjNCTm1MRU9GUWJlbmVPelVnQUxMUXcAAAAAAACEWBYzQk5tTEVPRlFiZW5lT3pVZ0FMTFF3AAAAAAAAhFkWM0JObUxFT0ZRYmVuZU96VWdBTExRdwAAAAAACC62FkUwMk9PMXJPUUgyLV9KYkkyRFZLYXcAAAAAAAgutxZFMDJPTzFyT1FIMi1fSmJJMkRWS2F3
+```
+
+#### 性能分析
+
+​		首先我们使用explain先来进行分析
+
+​		我们在进行查询的时候我们对我们的查询语句进行分析
+
+```properties
+GET /index1/doc1/_search
+{
+  "explain": true, 
+  "query": {
+    "match": {
+      "content": "你好"
+    }
+  }
+}
+```
+
+​		然后返回的数据如下示例
+
+```properties
+{
+    "took": 21,
+    "timed_out": false,
+    "_shards": {
+        "total": 5,
+        "successful": 5,
+        "skipped": 0,
+        "failed": 0
+    },
+    "hits": {
+        "total": 2,
+        "max_score": 0.5753642,
+        "hits": [
+            {
+            		# 处于哪个分片，这里表示index这个索引的2分片
+                "_shard": "[index1][2]",
+                # 属于哪个节点
+                "_node": "E02OO1rOQH2-_JbI2DVKaw",
+                "_index": "index1",
+                "_type": "doc1",
+                "_id": "2",
+                "_score": 0.5753642,
+                "_source": {
+                    "name": "黄康你好啊",
+                    "content": "真的秀你好",
+                    "age": 20
+                },
+                # 分析说明
+                "_explanation": {
+                		# 分数
+                    "value": 0.5753642,
+                    # 表示累加
+                    "description": "sum of:",
+                    "details": [
+                        {
+                            "value": 0.2876821,
+                            "description": "weight(content:你 in 0) [PerFieldSimilarity], result of:",
+                            "details": [
+                                {
+                                    "value": 0.2876821,
+                                    "description": "score(doc=0,freq=1.0 = termFreq=1.0\n), product of:",
+                                    "details": [
+                                        {
+                                            "value": 0.2876821,
+                                            "description": "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                                            "details": [
+                                                {
+                                                    "value": 1,
+                                                    "description": "docFreq",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 1,
+                                                    "description": "docCount",
+                                                    "details": []
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "value": 1,
+                                            "description": "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+                                            "details": [
+                                                {
+                                                    "value": 1,
+                                                    "description": "termFreq=1.0",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 1.2,
+                                                    "description": "parameter k1",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 0.75,
+                                                    "description": "parameter b",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 5,
+                                                    "description": "avgFieldLength",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 5,
+                                                    "description": "fieldLength",
+                                                    "details": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "value": 0.2876821,
+                            "description": "weight(content:好 in 0) [PerFieldSimilarity], result of:",
+                            "details": [
+                                {
+                                    "value": 0.2876821,
+                                    "description": "score(doc=0,freq=1.0 = termFreq=1.0\n), product of:",
+                                    "details": [
+                                        {
+                                            "value": 0.2876821,
+                                            "description": "idf, computed as log(1 + (docCount - docFreq + 0.5) / (docFreq + 0.5)) from:",
+                                            "details": [
+                                                {
+                                                    "value": 1,
+                                                    "description": "docFreq",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 1,
+                                                    "description": "docCount",
+                                                    "details": []
+                                                }
+                                            ]
+                                        },
+                                        {
+                                            "value": 1,
+                                            "description": "tfNorm, computed as (freq * (k1 + 1)) / (freq + k1 * (1 - b + b * fieldLength / avgFieldLength)) from:",
+                                            "details": [
+                                                {
+                                                    "value": 1,
+                                                    "description": "termFreq=1.0",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 1.2,
+                                                    "description": "parameter k1",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 0.75,
+                                                    "description": "parameter b",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 5,
+                                                    "description": "avgFieldLength",
+                                                    "details": []
+                                                },
+                                                {
+                                                    "value": 5,
+                                                    "description": "fieldLength",
+                                                    "details": []
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}
+```
+
+​		然后我们再来使用profile进行分析，profile不光可以分析query，也能分析带聚合的
+
+```properties
+GET /index1/doc1/_search
+{
+  "profile":true,
+  "query": {
+    "match": {
+      "content": "你好"
+    }
+  }
+}
+```
+
+
+
+#### 索引权重
+
+​		例如我们在多个索引的时候，例如查询test和doc*这多个索引进行查询，当您使用别名或通配符表达式时，这一点很重要。如果找到多个匹配项，则将使用第一个匹配项。
+
+​		使用方式如下，那么我们就会看到test索引的数据会比index通配符索引的权重高，排在前面
+
+```properties
+GET /_search
+{
+    "indices_boost" : [
+        { "test" : 1.4 },
+        { "index*" : 1.3 }
+    ]
+}
+```
+
+#### 匹配分数过滤
+
+​		例如我们有时需要查询有比较高的一个精确度，我们使用min_score进行过滤，也就是说小于多少的分数我们就把它过滤掉，小于0.58的则不会查询，设置min_score表示数据精准，设置的越高越准确，但是不宜设置的过高。
+
+```properties
+GET /index1/doc1/_search
+{
+"min_score": 0.58,
+  "query": {
+    "match": {
+      "content": "你好"
+    }
+  }
+}
+```
+
+#### msearch批量查询
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/search-multi-search.html)
+
+​		我们可以使用类似于批量删除更新的操作的批量查询，也就是说我们可以一条命令查询多个索引，多个不同条件，查询方式如下：
+
+​		我们分别查询index1然后查询第一条，然后再查询index2从第二条开始查询，查询10条，这里的查询
+
+```properties
+GET _msearch
+{"index" : "index1"}
+{"query" : {"match_all" : {}}, "from" : 0, "size" : 1}
+{"index" : "index2"}
+{"query" : {"match_all" : {}}, "from" : 1, "size" : 10}
+```
+
+​		我们可以使用多种不同的方式查询
+
+```properties
+# {}为查询所有索引
+GET _msearch
+{}
+{"query" : {"match_all" : {}}}
+
+
+```
+
+#### 统计数量
+
+​		统计方式我们拥有采用统一的cont
+
+```properties
+GET /index1/doc1/_count
+{
+  "query": {
+    "match": {
+      "content": "你好"
+    }
+  }
+}
+```
+
 
 
 ### 更新文档
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-update.html)
 
 ​		更新文档（覆盖掉以前的文档），这样就把以前的文档覆盖掉了但是如果有一个字段没有设置那么那个字段也就会丢失
 
@@ -835,11 +1448,121 @@ POST /docment1/test/9/_update
 {
     "script" : "ctx._source.new_field = 'value_of_new_field'"
 }
+
+
+# upsert关键字，如果存在id为9的文档那么就执行修改，如果不存在则创建文档，内容为upsert的内容，也就是说存在则进行修改，不存在创建
+POST /docment1/test/9/_update
+{
+    "script" : "ctx._source.new_field = 'value_of_new_field'",
+    "lang": "painless",
+    "upsert":{
+    	"name":"bigkang",
+    	"age":20
+    }
+}
+```
+
+​		查询修改,此处的UpdateByQuery的query查询和搜索的查询是一样的
+
+```properties
+# 修改该索引下所有的new_field值为value_of_new_field
+POST /index1/doc1/_update_by_query
+{
+    "script" : "ctx._source.new_field = 'value_of_new_field'",
+    "query":{
+      "match_all":{}
+    }
+}
+```
+
+
+
+#### 批量更新
+
+​		批量更新是指我们一次对多个除了查询之外的，增，删，改等等的操作，我们把它，例如我们想修改一个数据，并且新增一条数据，但是我们这个操作需要一次执行，不想分成两次，所以我们使用_bulk即可。
+
+​		_bulk的操作有如下几种：
+
+```java
+			index													// 进行索引，可以使用op_type控制如果存在是否报错，参考前方添加文档API
+			create												// 和index一样但是默认如果存在的话则不进行插入，并且他的下一行需要填写需要索引的数据
+			delete												// 这个操作为删除操作，下一行不需要输入，直接添加操作即可
+			update												// 这个操作为更新操作用于更新操作，操作的类型有doc，upsert，还有script
+```
+
+​		那么我们下面先来试一下index和create吧
+
+​		例如我们现在使用_bulk插入两条数据,retry_on_conflict表示我们有版本冲突的时候进行重试的次数，由于我们创建时没有设置Id，就需要设置重试次数生成id，如下我们就创建了两条数据，但是第二次执行的话第二个操作则会失败，因为第二次的操作是创建，如果有这条数据那么则索引失败。
+
+```properties
+	 # 首先我们创建一个文件requests,并且在里面写入我们的操作
+	 cd 
+	 touch requests
+	 # 然后编辑
+	 vim requests
+	 
+	 写入如下命令
+{ "index" : { "_index" : "index1", "_type" : "doc1","retry_on_conflict":3 } }
+{ "name" : "bigkang" , "age" : 20 }
+{ "create" : { "_index" : "index1", "_type" : "doc1", "_id" : "1"} }
+{ "name" : "bigkang1" , "age" : 201 }
+	 
+	 然后请求，这里表示我们使用Post类型请求内容类型为application/x-ndjson，并且文件为requests文件
+	 curl -s -H "Content-Type: application/x-ndjson" -XPOST localhost:19201/_bulk --data-binary "@requests"
+	 
+	 Kibanna的类型如下
+POST _bulk
+{ "index" : { "_index" : "index1", "_type" : "doc1","retry_on_conflict":3 } }
+{ "name" : "bigkang" , "age" : 20 }
+{ "create" : { "_index" : "index1", "_type" : "doc1", "_id" : "1"} }
+{ "name" : "bigkang1" , "age" : 201 }
+```
+
+​		 然后我们清空删除所有文档
+
+```properties
+POST index1/doc1/_delete_by_query
+{
+  "query": { 
+    "match_all": {}
+  }
+}
+
+```
+
+​		下面我们再进行一个删除操作，我们创建之后再把id为1的删除掉，那么es中就只有我们自动生成的Id了
+
+```properties
+{ "index" : { "_index" : "index1", "_type" : "doc1","retry_on_conflict":3 } }
+{ "name" : "bigkang" , "age" : 20 }
+{ "create" : { "_index" : "index1", "_type" : "doc1", "_id" : "1"} }
+{ "name" : "bigkang1" , "age" : 201 }
+{ "delete" : { "_index" : "index1", "_type" : "doc1", "_id" : "1" } }
+```
+
+​		 清空以前的文档
+
+​		 最后我们再来进行一个修改,我们把id为2的这个数据中的test修改为test1，然后把id为1的这个数据全部修改只有一个属性，并且值为bigkang,如果需要全部修改直接使用index进行重新索引即可。
+
+```properties
+{ "update" : { "_index" : "index1", "_type" : "doc1", "_id" : "2" } }
+{ "doc" : {"test" : "test1"} }
+{ "index" : { "_index" : "index1", "_type" : "doc1", "_id" : "1" , "_source":true} }
+{ "doc" : {"test" : "test1"} }
+```
+
+​		然后我们再来使用一下我们前面所使用到的脚本修改
+
+```properties
+{ "update" : { "_id" : "0", "_type" : "_doc", "_index" : "index1", "retry_on_conflict" : 3} }
+{ "script" : { "source": "ctx._source.counter += params.param1", "lang" : "painless", "params" : {"param1" : 1}}, "upsert" : {"counter" : 1}}
 ```
 
 
 
 ### 删除文档
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-delete.html)
 
 ​		删除docment1这个索引的test类型的id等于1的这个文档
 
@@ -946,15 +1669,407 @@ GET _tasks?detailed=true&actions=*/delete/byquery
 GET /_tasks/Jf-d1OQQS_-8HLzO6WXmlg:10938869
 ```
 
+## Aggregations（聚合）
+
+### 什么是聚合
+
+​		聚合有助于基于搜索查询提供聚合数据。它基于称为聚合的简单构建基块，可以进行组合以构建复杂的数据汇总。
+​		聚合可以看作是在一组文档上建立分析信息的工作单元。执行的上下文定义此文档集是什么（例如，在已执行的查询/搜索请求的过滤器的上下文中执行顶级聚合）。
+
+​		我们也可以理解为将一批数据进行一组构建，从一批数据中得到我们想要的数据，例如我们想要根据类型统计每个类型的文档数量，或者并且分析平均值，最大值，最小值等等。
+
+### 聚合有几种
+
+​		在Elasticsearch中将聚合分为了4种聚合的类型分别是：
+
+```properties
+Bucketing									
+						生成存储桶的一组聚合，其中每个存储桶都与一个键和一个文档条件相关联。执行聚合时，将对上下文中的每个文档评估所有存储桶条件，并且当条件匹配时，该文档将被视为“落入”相关存储桶。到聚合过程结束时，我们将得到一个存储桶列表-每个存储桶都有一组“属于”的文档。
+
+Metric						
+						聚合可跟踪和计算一组文档的指标。
+						
+Matrix
+						一类聚合，可在多个字段上进行操作，并根据从请求的文档字段中提取的值生成矩阵结果。与指标和存储桶聚合不同，此聚合系列尚不支持脚本。
+						
+Pipeline
+						聚合其他聚合及其相关指标的输出的聚合
+```
+
+​		聚合语句的结构为
+
+```properties
+# 聚合指令
+"aggregations" : {
+		# 聚合名称
+    "<aggregation_name>" : {
+    		# 聚合类型
+        "<aggregation_type>" : {
+        		# 聚合内容
+            <aggregation_body>
+        }
+        # 源，原内容
+        [,"meta" : {  [<meta_data_body>] } ]?
+        [,"aggregations" : { [<sub_aggregation>]+ } ]?
+    }
+    [,"<aggregation_name_2>" : { ... } ]*
+}
+```
+
+### Bucketing（桶聚合）
+
+​		那么我们先试用桶聚合方式进行聚合：
+
+​		我们查询所有content包含"你好"的数据，并且我们创建一个testagg属性，并且进行过滤grpA这个key进行统计，统计查询结果age为20和18的数量
+
+```properties
+GET /index1/doc1/_search
+{
+  "query": {
+    "match": {
+      "content": "你好"
+    }
+  },
+  "aggs": {
+    "testagg": {
+      "adjacency_matrix": {
+        "filters": {
+          "grpA": {"terms" : { "age" : [20,18] }},
+          "grpB": {"terms" : { "age" : [20,21] }}
+        }
+      }
+    }
+  }
+}
+```
+
+​		结果如下，我们可以看到，testagg属性下有一个桶，桶下面分别是一个key为grpA，然后统计的数据的条数,并且统计了A和B的相同的数量
+
+```properties
+{
+	... 其他查询结果
+	,
+  "aggregations" : {
+    "testagg" : {
+      "buckets" : [
+        {
+          "key" : "grpA",
+          "doc_count" : 2
+        },
+        {
+          "key" : "grpA&grpB",
+          "doc_count" : 1
+        },
+        {
+          "key" : "grpB",
+          "doc_count" : 2
+        }
+      ]
+    }
+  }
+}
+```
+
+
+
+### Metric
+
+
+
+### Matrix
+
+
+
+### Pipeline
+
+### 常用聚合
+
+#### 通用属性
+
+
+
+#### 类型统计
+
+​		在我们平时所使用的情况下，我们经常会对一些类型进行统计，例如按时间进行格式化统计，或者根据类型，统计每个类型的数量等等，下面我们先来使用统计吧。
+
+​		！！注意atype这个字段的数据类型不能为text，因为text进行了分词直接聚合会报错
+
+```properties
+POST /index1/_search?size=0
+{
+  "query": {
+     // 查询条件
+  },
+  "aggs": {
+    "avg_corrected_grade": {
+      "terms": {
+        "field": "atype"
+      }
+    }
+  }
+}
+```
+
+​		报错解决方案：修改模板中的atype字段属性fielddata为true，但是结果会进行分词之后的统计，所以还是会出现问题的
+
+```properties
+PUT /index1/doc1/_mapping
+{
+  "properties": {
+    "atype":{
+      "type": "text",
+      "fielddata": true
+    }
+  }
+}
+```
+
+​		那么我们这里有3个类型我们可以不可统计这个类型的数量呢，答案是可以的，我们使用cardinality即可统计type的类型有多少个，例如我们统计的数据里面有 atype =一，atype=二，atype=三的，那么上面的方式统计就是一到三分别有多少个，cardinality则是统计这个atype一共有多少个，也就是3个
+
+```properties
+POST /index1/_search?size=0
+{
+  "aggs": {
+    "type": {
+      "cardinality": {
+        "field": "type"
+      }
+    }
+  }
+}
+```
+
+
+
+#### 平均值
+
+​		我们根据查询出来的数据的某一个字段进行平均值的统计,注意age为数字类型，否则报错
+
+```
+POST /index1/_search?size=0
+{
+  "query": {
+    "match": {
+      "content": "你好"
+    }
+  },
+  "aggs": {
+    "avgage": {
+      "max": {
+        "field": "age"
+      }
+    }
+  }
+}
+```
+
+
+
+#### 最大值
+
+#### 最小值
+
 
 
 ## Query DSL（DSL查询语句）
+
+### 查询属性
+
+#### 查询指定字段
+
+​		我们可以只查询某一个或者多个字段
+
+```properties
+# 只返回age和name字段
+GET /index1/doc1/_search
+{
+  "_source": ["age","name"], 
+  "query": {
+    "match_all": {
+    }
+  }
+}
+
+# 所有字段都不返回，true则为所有都返回
+GET /index1/doc1/_search
+{
+  "_source": false, 
+  "query": {
+    "match_all": {
+    }
+  }
+}
+
+GET /index1/doc1/_search
+{
+  
+  "_source": {
+    "includes": "只查询的字段", 
+    "excludes": "排除的字段"
+  }, 
+  "query": {
+    "match_all": {
+    }
+  }
+}
+```
+
+
+
+#### 排序
+
+​		查询这些条件然后按照age进行正序排列从小到大，desc从大到小
+
+```properties
+GET /myindex/books/_search
+{
+      "_source": {
+        "includes": ["na*","age"],
+        "excludes": ["emaile.emaiiles","birthday"]
+
+  },
+  "query": {
+    "match": {
+      "name": "康"
+    }
+  },
+  "sort": [
+    {
+      "age": {
+        "order": "asc"
+      }
+    }
+  ]
+}
+```
+
+#### 分页
+
+​		查询所有文档中的数据，查询第一页，每页3条数据
+
+```properties
+GET /index1/doc1/_search
+{
+  "query": {
+    "match_all": {
+    }
+  },
+  "from": 0,
+  "size": 2
+}
+
+```
+
+​		from的值为     (页码-1) * size    这个和其他分页一样
+
+#### 高亮显示
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/search-request-highlighting.html)
+
+​		高亮显示name，锁查询的关键字
+
+```properties
+GET /myindex/books/_search
+{
+    "query":{
+        "match":{
+            "name": "黄"
+        }
+    },
+    "highlight": {
+        "fields": {
+             "name": {}
+        }
+    }
+}
+
+# 自定义左右标签高亮
+GET  /index1/doc1/_search
+{
+    "query":{
+        "match":{
+            "name": "黄"
+        }
+    },
+    "highlight": {
+      "pre_tags" : "<tag1>",
+        "post_tags" : "</tag1>",
+        "fields": {
+             "name": {}
+        }
+    }
+}
+```
+
+#### 返回版本号
+
+在查询时直接使用
+
+"version":true     就能开启了
+
+```properties
+GET /myindex/books/_search
+{
+  "version":true,
+  "query": {
+    "match": {
+      "name": "康"
+    }
+  },
+  "from": 0,
+  "size": 3
+}	
+```
+
+
+
+### Url查询
+
+​		我们可以通过最简单的url路径来进行查询
+
+```http
+# 错误方式
+GET /index1/doc1/_search?q=content:你好啊
+# 正确方式
+GET /index1/doc1/_search?q=content:%E4%BD%A0%E5%A5%BD
+
+首先我们使用Http编码将中文转码后进行请求否则会报错
+```
+
+​		Url查询的参数有以下：
+
+​		q 字符串查询详解地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/query-dsl-query-string-query.html)
+
+```
+q												查询字符串（映射到query_string查询，请参阅 查询字符串查询以获取更多详细信息）。
+df											在查询中未定义任何字段前缀时使用的默认字段。
+analyzer								分析查询字符串时要使用的分析器名称。
+analyze_wildcard				是否应分析通配符和前缀查询。默认为false。
+batched_reduce_size			分片结果的数量应在协调节点上立即减少。如果请求中的分片数量可能很大，则此值应用作保护机制以减少每个搜索请求的内存开销。
+default_operator				要使用的默认运算符可以是AND或 OR。默认为OR。
+lenient									如果设置为true，将导致忽略基于格式的错误（例如，向数字字段提供文本）。默认为false。
+explain									对于每个匹配，请说明如何计算匹配得分。
+_source									设置为false禁用_source字段检索。您还可以使用_source_includes＆检索文档的一部分_source_excludes（ 有关更多详细信息，请参见请求正文文档）
+stored_fields						每次命中将返回的文档的选择性存储字段，以逗号分隔。不指定任何值将导致不返回任何字段。
+sort										排序执行。可以采用fieldName或 fieldName:asc/ 的形式fieldName:desc。fieldName可以是文档中的实际字段，也可以是特殊_score名称以指示基于得分的排序。可以有多个sort参数（顺序很重要）
+track_scores						排序时，设置为true以便仍跟踪分数并将其作为每次命中的一部分返回。
+track_total_hits				设置为false，以禁用跟踪与查询匹配的总点击数。（有关更多详细信息，请参见索引排序）。默认为true。
+timeout									搜索超时，将搜索请求限制为在指定的时间值内执行，并保全过期时累积到该点的命中。默认为无超时。
+terminate_after					为每个分片收集的最大文档数，达到该数量时查询执行将提前终止。如果设置，响应将具有一个布尔值字段，terminated_early以指示查询执行是否实际上已终止。默认为no terminate_after。
+from										从匹配的索引开始到返回。默认为0。
+size										返回的点击数。默认为10
+search_type							要执行的搜索操作的类型。可以是 dfs_query_then_fetch或query_then_fetch。默认为query_then_fetch。有关可以执行的不同搜索类型的更多详细信息，请参见 搜索类型。
+allow_partial_search_results		false如果请求将产生部分结果，则设置为返回整体失败。默认值为true，如果超时或部分失败，将允许部分结果。可以使用群集级别设置来控制此默认值 search.default_allow_partial_results。
+
+```
+
+
 
 ### 查询所有
 
 查询所有索引的所有数据
 
-```
+```properties
 GET _search
 {
   "query": {
@@ -965,23 +2080,25 @@ GET _search
 
 查询索引下面的所有数据
 
-```
+```properties
 GET /myindex/article/_search
 ```
 
-### 按条件查询
+### 按ID查询
 
 根据ID进行查询，查询id为1的数据
 
-```
+```properties
 GET /myindex/article/1
 ```
 
-### term包含查询
+### Term匹配查询
 
-查询title字段包含下雨的数据
+​		对于keyword类型的数据不会分词，如果是text类型的数据则会自动分词，所以我们模糊也能，但是对于keyword类型的数据则需要全部匹配了
 
-```
+​		查询title字段为下雨的数据
+
+```properties
 GET /myindex/books/_search/
 {
   "query": {
@@ -992,13 +2109,11 @@ GET /myindex/books/_search/
 }
 ```
 
-查询title字段包含下雨的词
+title字段为下雨的词
 
-注意：如果根据名字进行查询不能使用全名，否则搜索不到，只能是包含
+多个term一起查询，查询title为可以以及nice的数据
 
-多个term一起查询，查询title下面包含可以活着nice的数据
-
-```
+```properties
 GET /myindex/books/_search/
 {
   "query": {
@@ -1013,9 +2128,9 @@ GET /myindex/books/_search/
 
 ### Match模糊查询
 
-查询字段name包含康的数据
+​		查询字段name包含康的数据
 
-```
+```properties
 GET /myindex/books/_search
 {
   "query": {
@@ -1026,9 +2141,9 @@ GET /myindex/books/_search
 }
 ```
 
-查询name或者title字段包含康这个词的数据，
+​		查询name或者title字段包含康这个词的数据，
 
-```
+```properties
 GET /myindex/books/_search
 {
   "query": {
@@ -1042,9 +2157,9 @@ GET /myindex/books/_search
 }
 ```
 
-查询模糊关键字并且按照顺序
+​		查询模糊关键字并且按照顺序
 
-```
+```properties
 GET /myindex/books/_search
 {
   "query": {
@@ -1057,7 +2172,7 @@ GET /myindex/books/_search
 
 指定字段返回模糊查询，查询name包含康关键字的数据，并且只查询name和age字段的数据
 
-```
+```properties
 GET /myindex/books/_search
 {
   "_source": {
@@ -1092,7 +2207,7 @@ GET /myindex/books/_search
 
 按照前缀查询，头部模糊查询
 
-```
+```properties
 GET /myindex/books/_search
 {
   "query": {
@@ -1108,7 +2223,7 @@ GET /myindex/books/_search
 
 查询name姓黄的数据
 
-```
+```properties
 GET /myindex/books/_search
 {
   "query": {
@@ -1121,77 +2236,13 @@ GET /myindex/books/_search
 }
 ```
 
-### 分页查询
 
-查询name包含康的数据，查询第一页，每页3条数据
-
-```
-GET /myindex/books/_search
-{
-  "query": {
-    "match": {
-      "name": "康"
-    }
-  },
-  "from": 0,
-  "size": 3
-}
-```
-
-from的值为     (页码-1) * size    这个和其他分页一样
-
-### 返回版本号
-
-在查询时直接使用
-
-"version":true     就能开启了
-
-```
-GET /myindex/books/_search
-{
-  "version":true,
-  "query": {
-    "match": {
-      "name": "康"
-    }
-  },
-  "from": 0,
-  "size": 3
-}
-```
-
-### 排序
-
-查询这些条件然后按照age进行正序排列从小到大，desc从大到小
-
-```
-GET /myindex/books/_search
-{
-      "_source": {
-        "includes": ["na*","age"],
-        "excludes": ["emaile.emaiiles","birthday"]
-
-  },
-  "query": {
-    "match": {
-      "name": "康"
-    }
-  },
-  "sort": [
-    {
-      "age": {
-        "order": "asc"
-      }
-    }
-  ]
-}
-```
 
 ### 范围查询
 
-查询age    20 -21 的数据，包含20不包含21
+​		查询age    20 -21 的数据，包含20不包含21,include_lower表示是否包含最小的起始数，include_upper表示是否包含最大的数,默认都为true包含
 
-```
+```properties
 GET /myindex/books/_search
 {
   "query": {
@@ -1209,9 +2260,9 @@ GET /myindex/books/_search
 
 ### 通配符查询
 
-通过*查询
+​		通过*查询，只能通过首字符或者是尾字符才能进行查询
 
-```
+```properties
 GET /myindex/books/_search
 {
   "query": {
@@ -1223,33 +2274,13 @@ GET /myindex/books/_search
 
 ```
 
-### 高亮显示
 
-高亮显示
-
-```
-GET /myindex/books/_search
-{
-    "query":{
-        "match":{
-            "name": "黄"
-        }
-    },
-    "highlight": {
-        "fields": {
-             "name": {}
-        }
-    }
-}
-
-高亮显示name，锁查询的关键字
-```
 
 ### Filter过滤
 
 查找age等于19的数据
 
-```
+```properties
 GET /myindex/books/_search
 { 
        "post_filter": {
