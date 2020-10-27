@@ -1,12 +1,124 @@
 
 
-# Java基础**
+# Java基础相关
 
 ## 讲讲你所遇到过的异常
 
-​	ConcurrentmodificationException		
+​		ConcurrentmodificationException		
 
-​	这个异常是在多线程操作集合的时候产生的写并发写入的异常原因是因为操作没有加锁的对象例如ArrayList，HashSet，HashMap的时候，具体表现在高并发的写上
+​		这个异常是在多线程操作集合的时候产生的写并发写入的异常原因是因为操作没有加锁的对象例如ArrayList，HashSet，HashMap的时候，具体表现在高并发的写上
+
+## String
+
+### 讲一讲字符串的intern()方法
+
+​		首先我们先解析intern()方法，我们点进源码中进行发现
+
+```java
+    // 我们发现他是一个Native方法，也就是本地方法
+    public native String intern();
+```
+
+​		下面我们在来看一下关于这个方法的解释
+
+```java
+    /**
+     * 返回字符串对象的规范表示形式。
+     * 字符串常量池最初是空的，由类{@code String}单独维护。
+     * 当intern方法被调用时，如果池中已经包含了一个字符串，该字符串等于这个{@code string}对象(由{@link #equals(object)}方法确定)，那么池中的字符串将被返回。否则，该{@code String}对象将被添加到池中，并返回对该{@code String}对象的引用。
+     * 对于任意两个字符串{@code s}和{@code t}，当且仅当{@code s = (t)}为{@code true}时，{@code s == t.intern()}为{@code true}
+     * 所有字符串字面量和字符串值常量表达式都是interned。字符串字面量定义在<cite>的第3.10.5节Java&trade;语言规范</引用>。
+     * @return与此字符串具有相同内容的字符串，但保证来自惟一字符串池。
+     */
+```
+
+​		通过翻译我们可以看出来，字符串常量池由String进行维护，我们调用方法的intern方法时，如果常量池中没有，那么则会在常量池中进行创建，创建完成之后则返回引用，如果已经存在那么则返回原来的已经创建的常量池中的引用。
+
+​		示例如下：
+
+​			我们创建一个常量，然后创建两个对象调用intern()方法		
+
+```java
+		// 第一次使用常量池初始化test属性，放入常量池
+    private static final String test = "bigkang";
+    public static void main(String[] args) {
+        // 创建一个a变量
+        String a = new StringBuilder("big").append("kang").toString();
+        // 创建一个b变量
+        String b = new StringBuilder("big").append("kang").toString();
+        // a、b由不同对象new出来，内存地址不一致，无法相等，为false
+        System.out.println(a == b);
+
+        // 调用intern()方法，此时常量池已经存在返回内存地址
+        String internA = a.intern();
+        // 常量池内存地址与a初始化的对象内存地址不一致，false
+        System.out.println(internA == a);
+
+        // 调用intern()方法，此时常量池已经存在返回内存地址
+        String internB = b.intern();
+        // 常量池内存地址与b初始化的对象内存地址不一致，false
+        System.out.println(internB == b);
+
+        // a、b调用intern()方法返回常量池内存地址，返回两次都是从常量池中同一个地址，true
+        System.out.println(internA == internB);
+    }
+```
+
+​			我们再次修改代码去掉属性中的常量
+
+```java
+  public static void main(String[] args) {
+        // 创建一个a变量
+        String a = new StringBuilder("big").append("kang").toString();
+        // 创建一个b变量
+        String b = new StringBuilder("big").append("kang").toString();
+        // a、b由不同对象new出来，内存地址不一致，无法相等，false
+        System.out.println(a == b);
+
+        // 调用intern()方法，此时常量池不存在bigkang，现在开始创建并且返回内存地址
+        String internA = a.intern();
+        // 常量池内存地址与a初始化的对象内存地址为同一个，true
+        System.out.println(internA == a);
+
+        // 调用intern()方法，此时常量池已经存在返回内存地址
+        String internB = b.intern();
+        // 常量池内存地址与b初始化的对象内存地址不一致，false
+        System.out.println(internB == b);
+
+        // a、b调用intern()方法返回常量池内存地址，返回两次都是从常量池中同一个地址，true
+        System.out.println(internA == internB);
+    }
+```
+
+​			我们再试一下java字符串，按道理来说第一次调用是为true，但是却是false
+
+```java
+   public static void main(String[] args) {
+        // 创建一个a变量
+        String a = new StringBuilder("ja").append("va").toString();
+        // 创建一个b变量
+        String b = new StringBuilder("ja").append("va").toString();
+        // a、b由不同对象new出来，内存地址不一致，无法相等，false
+        System.out.println(a == b);
+
+        // 调用intern()方法，此时按道理来说常量池应该没用java
+        String internA = a.intern();
+        // 常量池内存地址与a初始化的对象内存地址应该是为同一个，也应该为true
+        System.out.println(internA == a);
+
+        // 调用intern()方法，此时常量池已经存在返回内存地址
+        String internB = b.intern();
+        // 常量池内存地址与b初始化的对象内存地址不一致，false
+        System.out.println(internB == b);
+
+        // a、b调用intern()方法返回常量池内存地址，返回两次都是从常量池中同一个地址，true
+        System.out.println(internA == internB);
+    }
+```
+
+​			那么我们就知道了肯定是有哪个地方有初始化过java这个字符，我们定位到sun.misc.Version，就可以看到了
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1603691966468.png)
 
 ## HashMap
 
@@ -69,11 +181,9 @@ public HashMap(Map<? extends K, ? extends V> m) {
 
 ### HaspMap是怎么进行扩容的？
 
-### 
+​		为了能让 HashMap 存取高效，尽量较少碰撞，Hash 值的范围值-2147483648到2147483648，前后加起来大概40亿的映射空间。用之前还要先做对数组的长度取模运算，这个数组下标的计算方法是“ `(n - 1) & hash` ”。（n代表数组长度）。这也就解释了 HashMap 的长度为什么是2的幂次方。
 
-​	为了能让 HashMap 存取高效，尽量较少碰撞，Hash 值的范围值-2147483648到2147483648，前后加起来大概40亿的映射空间。用之前还要先做对数组的长度取模运算，这个数组下标的计算方法是“ `(n - 1) & hash` ”。（n代表数组长度）。这也就解释了 HashMap 的长度为什么是2的幂次方。
-
-​	但是通过源码后发现，HashMap的最大长度是10亿左右，并且它的每次扩容是因为计算机底层都是采用二进制存储，在扩容计算时，我们直接进行位移操作即可快速计算，只要每次扩容不停地向左位移一位即可乘2也就是2的N次幂，我感觉更多是考虑到了计算机底层的计算而进行优化，并且它的初始化长度如下：
+​		但是通过源码后发现，HashMap的最大长度是10亿左右，并且它的每次扩容是因为计算机底层都是采用二进制存储，在扩容计算时，我们直接进行位移操作即可快速计算，只要每次扩容不停地向左位移一位即可乘2也就是2的N次幂，我感觉更多是考虑到了计算机底层的计算而进行优化，并且它的初始化长度如下：
 
 ```
 static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
@@ -81,7 +191,7 @@ static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
 
 采用位运算的方式进行计算，HashMap的源码中大量的使用了位运算，因为在乘除的计算中使用位运算能更快高效的计算出结果。
 
-
+​		那么他到底是如何进行扩容的呢
 
 ### 为什么HashMap扩容的大小都是2的N次幂？
 
@@ -278,3 +388,83 @@ Hashmap在并发环境下，可能出现的问题：
 ## Java反射原理？
 
 ## Java注解原理？
+
+## Integer
+
+### 为什么两个Integer==为false，有的为true？
+
+​		首先我们先来看一看这一个代码，我们给a和b进行赋值，为127，然后c和d赋值为128
+
+```java
+        Integer a = 127, b = 127;
+        Integer c = 128, d = 128;
+
+        System.out.println(a == b);
+        System.out.println(c == d);
+```
+
+​		那么他的结果为什么会是如下的情况呢？
+
+```java
+true
+false
+```
+
+​		我们发现非常神奇，为什么一模一样的代码，只是两个变量的值不一样就会变成这样呢，究竟是a和b的扭曲，还是c和d的沦丧，导致了这么变态的结果，那么下面我们来看一下究竟是为什么。
+
+​		首先我们先来反编译一下这个代码究竟有什么操作：
+
+```java
+   // 第一步
+	 L0
+    // 行号，第一步编号
+    LINENUMBER 3 L0
+    // 执行push操作，将常量127赋值
+    BIPUSH 127
+    // 注意这一步，调用静态方法Integer.valueOf
+    INVOKESTATIC java/lang/Integer.valueOf (I)Ljava/lang/Integer;
+		// 将引用类型或returnAddress类型值存入局部变量
+    ASTORE 1
+   L1
+    BIPUSH 127
+    INVOKESTATIC java/lang/Integer.valueOf (I)Ljava/lang/Integer;
+    ASTORE 2
+   L2
+    LINENUMBER 4 L2
+    SIPUSH 128
+    INVOKESTATIC java/lang/Integer.valueOf (I)Ljava/lang/Integer;
+    ASTORE 3
+   L3
+    SIPUSH 128
+    INVOKESTATIC java/lang/Integer.valueOf (I)Ljava/lang/Integer;
+    ASTORE 4
+```
+
+​		那么我们就发现了一个问题
+
+​		在我们平时的赋值中，我们都是直接进行BIPUSH，为什么在Integer的时候我们需要，调用Integer的ValueOf呢？原来这是Java在我们对代码进行编译的时候默认给我们进行了优化，在装箱的时候如果发现了Integer就会在class指令中加入装箱程序，同样的Long，Short等其他的包装类也有可能会有一些优化。
+
+```java
+
+   int a = 10;
+	 // 反编译后如下
+	 L0
+    LINENUMBER 3 L0
+    BIPUSH 10
+    ISTORE 1
+```
+
+​		那么为什么我们调用了之后他会出现==的时候这个问题呢，答案就是在Integer.valueOf(int i)的源码中：		
+
+```java
+    public static Integer valueOf(int i) {
+      	// 首先我们看到这里有一个判断操作，这里一看到Cache就知道肯定是缓存的操作，那么这一步就是判断我们的i这个值有没有超过缓存的大小这个值为-128到127，如果有的话从缓存数组中取出，如果说没有的话则new 一个Integer
+        if (i >= IntegerCache.low && i <= IntegerCache.high)
+            return IntegerCache.cache[i + (-IntegerCache.low)];
+        return new Integer(i);
+    }
+```
+
+​		我们就知道了这个前面127和128的两组对象为什么不等于了，其实我们从127进行取出的时候那么他会从缓存中直接取出，这个缓存是一个Integer对象数组，那么我们两次从127取出，就相当于把这个缓存中的内存地址，给到了两个变量进行引用，所以他们两个的内存地址其实是一个对象，所以使用==他们就会为true，但是我们使用128进行获取的时候超过了这个范围，那么就会重新new一个对象，导致初始化了两个内存空间，他们的内存地址不一致所以为false。
+
+​		同样有缓存的包装类还有Long,Short,Byte,整形的基础包装类都会有一个缓存并且值都为-128到127

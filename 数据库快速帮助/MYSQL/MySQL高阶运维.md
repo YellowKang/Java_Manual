@@ -418,9 +418,21 @@ show create table t_user;
 
 查看t_user表的索引
 
-```
+```sql
 show index from t_user;
 ```
+
+添加索引
+
+```sql
+ALTER TABLE t_user ADD INDEX user_index_username_and_age (username,age);
+```
+
+
+
+
+
+
 
 # 事务
 

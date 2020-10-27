@@ -1845,7 +1845,7 @@ POST /index1/_search?size=0
 
 ​		我们根据查询出来的数据的某一个字段进行平均值的统计,注意age为数字类型，否则报错
 
-```
+```spreadsheet
 POST /index1/_search?size=0
 {
   "query": {

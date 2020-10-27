@@ -360,7 +360,60 @@ AggregationResults<HashMap> aggregate = mongoTemplate.aggregate(aggregation, "su
 return aggregate.getMappedResults();
 ```
 
+### 字符串长度查询
 
+​		我们需要筛选过滤长度为25的某一个字段的字符串长度，大于25我们才进行查询否则不查询，我们采用正则进行过滤匹配，查询0-25字符长度的数据。
+
+```Java
+      	Integer maxLength = 25;
+				String patternStr = String.format("^.{0,%s}$", maxLength);
+        Pattern pattern = Pattern.compile(patternStr);
+        Query query = new Query();
+        query.addCriteria(Criteria.where("title").regex(pattern));
+```
+
+​		查询最少为25长度的字符
+
+```Java
+      	Integer minLength = 25;
+				String patternStr = String.format("^.{%s,}$", minLength);
+        Pattern pattern = Pattern.compile(patternStr);
+        Query query = new Query();
+        query.addCriteria(Criteria.where("title").regex(pattern));
+```
+
+### 数组查询
+
+​		有时候我们的数据结构是一个数组，那么我们针对这种数据怎么样来进行查询呢，数据结构如下所示：
+
+```json
+{
+		"questionerName" : "超级管理员",
+    "answered" : false,
+    "reply" : [ 
+        {
+            "answerDept" : "法制支队",
+            "answererID" : NumberLong(16),
+            "answered" : false
+        }, 
+        {
+            "answerDept" : "警务支援大队",
+            "answererID" : NumberLong(15),
+            "answered" : false
+        }
+    ],
+    "entityName" : "SearchKeyword"
+}
+```
+
+​		那么我们需要对这个answerDept进行一个模糊查询，代码如下：
+
+```java
+// 创建Query对象        
+Query query = new Query();   
+// 根据reply下的answerDept字段进行匹配（模糊查询），
+query.addCriteria(Criteria.where("reply").elemMatch(Criteria.where("answerDept").regex(“大队”)));
+```
 
 
 

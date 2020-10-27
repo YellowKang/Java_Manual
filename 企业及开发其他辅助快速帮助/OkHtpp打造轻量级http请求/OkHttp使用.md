@@ -16,6 +16,222 @@
 
 ​		简单的来说，OkHttp轻量级，线程池效率高，压缩数据接受快，目前来说相对HttpClient而言OkHttp更加有优势。
 
+# 依赖
+
+​		自定义依赖版本
+
+```xml
+    		<dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.8.1</version>
+        </dependency>
+```
+
+​		使用SpringBoot自定义内置版本
+
+```xml
+    		<dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+        </dependency>
+```
+
+
+
+
+
+# 自定义SpringBoot整合
+
+## 配置文件
+
+yml版本
+
+```properties
+okhttp:
+  timeout: 7000 #超时时间
+  maxConnection: 200 #最大连接数
+  coreConnection: 10 #核心连接数
+  resetConnection: false #是否重试
+  maxHostConnection: 30 #单域名最大线程数
+```
+
+properties版本
+
+```properties
+okhttp.timeout=7000 #超时时间
+okhttp.maxConnection=200 #最大连接数
+okhttp.coreConnection=10 #核心连接数
+okhttp.resetConnection=false #是否重试
+okhttp.maxHostConnection=30 #单域名最大线程数
+```
+
+## properties配置类
+
+```Java
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @Author BigKang
+ * @Date 2020/9/28 5:27 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize OkHttp配置
+ */
+@Configuration
+@ConfigurationProperties(prefix = "okhttp")
+public class OkHttpProperties {
+
+    /**
+     * 超时时间
+     */
+    private Integer timeout = 7000;
+
+    /**
+     * 最大连接数
+     */
+    private Integer maxConnection = 8;
+
+    /**
+     * 核心连接数
+     */
+    private Integer coreConnection = 4;
+
+    /**
+     * 是否重试
+     */
+    private Boolean resetConnection = true;
+
+    /**
+     * 单域名最大线程数
+     */
+    private Integer maxHostConnection = 4;
+}
+```
+
+## config配置类
+
+```java
+import com.kang.wangke.properties.OkHttpProperties;
+import okhttp3.ConnectionPool;
+import okhttp3.Dispatcher;
+import okhttp3.OkHttpClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @Author BigKang
+ * @Date 2020/9/28 5:30 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize OkHttpConfig配置
+ */
+@Configuration
+public class OkHttpConfig {
+
+    private final OkHttpProperties properties;
+
+    @Autowired
+    public OkHttpConfig(OkHttpProperties properties) {
+        this.properties = properties;
+    }
+
+    @Bean
+    public OkHttpClient okHttpClient(){
+        // 创建Dispatcher，对请求线程进行控制
+        Dispatcher dispatcher = new Dispatcher();
+        // 设置单域名最大连接
+        dispatcher.setMaxRequestsPerHost(properties.getMaxHostConnection());
+        // 设置最大连接
+        dispatcher.setMaxRequests(properties.getMaxConnection());
+        // 创建OkHttpClient连接
+        OkHttpClient okHttpClient = new OkHttpClient
+                .Builder()
+                .dispatcher(dispatcher)
+                .retryOnConnectionFailure(properties.getResetConnection())
+                // 拦截器可以自定义添加或者不添加拦截器
+                //.addInterceptor(new CustomInterceptor())
+                .callTimeout(properties.getTimeout(), TimeUnit.MILLISECONDS)
+                .connectionPool(new ConnectionPool(properties.getMaxConnection(),properties.getCoreConnection(),TimeUnit.MILLISECONDS))
+                .build();
+        return okHttpClient;
+    }
+
+}
+```
+
+目前OkHttp的线程池其实是和缓存线程池类似的（几乎一模一样）
+
+```java
+RealConnectionPool这个类中我们可以看到他的源码的线程池的定义
+
+  /**
+   * Background threads are used to cleanup expired connections. There will be at most a single
+   * thread running per connection pool. The thread pool executor permits the pool itself to be
+   * garbage collected.
+   */
+  private static final Executor executor = new ThreadPoolExecutor(0 /* corePoolSize */,
+      Integer.MAX_VALUE /* maximumPoolSize */, 60L /* keepAliveTime */, TimeUnit.SECONDS,
+      new SynchronousQueue<>(), Util.threadFactory("OkHttp ConnectionPool", true));
+```
+
+他这里采用的是Integer的Max，也就是无界队列，对线程池的控制完全是由OkHttp来进行控制，根据他自己的自定义策略去控制线程数，其实自定义的线程池更能根据项目实际情况进行配置。
+
+# 拦截器
+
+我们可以在http发送请求时添加拦截器进行拦截，我们可以自定义一个拦截器进行记录日志和其他操作
+
+创建OkHttpClient时添加拦截器
+
+```java
+OkHttpClient okHttpClient = new OkHttpClient()
+							.newBuilder()
+							.addInterceptor(new CustomInterceptor())
+							.build();
+```
+
+自定义拦截器类
+
+```java
+/**
+ * @Author BigKang
+ * @Date 2019/8/27 3:57 PM
+ * @Summarize 自定义OkHttpClient拦截器
+ */
+@Slf4j
+public class CustomInterceptor implements Interceptor {
+    @Override
+    public Response intercept(Chain chain) throws IOException {
+        // 获取request请求对象
+        Request request = chain.request();
+        // 请求开始时间
+        long startTime = System.currentTimeMillis();
+        // 发送请求
+        Response response =  chain.proceed(request);
+        // 请求结束相应时间
+        long endTime = System.currentTimeMillis();
+
+        log.info(String.format("开始请求,请求url:%s,请求主体长度%s,请求头%s",request.url(),request.body().contentLength(),request.headers()));
+        log.info(String.format("请求结束,相应时间：%s毫秒,响应数据长度：%s字节,响应头：%s",endTime-startTime,response.body().contentLength(),response.headers()));
+        return response;
+    }
+}
+```
+
+## Application Interceptors与Network Interceptors的区别
+
+​			在OkHttp中拦截器分为两个，分别是：
+
+​					Application Interceptors（应用拦截器）
+
+​					Network Interceptors（网络拦截器）
+
+​			那么他们的区别是什么呢
+
+​					应用拦截器只关心我们的请求和他所响应的结果，如果我们在请求的时候我们转发或者重定向到其他地址我们是拦截不到的，但是我们如果使用网络拦截器他能帮我们拦截到重定向或者转发的请求，从而更深刻了解请求过程，如果我们只关注请求结果的话推荐使用应用拦截器，如果更加关注请求的过程的话推荐使用网络拦截器
+
 # 使用
 
 ## 发送Get请求
@@ -215,8 +431,6 @@ https://www.easy-mock.com/
 
 
 
-
-
 ### 带请求头请求
 
 okhttp请求代码
@@ -259,167 +473,3 @@ okhttp请求代码
     }
 ```
 
-# 拦截器
-
-我们可以在http发送请求时添加拦截器进行拦截，我们可以自定义一个拦截器进行记录日志和其他操作
-
-创建OkHttpClient时添加拦截器
-
-```java
-OkHttpClient okHttpClient = new OkHttpClient()
-							.newBuilder()
-							.addInterceptor(new CustomInterceptor())
-							.build();
-```
-
-自定义拦截器类
-
-```java
-/**
- * @Author BigKang
- * @Date 2019/8/27 3:57 PM
- * @Summarize 自定义OkHttpClient拦截器
- */
-@Slf4j
-public class CustomInterceptor implements Interceptor {
-    @Override
-    public Response intercept(Chain chain) throws IOException {
-        // 获取request请求对象
-        Request request = chain.request();
-        // 请求开始时间
-        long startTime = System.currentTimeMillis();
-        // 发送请求
-        Response response =  chain.proceed(request);
-        // 请求结束相应时间
-        long endTime = System.currentTimeMillis();
-
-        log.info(String.format("开始请求,请求url:%s,请求主体长度%s,请求头%s",request.url(),request.body().contentLength(),request.headers()));
-        log.info(String.format("请求结束,相应时间：%s毫秒,响应数据长度：%s字节,响应头：%s",endTime-startTime,response.body().contentLength(),response.headers()));
-        return response;
-    }
-}
-```
-
-## Application Interceptors与Network Interceptors的区别
-
-​			在OkHttp中拦截器分为两个，分别是：
-
-​					Application Interceptors（应用拦截器）
-
-​					Network Interceptors（网络拦截器）
-
-​			那么他们的区别是什么呢
-
-​					应用拦截器只关心我们的请求和他所响应的结果，如果我们在请求的时候我们转发或者重定向到其他地址我们是拦截不到的，但是我们如果使用网络拦截器他能帮我们拦截到重定向或者转发的请求，从而更深刻了解请求过程，如果我们只关注请求结果的话推荐使用应用拦截器，如果更加关注请求的过程的话推荐使用网络拦截器
-
-# 自定义SpringBoot整合
-
-## 配置文件
-
-yml版本
-
-```properties
-okhttp:
-  timeout: 7000 #超时时间
-  maxConnection: 200 #最大连接数
-  coreConnection: 10 #核心连接数
-  resetConnection: false #是否重试
-  maxHostConnection: 30 #单域名最大线程数
-```
-
-properties版本
-
-```properties
-okhttp.timeout=7000 #超时时间
-okhttp.maxConnection=200 #最大连接数
-okhttp.coreConnection=10 #核心连接数
-okhttp.resetConnection=false #是否重试
-okhttp.maxHostConnection=30 #单域名最大线程数
-```
-
-## config配置类
-
-```java
-/**
- * @Author BigKang
- * @Date 2019/8/27 4:39 PM
- * @Summarize OkHttpConfig配置类
- */
-@Configuration
-public class OkHttpConfig {
-
-    /**
-     * 超时时间，单位（毫秒）
-     */
-    @Value("${okhttp.timeout:7000}")
-    private Long timeout;
-
-    /**
-     * 最大连接数量
-     */
-    @Value("${okhttp.maxConnection:200}")
-    private Integer maxConnection;
-
-
-    /**
-     * 核心连接数量
-     */
-    @Value("${okhttp.coreConnection:10}")
-    private Integer coreConnection;
-
-    /**
-     * 连接失败是否重试
-     */
-
-    @Value("${okhttp.resetConnection:false}")
-    private boolean resetConnection;
-
-
-    /**
-     * 单域名最大请求线程
-     */
-
-    @Value("${okhttp.maxHostConnection:30}")
-    private Integer maxHostConnection;
-
-
-    @Bean
-    public OkHttpClient okHttpClient(){
-
-        // 创建Dispatcher，对请求线程进行控制
-        Dispatcher dispatcher = new Dispatcher();
-        // 设置单域名最大连接
-        dispatcher.setMaxRequestsPerHost(maxHostConnection);
-        // 设置最大连接
-        dispatcher.setMaxRequests(maxConnection);
-        // 创建OkHttpClient连接
-        OkHttpClient okHttpClient = new OkHttpClient
-                .Builder()
-                .dispatcher(dispatcher)
-                .retryOnConnectionFailure(resetConnection)
-                .addInterceptor(new CustomInterceptor())
-                .callTimeout(timeout, TimeUnit.MILLISECONDS)
-                .connectionPool(new ConnectionPool(maxConnection,coreConnection,TimeUnit.MILLISECONDS))
-
-                .build();
-        return okHttpClient;
-    }
-}
-```
-
-目前OkHttp的线程池其实是和缓存线程池类似的（几乎一模一样）
-
-```java
-RealConnectionPool这个类中我们可以看到他的源码的线程池的定义
-
-  /**
-   * Background threads are used to cleanup expired connections. There will be at most a single
-   * thread running per connection pool. The thread pool executor permits the pool itself to be
-   * garbage collected.
-   */
-  private static final Executor executor = new ThreadPoolExecutor(0 /* corePoolSize */,
-      Integer.MAX_VALUE /* maximumPoolSize */, 60L /* keepAliveTime */, TimeUnit.SECONDS,
-      new SynchronousQueue<>(), Util.threadFactory("OkHttp ConnectionPool", true));
-```
-
-他这里采用的是Integer的Max，也就是无界队列，对线程池的控制完全是由OkHttp来进行控制，根据他自己的自定义策略去控制线程数，其实自定义的线程池更能根据项目实际情况进行配置。

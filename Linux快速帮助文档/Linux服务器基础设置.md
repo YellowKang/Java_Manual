@@ -22,11 +22,25 @@ cat /proc/cpuinfo| grep "cpu cores"| uniq
 
 查看逻辑CPU的个数
 
-查看总线程数=CPU个数 * CPU核数 * 线程数，一般的以两颗8核CPU举例，则为2 * 8 * 2 = 32
+查看总线程数=CPU个数 * CPU核数 * 线程数，一般的以两颗8核16线程CPU举例，则为2 * 8 * 2 = 32
 
 ```sh
 cat /proc/cpuinfo| grep "processor"| wc -l
 ```
+
+查看CPU主频
+
+```shell
+cat /proc/cpuinfo |grep MHz|uniq
+```
+
+查看CPU位数
+
+```shell
+getconf LONG_BIT
+```
+
+
 
 ## 查看内存
 
@@ -103,6 +117,80 @@ vim /etc/hosts
 ```
 
 将instance-abulrb7w修改为bigkang即可
+
+## 设置静态IP
+
+### Ubantu
+
+​		
+
+### CentOS
+
+​		首先我们需要查看哪些网卡正在运行使用中，也就是插入网线的网卡
+
+```shell
+ifconfig | grep UP,BROADCAST,RUNNING,MULTICAST
+```
+
+​		然后就能看到如下，我们可以看到，那么eth0这个网卡已经插入网线了，我们来对eth0进行设置
+
+```shell
+eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+flannel.1: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1450
+```
+
+​		首先我们进入网卡目录
+
+```shell
+cd /etc/sysconfig/network-scripts
+```
+
+​		然后编辑这个相应的网卡文件
+
+```shell
+vim ifcfg-eth0 
+```
+
+​		我们修改如下：
+
+```shell
+# 使用静态IP地址，默认为dhcp 
+BOOTPROTO=static
+# 设置的静态IP地址
+IPADDR=192.168.1.177
+# 子网掩码 
+NETMASK=255.255.255.0
+# 网关地址 
+GATEWAY=192.168.1.1
+# DNS服务器（可选，可以不设置）
+DNS1=8.8.8.8
+DNS2=114.114.114.114
+
+
+直接修改的配置如下：
+
+BOOTPROTO=static
+IPADDR=192.168.1.177
+NETMASK=255.255.255.0
+GATEWAY=192.168.1.1
+DNS1=8.8.8.8
+DNS2=114.114.114.114
+```
+
+​		然后我们修改/etc/sysconfig/network，修改如下两项
+
+```shell
+NETWORKING=yes
+GATEWAY=192.168.1.1
+```
+
+​		最后重启网络即可
+
+```shell
+service network restart
+```
+
+
 
 ## 生成SSH免密
 
