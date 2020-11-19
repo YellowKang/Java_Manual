@@ -84,7 +84,7 @@ docker run -d \
 --restart=always \
 -p 10092:9200 \
 -p 10093:9300 \
--v /docker/elasticsearch/data:/usr/share/elasticsearch/data \
+-v /docker/elasticsearch/conf/es.yml:/usr/share/elasticsearch/config/elasticsearch.yml \
 -v /docker/elasticsearch/data:/usr/share/elasticsearch/data \
 -v /docker/elasticsearch/plugins:/usr/share/elasticsearch/plugins \
 docker.io/elasticsearch:6.7.0
@@ -393,6 +393,10 @@ ls
 ```shell
 # 下载
 wget https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.7.0/elasticsearch-analysis-ik-6.7.0.zip
+
+# 加速
+wget https://github.91chifun.workers.dev//https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.7.0/elasticsearch-analysis-ik-6.7.0.zip
+
 # 解压
 mkdir ./ik
 unzip elasticsearch-analysis-ik-6.7.0.zip -d ./ik/
@@ -694,6 +698,10 @@ POST /test_pinyin/test/_search
 ```
 
 ​		以下就是我们的拼音+分词了
+
+### 文件搜索Ingest-Attachment插件
+
+
 
 # Elasticsearch配置详解
 

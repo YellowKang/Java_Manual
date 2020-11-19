@@ -20,11 +20,41 @@ mkdir -p /docker/nginx/{conf,logs}
 
 创建初始配置文件
 
-
-
-添加权限
+​		首先创建父文件，用于引入以及配置
 
 ```sh
+vim /docker/nginx.conf
+```
+
+```nginx
+user  nginx;
+worker_processes  1;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+    sendfile        on;
+    keepalive_timeout  65;
+    include /etc/nginx/conf.d/*.conf;
+}
+```
+
+添加权限,创建引入的配置目录，我们修改时直接修改conf.d下即可
+
+```sh
+touch  /docker/nginx/nginx.conf
 touch  /docker/nginx/conf/nginx.conf
 chmod 777 /docker/nginx/
 ```
@@ -33,11 +63,9 @@ chmod 777 /docker/nginx/
 
 ```nginx
 vim /docker/nginx/conf/nginx.conf
-
 server {
     listen       80;
     server_name  localhost;
-
     location / {
         root   /usr/share/nginx/html;
         index  index.html index.htm;
@@ -52,6 +80,7 @@ server {
 docker run -d \
 -p 8088:80 \
 --name nginx-server \
+-v /docker/nginx/nginx.conf:/etc/nginx/nginx.conf \
 -v /docker/nginx/conf/:/etc/nginx/conf.d/ \
 -v /docker/nginx/logs:/var/log/nginx nginx
 ```
@@ -116,4 +145,14 @@ nginx -T	显示配置信息类型
 ```
 
 # Nginx运行流程
+
+
+
+```
+ cat << EOF > test.sh
+> 123456789
+> abcdefghj
+> tdss32323
+> EOF
+```
 

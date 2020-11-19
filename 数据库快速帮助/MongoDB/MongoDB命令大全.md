@@ -527,6 +527,158 @@ db.acc.aggregate([
 ])
 ```
 
+# Mongo地理空间查询
+
+​		官网解释如下：[点击进入](https://docs.mongodb.com/v3.6/geospatial-queries/#geospatial-geometry)
+
+​		首先我们需要了解Mongo对于地理位置的支持，在MongoDB中有两种索引是支持地理位置的分别是如下两种：
+
+```
+1、2dsphere
+		索引仅支持球形查询（即解释球形表面几何形状的查询）
+2、2d
+		索引支持平面查询（即解释平面几何的查询）和一些球形查询。虽然2d 索引支持某些球形查询，但2d对这些球形查询使用索引可能会导致错误。如果可能，将 2dsphere索引用于球形查询。
+```
+
+​		那么我们就能明显的看出来，在Mongo中如果我们是使用球型的几何进行查询的话采用2dsphere，如果是针对于平面查询的话采用2d，因为2d虽然也支持某些球型查询但是还是会错误，那么下面就是Mongo的各个语法对地理位置查询的使用范围。
+
+|                             命令                             | 球面/平面查询 |                             概述                             |
+| :----------------------------------------------------------: | :-----------: | :----------------------------------------------------------: |
+| [`$near`](https://docs.mongodb.com/v3.6/reference/operator/query/near/#op._S_near)（此行和下一行的[GeoJSON](https://docs.mongodb.com/v3.6/geospatial-queries/#geospatial-geojson)重心点为[2dsphere](https://docs.mongodb.com/v3.6/geospatial-queries/#geo-2dsphere)索引） |     球形      | 另请参阅[`$nearSphere`](https://docs.mongodb.com/v3.6/reference/operator/query/nearSphere/#op._S_nearSphere)运算符，该运算符与[GeoJSON](https://docs.mongodb.com/v3.6/geospatial-queries/#geospatial-geojson)和[2dsphere](https://docs.mongodb.com/v3.6/geospatial-queries/#geo-2dsphere)索引一起使用时提供相同的功能。 |
+| [`$near`](https://docs.mongodb.com/v3.6/reference/operator/query/near/#op._S_near)（[旧版坐标](https://docs.mongodb.com/v3.6/geospatial-queries/#geospatial-legacy)，[二维](https://docs.mongodb.com/v3.6/geospatial-queries/#geo-2d)索引） |     平面      |                                                              |
+| [`$nearSphere`](https://docs.mongodb.com/v3.6/reference/operator/query/nearSphere/#op._S_nearSphere)（[GeoJSON](https://docs.mongodb.com/v3.6/geospatial-queries/#geospatial-geojson)点，[2dsphere](https://docs.mongodb.com/v3.6/geospatial-queries/#geo-2dsphere)索引） |     球形      | 提供与[`$near`](https://docs.mongodb.com/v3.6/reference/operator/query/near/#op._S_near)使用[GeoJSON](https://docs.mongodb.com/v3.6/geospatial-queries/#geospatial-geojson)点和 [2dsphere](https://docs.mongodb.com/v3.6/geospatial-queries/#geo-2dsphere)索引的操作相同的功能。                  对于球形查询，最好使用 [`$nearSphere`](https://docs.mongodb.com/v3.6/reference/operator/query/nearSphere/#op._S_nearSphere)以名称而不是[`$near`](https://docs.mongodb.com/v3.6/reference/operator/query/near/#op._S_near)运算符显式指定球形查询的名称。 |
+| [`$nearSphere`](https://docs.mongodb.com/v3.6/reference/operator/query/nearSphere/#op._S_nearSphere)（[旧版坐标](https://docs.mongodb.com/v3.6/geospatial-queries/#geospatial-legacy)，[二维](https://docs.mongodb.com/v3.6/geospatial-queries/#geo-2d)索引） |     球形      | 请改用[GeoJSON](https://docs.mongodb.com/v3.6/reference/glossary/#term-geojson)点。 |
+| [`$geoWithin`](https://docs.mongodb.com/v3.6/reference/operator/query/geoWithin/#op._S_geoWithin)：{ [`$geometry`](https://docs.mongodb.com/v3.6/reference/operator/query/geometry/#op._S_geometry)：…} |     球形      |                                                              |
+| [`$geoWithin`](https://docs.mongodb.com/v3.6/reference/operator/query/geoWithin/#op._S_geoWithin)：{ [`$box`](https://docs.mongodb.com/v3.6/reference/operator/query/box/#op._S_box)：…} |     平面      |                                                              |
+| [`$geoWithin`](https://docs.mongodb.com/v3.6/reference/operator/query/geoWithin/#op._S_geoWithin)：{ [`$polygon`](https://docs.mongodb.com/v3.6/reference/operator/query/polygon/#op._S_polygon)：…} |     平面      |                                                              |
+| [`$geoWithin`](https://docs.mongodb.com/v3.6/reference/operator/query/geoWithin/#op._S_geoWithin)：{ [`$center`](https://docs.mongodb.com/v3.6/reference/operator/query/center/#op._S_center)：…} |     平面      |                                                              |
+| [`$geoWithin`](https://docs.mongodb.com/v3.6/reference/operator/query/geoWithin/#op._S_geoWithin)：{ [`$centerSphere`](https://docs.mongodb.com/v3.6/reference/operator/query/centerSphere/#op._S_centerSphere)：…} |     球形      |                                                              |
+| [`$geoIntersects`](https://docs.mongodb.com/v3.6/reference/operator/query/geoIntersects/#op._S_geoIntersects) |     球形      |                                                              |
+| [`geoNear`](https://docs.mongodb.com/v3.6/reference/command/geoNear/#dbcmd.geoNear) |   球形+平面   |                                                              |
+| [`$geoNear`](https://docs.mongodb.com/v3.6/reference/operator/aggregation/geoNear/#pipe._S_geoNear) |   球形+平面   |                                                              |
+
+## 查询附近的人
+
+​		首先我们新建一个人员的集合，如下，我们分别插入四条数据，3个北京的数据，一条河北
+
+```properties
+db.person.insert( {
+   name: "故宫-张三",
+   location: { type: "Point", coordinates: [ 116.403406,39.923236 ] },
+   province: "北京"
+} );
+db.person.insert( {
+   name: "天安门-李四",
+   location: { type: "Point", coordinates: [ 116.404412,39.915046 ] },
+   province: "北京"
+} );
+db.person.insert( {
+   name: "保定-王麻子",
+   location: { type: "Point", coordinates: [ 115.476571,38.896968 ] },
+   province: "河北"
+} );
+db.person.insert( {
+   name: "西二旗-小刘",
+   location: { type: "Point", coordinates: [ 116.312555,40.059036 ] },
+   province: "北京"
+} );
+```
+
+​		然后我们根据这个属性简历地理位置索引，我们首先采用2dsphere索引进行查询
+
+```yml
+db.person.createIndex( { location: "2dsphere" },{"name":"person_geoindex_location"})
+
+# 注意事项
+# 使用地理位置组合索引时，如 type + location时一定要加上type条件，如果type在前否则抛出异常
+```
+
+​		然后我们通过故宫-张三的经纬度查询附近的人，我们查询最小1米最大5000米的人
+
+```properties
+db.person.find(
+   {
+     location:
+       { $near:
+          {
+            $geometry: { type: "Point",  coordinates: [ 116.403406,39.923236 ] },
+            $minDistance: 1,
+            $maxDistance: 5000
+          }
+       }
+   }
+)
+```
+
+​		然后得到结果如下，为什么要查询1米以内的人呢？因为如果不带上最小1米我们会将自己也查询进去
+
+```properties
+# 结果如下，查询到最近的5000米有一个天安门李四
+/* 1 */
+{
+    "_id" : ObjectId("5f9a885d9973f23ef82e4c01"),
+    "name" : "天安门-李四",
+    "location" : {
+        "type" : "Point",
+        "coordinates" : [ 
+            116.404412, 
+            39.915046
+        ]
+    },
+    "province" : "北京"
+}
+```
+
+​		我们再将范围扩大到30公里
+
+```properties
+db.person.find(
+   {
+     location:
+       { $near:
+          {
+            $geometry: { type: "Point",  coordinates: [ 116.403406,39.923236 ] },
+            $minDistance: 1,
+            $maxDistance: 30000
+          }
+       }
+   }
+)
+```
+
+​		这样西二旗的肯定也能查询出来，结果如下
+
+```properties
+/* 1 */
+{
+    "_id" : ObjectId("5f9a885d9973f23ef82e4c01"),
+    "name" : "天安门-李四",
+    "location" : {
+        "type" : "Point",
+        "coordinates" : [ 
+            116.404412, 
+            39.915046
+        ]
+    },
+    "province" : "北京"
+}
+/* 2 */
+{
+    "_id" : ObjectId("5f9a885d9973f23ef82e4c03"),
+    "name" : "西二旗-小刘",
+    "location" : {
+        "type" : "Point",
+        "coordinates" : [ 
+            116.312555, 
+            40.059036
+        ]
+    },
+    "province" : "北京"
+}
+```
+
+
+
 # Mongo脚本
 
 统计后累加返回

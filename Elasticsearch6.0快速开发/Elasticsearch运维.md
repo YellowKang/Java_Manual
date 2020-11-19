@@ -26,7 +26,7 @@ http://ip地址:9200/_cat
 
 ### 导入
 
-```
+```http
 --山东
 elasticdump --output=http://10.212.1.33:20269/yuqing_2019_2/ --input=E:\卓越讯通\煤矿项目\山东煤监局\sd_month2.json --type=data    
  --后面这个有的版本加了报错  --headers='{"content-type": "application/json"}'
@@ -34,6 +34,16 @@ elasticdump --output=http://10.212.1.33:20269/yuqing_2019_2/ --input=E:\卓越�
 elasticdump --output=http://10.224.0.86:19200/yuqing_2019_6/ --input=E:\卓越讯通\煤矿项目\河北煤矿\hb_month625.json --type=data 
 --新疆
 elasticdump --output=http://172.35.0.33:20369/yuqing_2019_6/ --input=E:\卓越讯通\煤矿项目\新疆\xj_month621.json --type=data
+
+
+
+
+
+# 老版本多type类型指定type无效问题，直接索引后添加
+# 导入警度data类型的索引
+elasticdump --output=http://192.168.1.16:19200/pisearch/data/ --input=/Volumes/BIGKANG/警度部署/镜像和数据/es/pisearchEsData.json
+# 导入警度data类型的索引
+elasticdump --output=http://192.168.1.16:19200/pisearch/document/ --input=/Volumes/BIGKANG/警度部署/镜像和数据/es/pisearchEsDocment.json
 ```
 
 ### 导出
@@ -47,6 +57,14 @@ elasticdump --input=http://192.168.1.14:20269/yuqing_2019_2*/ --output=sd_month2
 elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=hb_month617.json  --searchBody  '{"query":{"bool":{"filter":[{"range":{"pubTime":{"gte":1559318400000,"lt": 1561910400000}}},{"match_phrase":{"content":"河北"}}]}}}' &
 --新疆
 elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=hb_month624.json  --searchBody  '{"query":{"bool":{"filter":[{"range":{"pubTime":{"gte":1560614400000,"lt": 1561910400000}}},{"match_phrase":{"content":"新疆"}}]}}}' &
+
+
+
+# 导出警度data类型的索引
+elasticdump --input=http://192.168.1.12:19200/pisearch/data/ --output=/Volumes/黄康/警度部署/镜像和数据/es/pisearchEsData.json
+# 导出警度document类型的索引
+elasticdump --input=http://192.168.1.12:19200/pisearch/document/ --output=/Volumes/黄康/警度部署/镜像和数据/es/pisearchEsDocment.json
+
 ```
 
 Windows

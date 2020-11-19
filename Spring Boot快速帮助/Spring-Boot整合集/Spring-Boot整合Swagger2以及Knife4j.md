@@ -35,6 +35,96 @@
         </dependency>
 ```
 
+# 编写属性配置
+
+​		我们需要对Swagger等配置文件进行配置，我们使用Properties类统一的将这些配置管理起来。
+
+```java
+package com.test.boot.properties;
+
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @Author BigKang
+ * @Date 2020/11/9 10:10 上午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize Swagger配置
+ */
+@Getter
+@Setter
+@Configuration
+@ConfigurationProperties(prefix = "swagger")
+public class SwaggerProperties {
+
+    /**
+     * 获取swagger配置title
+     */
+    private String title = "标题未设置";
+
+    /**
+     * 获取swagger配置description
+     */
+    private String description = "描述未设置";
+
+    /**
+     * 获取swagger配置version
+     */
+    private String version = "版本未设置";
+
+    /**
+     * 获取swagger配置作者
+     */
+    private String author = "BigKang";
+
+    /**
+     * 获取swagger配置文档包路径
+     */
+    private String docPackage = "com";
+
+    /**
+     * 需要排除掉的路径
+     */
+    private String excludePath = "/error*";
+}
+
+```
+
+​		然后我们在配置文件中进行配置
+
+​		yaml格式如下：
+
+```properties
+swagger:
+  # Swagger标题
+  title: Swagger标题
+  # 描述
+  description: 测试Swagger
+  # 版本
+  version: V2.0
+  # 作者
+  author: BigKang
+  # 扫描包
+  docPackage: com.test
+  # 排除的路径
+  excludePath: /error*
+```
+
+​		properties如下：
+
+```properties
+swagger.title=Swagger标题
+swagger.description=测试Swagger
+swagger.version=V2.0
+swagger.author=BigKang
+swagger.docPackage=com.test
+swagger.excludePath=/error*
+```
+
+
+
 # 编写配置类
 
 注意此处我们apis对应我们相对应的包下面才进行生成的文档，并且这里需要修改成自己的路径
@@ -47,7 +137,6 @@ import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
 import com.google.common.base.Predicates;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -65,41 +154,17 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
  * @Date 2020/3/17 4:27 PM
  * @Summarize Swagger通用配置类
  */
-@RefreshScope
 @Configuration
 @EnableSwagger2
 @Slf4j
 public class Swagger2Config {
 
-    /**
-     * 获取swagger配置title
-     */
-    @Value("${swagger.title:请设置配置}")
-    private String title;
+    private final SwaggerProperties properties;
 
-    /**
-     * 获取swagger配置description
-     */
-    @Value("${swagger.description:请设置配置}")
-    private String description;
-
-    /**
-     * 获取swagger配置version
-     */
-    @Value("${swagger.version:请设置配置}")
-    private String version;
-
-    /**
-     * 获取swagger配置作者
-     */
-    @Value("${swagger.author:BigKang}")
-    private String author;
-
-    /**
-     * 获取swagger配置文档包路径
-     */
-    @Value("${swagger.author:org.kang.cloud}")
-    private String docPackage;
+    @Autowired
+    public Knife4jConfig(SwaggerProperties properties) {
+        this.properties = properties;
+    }
 
     @Bean
     public Docket webApiConfig() {
@@ -109,9 +174,9 @@ public class Swagger2Config {
                 // 创建ApiSelectorBuilder对象
                 .select()
                 // 扫描的包
-                .apis(RequestHandlerSelectors.basePackage(docPackage))
+                .apis(RequestHandlerSelectors.basePackage(properties.getDocPackage()))
                 // 过滤掉错误路径
-                .paths(Predicates.not(PathSelectors.regex("/error.*")))
+                .paths(Predicates.not(PathSelectors.regex(properties.getExcludePath())))
                 .build();
     }
 
@@ -121,13 +186,12 @@ public class Swagger2Config {
      */
     private ApiInfo webApiInfo() {
         return new ApiInfoBuilder()
-                .contact(author)
-                .title(title)
-                .description(description)
-                .version(version)
+                .contact(properties.getAuthor())
+                .title(properties.getTitle())
+                .description(properties.getDescription())
+                .version(properties.getVersion())
                 .build();
     }
-
 
 }
 
@@ -307,11 +371,10 @@ Knife4j功能更加强大，同时页面更加美观
 ## 编写配置
 
 ```java
-
 import com.github.xiaoymin.knife4j.spring.annotations.EnableKnife4j;
 import com.google.common.base.Predicates;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import com.test.boot.properties.SwaggerProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
@@ -332,39 +395,15 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 @Configuration
 @EnableSwagger2
 @EnableKnife4j
-@Slf4j
 @Import(BeanValidatorPluginsConfiguration.class)
 public class Knife4jConfig {
 
-    /**
-     * 获取swagger配置title
-     */
-    @Value("${swagger.title:请设置配置}")
-    private String title;
+    private final SwaggerProperties properties;
 
-    /**
-     * 获取swagger配置description
-     */
-    @Value("${swagger.description:请设置配置}")
-    private String description;
-
-    /**
-     * 获取swagger配置version
-     */
-    @Value("${swagger.version:请设置配置}")
-    private String version;
-
-    /**
-     * 获取swagger配置作者
-     */
-    @Value("${swagger.author:BigKang}")
-    private String author;
-
-    /**
-     * 获取swagger配置文档包路径
-     */
-    @Value("${swagger.author:org.kang.cloud}")
-    private String docPackage;
+    @Autowired
+    public Knife4jConfig(SwaggerProperties properties) {
+        this.properties = properties;
+    }
 
     @Bean
     public Docket webApiConfig() {
@@ -374,9 +413,9 @@ public class Knife4jConfig {
                 // 创建ApiSelectorBuilder对象
                 .select()
                 // 扫描的包
-                .apis(RequestHandlerSelectors.basePackage(docPackage))
+                .apis(RequestHandlerSelectors.basePackage(properties.getDocPackage()))
                 // 过滤掉错误路径
-                .paths(Predicates.not(PathSelectors.regex("/error.*")))
+                .paths(Predicates.not(PathSelectors.regex(properties.getExcludePath())))
                 .build();
     }
 
@@ -386,15 +425,16 @@ public class Knife4jConfig {
      */
     private ApiInfo webApiInfo() {
         return new ApiInfoBuilder()
-                .contact(author)
-                .title(title)
-                .description(description)
-                .version(version)
+                .contact(properties.getAuthor())
+                .title(properties.getTitle())
+                .description(properties.getDescription())
+                .version(properties.getVersion())
                 .build();
     }
 
 
 }
+
 
 ```
 

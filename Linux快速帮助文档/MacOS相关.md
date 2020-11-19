@@ -1,8 +1,28 @@
 
 
+# 安装软件
+
+## Shell工具
+
+final shell
+
+```http
+http://www.hostbuf.com/t/988.html
+```
 
 
-# 国内加速源
+
+## 解压缩
+
+keka解压缩
+
+```http
+https://www.keka.io/en/
+```
+
+
+
+# Homebrew国内加速源
 
 ​		切换brew.git源
 

@@ -40,8 +40,6 @@ scp docker-compose root@114.67.80.169:/usr/local/bin/docker-compose
 
 [docker-compose-Linux-x86_64](https://github.com/docker/compose/releases/download/1.25.5/docker-compose-Linux-x86_64)
 
-![](https://img02.sogoucdn.com/app/a/100520146/62bfd62dbf220aa368f85880e59f5f9f)
-
 将相应的文件下载下来然后放入服务器上，并且复制到/usr/local/bin
 
 ```
@@ -53,5 +51,112 @@ chmod +x /usr/local/bin/docker-compose
 
 ```
 docker-compose -V
+```
+
+# Docker Compose 语法
+
+​		Docker-Compose有3个版本分别是1 、2、3，我们采用最新的3的版本来进行讲解
+
+​		Docker-Compose官方文档地址：[点击进入](https://docs.docker.com/compose/compose-file/)
+
+​		一下是Docker官网对compose版本以及对应的Docker版本的稳定版的版本说明
+
+![image-20201030175011367](/Users/bigkang/Library/Application Support/typora-user-images/image-20201030175011367.png)
+
+​		我们则采用3.7的版本进行演示
+
+​		首先我们使用Nginx容器来进行示例
+
+## UP（启动命令）命令
+
+​			首先我们适用一下命令查看docker-compose up到底支持哪些指令
+
+```sh
+docker-compose up -h
+```
+
+​			然后我们就能看到如下
+
+```properties
+   	-d, --detach               分离模式：在后台运行容器，打印新的容器名称。与--abort-on-container-exit不兼容。
+   	
+    --no-color                 产生单色输出，也就是我们的日志只使用一个颜色输出。
+    
+    --quiet-pull               Pull without printing progress information
+    
+    --no-deps                  Don't start linked services.
+    --force-recreate           Recreate containers even if their configuration
+                               and image haven't changed.
+    --always-recreate-deps     Recreate dependent containers.
+                               Incompatible with --no-recreate.
+    --no-recreate              If containers already exist, don't recreate
+                               them. Incompatible with --force-recreate and -V.
+    --no-build                 Don't build an image, even if it's missing.
+    --no-start                 Don't start the services after creating them.
+    --build                    Build images before starting containers.
+    --abort-on-container-exit  Stops all containers if any container was
+                               stopped. Incompatible with -d.
+    --attach-dependencies      Attach to dependent containers.
+    -t, --timeout TIMEOUT      Use this timeout in seconds for container
+                               shutdown when attached or when containers are
+                               already running. (default: 10)
+    -V, --renew-anon-volumes   Recreate anonymous volumes instead of retrieving
+                               data from the previous containers.
+    --remove-orphans           Remove containers for services not defined
+                               in the Compose file.
+    --exit-code-from SERVICE   Return the exit code of the selected service
+                               container. Implies --abort-on-container-exit.
+    --scale SERVICE=NUM        Scale SERVICE to NUM instances. Overrides the
+                               `scale` setting in the Compose file if present.
+```
+
+
+
+## 创建简单容器
+
+​		首先创建文件夹，以及Docker-Compose文件，文件可以以yaml和yml结尾
+
+```shell
+mkdir /root/docker-compose-file/
+touch /root/docker-compose-file/docker-compose.yaml
+```
+
+​		然后编辑如下
+
+```yml
+echo "# 标记版本
+version: \"3.7\"
+# 配置服务
+services:
+  # 服务名
+  nginx:
+    # 镜像名
+    image: nginx
+    # 创建的容器名称
+    container_name: nginx
+    # 端口映射
+    ports:
+      - \"8080:80\"
+    # 是否自启动
+    restart: always" > docker-compose.yaml
+```
+
+
+
+
+
+```
+# 导出警度data类型的索引
+elasticdump --input=http://192.168.1.12:19200/pisearch/data/ --output=/Volumes/黄康/警度部署/镜像和数据/es/pisearchEsData.json
+# 导出警度document类型的索引
+elasticdump --input=http://192.168.1.12:19200/pisearch/document/ --output=/Volumes/黄康/警度部署/镜像和数据/es/pisearchEsDocment.json
+
+
+elasticdump --input=http://192.168.1.12:19200/pisearch/ --output=/Volumes/黄康/警度部署/镜像和数据/es/pisearch.json
+
+# 导入警度data类型的索引
+elasticdump --output=http://192.168.1.12:19200/testsearch/data/ --input=/Volumes/黄康/警度部署/镜像和数据/es/pisearchEsData.json
+# 导入警度data类型的索引
+elasticdump --output=http://192.168.1.12:19200/testsearch/document/ --input=/Volumes/黄康/警度部署/镜像和数据/es/pisearchEsDocment.json
 ```
 

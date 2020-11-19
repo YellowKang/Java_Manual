@@ -118,6 +118,16 @@ vim /etc/hosts
 
 将instance-abulrb7w修改为bigkang即可
 
+然后修改hosts
+
+vim /etc/hosts
+
+```
+127.0.0.1       localhost      bigkang
+```
+
+
+
 ## 设置静态IP
 
 ### Ubantu

@@ -232,6 +232,15 @@ chmod +x /usr/local/bin/docker-compose
 docker-compose -V
 ```
 
+​		或者使用加速地址
+
+```
+curl -Lhttps://github.91chifun.workers.dev//https://github.com/docker/compose/releases/download/1.27.4/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+
+```
+
+
+
 ## 下载HarBor
 
 使用wget或者去github上下载harbor包

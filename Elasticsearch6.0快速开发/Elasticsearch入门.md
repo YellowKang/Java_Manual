@@ -523,6 +523,12 @@ expand_wildcards
 
 ### 查看索引
 
+​		查询所有索引
+
+```properties
+GET _cat/indices
+```
+
 ​		我们先来查看docment1这个索引的设置信息
 
 ```properties
@@ -581,7 +587,7 @@ DELETE docment2
 
 ​		删除之后所有这个索引相关数据都没了
 
-### 重新索引
+### Reindex重新索引
 
 ​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-reindex.html)
 
@@ -1477,7 +1483,7 @@ POST /index1/doc1/_update_by_query
 
 
 
-#### 批量更新
+#### 批量操作_bulk
 
 ​		批量更新是指我们一次对多个除了查询之外的，增，删，改等等的操作，我们把它，例如我们想修改一个数据，并且新增一条数据，但是我们这个操作需要一次执行，不想分成两次，所以我们使用_bulk即可。
 

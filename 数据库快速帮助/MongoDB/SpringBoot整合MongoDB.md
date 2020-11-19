@@ -2,7 +2,7 @@
 
 进入mongo，创建test数据库，以及用户
 
-```
+```shell
 use test
 
 创建一个用户，用户名test密码test，为这个数据库的管理员，这个用户属于test这个数据库
@@ -14,7 +14,7 @@ db.createUser({user:"test",pwd:"test",roles:[{role:'userAdmin',db:'test'}]})
 
 lombok为了简化代码使用《懒得写get，set方法》
 
-```
+```xml
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -36,7 +36,7 @@ mongodb://用户名:用户密码@ip地址:端口号/数据库
 
 我们假设一个test用户密码为test，ip为192.168.0.1，端口号为27017，数据库为test
 
-```
+```properties
 spring:
   data:
     mongodb:
@@ -45,13 +45,13 @@ spring:
 
 properties版本
 
-```
+```properties
 spring.data.mongodb.uri=mongodb://test:test@192.168.0.1:27017/test
 ```
 
 mongo配置
 
-```
+```properties
 # MongoDB URI配置 重要，添加了用户名和密码验证
 spring.data.mongodb.uri=mongodb://anjian:topcom123@192.168.68.138:27017,192.168.68.137:27017,192.168.68.139:27017/anjian-db?slaveOk=true&replicaSet=mongoreplset&write=1&readPreference=secondaryPreferred&connectTimeoutMS=300000
 
@@ -73,7 +73,7 @@ spring.data.mongodb.socket-keep-alive=true
 
 编写实体类，Document为文档类似MySQL的表名，可以自动创建，id为主键id，随着创建而创建自动生成
 
-```
+```java
 @Data
 @ToString
 @Document("testmongo")
@@ -91,7 +91,7 @@ public class TestMongo {
 
 编写Dao层，继承MongoRepository，后面类型为主键类型
 
-```
+```java
 public interface TestMongoDao extends MongoRepository<TestMongo,String> {
 }
 ```
@@ -100,7 +100,7 @@ public interface TestMongoDao extends MongoRepository<TestMongo,String> {
 
 先编写几个简单的查询，新增和删除
 
-```
+```java
 @RestController
 public class TestController {
     
@@ -178,11 +178,13 @@ List<Object> distinct = mongoTemplate.findDistinct(query, "type", "user", Object
         }
 ```
 
-## 高阶Api进行聚合查询
+## 高阶Api
+
+### 聚合查询
 
 首先我们引入MongoTemplate
 
-```
+```java
     @Autowired
     private MongoTemplate mongoTemplate;
     
@@ -217,7 +219,7 @@ operations.add(Aggregation.group("atype").count().as("count").sum("deathnumber")
 
 mongo的查询语句对应如下
 
-```
+```json
 db.accident.aggregate([
 	{
         $match: {
@@ -240,7 +242,7 @@ db.accident.aggregate([
 
 ### 时间表达式格式化查询
 
-```
+```json
 db.temp_MongoDateTime.aggregate(
    [
      {
@@ -326,7 +328,7 @@ new Criteria().orOperator(Criteria.where("sysType").is("抽放系统").and("sid"
 
 
 
-### 聚合
+### 多重聚合
 
 按照时间加上类型进行聚合
 
@@ -359,6 +361,8 @@ AggregationResults<HashMap> aggregate = mongoTemplate.aggregate(aggregation, "su
 
 return aggregate.getMappedResults();
 ```
+
+
 
 ### 字符串长度查询
 
@@ -413,6 +417,262 @@ return aggregate.getMappedResults();
 Query query = new Query();   
 // 根据reply下的answerDept字段进行匹配（模糊查询），
 query.addCriteria(Criteria.where("reply").elemMatch(Criteria.where("answerDept").regex(“大队”)));
+```
+
+### 经纬度地理位置查询
+
+​		首先我们需要存储经纬度结构，如下，那么我们一定需要一个实体来进行存储这个location
+
+```properties
+{
+    "_id" : ObjectId("5f9a94b19973f23ef82e4c05"),
+    "name" : "天安门-李四",
+    "location" : {
+        "type" : "Point",
+        "coordinates" : [ 
+            116.404412, 
+            39.915046
+        ]
+    },
+    "type" : "GEO"
+}
+```
+
+​		下面我们编写一个location用于存储我们的经纬度类型
+
+```java
+import com.mongodb.client.model.geojson.GeoJsonObjectType;
+
+
+/**
+ * @Author BigKang
+ * @Date 2020/10/29 5:34 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize Mongo点位置信息
+ */
+public class MongoPoint {
+
+    /**
+     * Mongo点索引类型
+     */
+    private String type = GeoJsonObjectType.POINT.getTypeName();
+
+    /**
+     * 最小经度下限
+     */
+    private static final double MIN_LONGITUDE = -180;
+    /**
+     * 最大经度上限
+     */
+    private static final double MAX_LONGITUDE = 180;
+    /**
+     * 最小纬度下限
+     */
+    private static final double MIN_LATITUDE = -90;
+    /**
+     * 最大纬度上限
+     */
+    private static final double MAX_LATITUDE = 90;
+
+    /**
+     * 坐标数组长度
+     */
+    private static final Integer COORDINATES_LENGTH = 2;
+
+    /**
+     * 经纬度数组【经度，纬度】
+     */
+    private double[] coordinates;
+
+    public MongoPoint(){
+
+    }
+
+    /**
+     * 设置创建构造方法初始化信息
+     * @param longitude
+     * @param latitude
+     */
+    public MongoPoint(double longitude,double latitude){
+        checkLongitude(longitude);
+        checkLatitude(latitude);
+        coordinates =  new double[]{longitude,latitude};
+    }
+
+    /**
+     * 检查经度
+     */
+    public void checkLongitude(double lng){
+        if(lng > MAX_LONGITUDE || lng < MIN_LONGITUDE){
+            throw new RuntimeException("Illegal longitude exception！");
+        }
+    }
+
+    /**
+     * 检查纬度
+     */
+    public void checkLatitude(double lat){
+        if(lat > MAX_LATITUDE || lat < MIN_LATITUDE){
+            throw new RuntimeException("Illegal latitude exception！");
+        }
+    }
+
+    /**
+     * 获取坐标信息
+     * @return
+     */
+    public double[] getCoordinates(){
+        if(coordinates == null || coordinates.length <= 0 || coordinates.length != COORDINATES_LENGTH){
+            throw new NullPointerException("Longitude and latitude information is empty or illegal length exception！");
+        }
+        checkLongitude(coordinates[0]);
+        checkLongitude(coordinates[1]);
+        return coordinates;
+    }
+
+}
+
+```
+
+​		然后我们编写一个工具类，帮助我们快速生成Query接口，并且添加一个计算距离的工具类
+
+```java
+
+import com.mongodb.BasicDBObject;
+import com.topcom.emergency.vo.MongoPoint;
+import org.springframework.data.mongodb.core.query.BasicQuery;
+import org.springframework.data.mongodb.core.query.Query;
+
+/**
+ * @Author BigKang
+ * @Date 2020/10/30 11:07 上午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize Mongo查询工具类
+ */
+public class MongoQueryUtil {
+
+    /**
+     * 赤道半径
+     */
+    private static Integer EARTH_RADIUS = 6378137;
+
+    /**
+     * Mongo near 地理位置查询
+     *
+     * @param field      地理位置字段
+     * @param mongoPoint Mongo地图点
+     * @param radius     半径范围，默认米
+     * @return
+     */
+    public static Query near(String field, MongoPoint mongoPoint, Integer radius) {
+        BasicDBObject basicDBObject = new BasicDBObject();
+        basicDBObject.put(field,
+                new BasicDBObject(
+                        "$near", new BasicDBObject()
+                        .append("$geometry", new BasicDBObject()
+                                .append("type", "Point")
+                                .append("coordinates", mongoPoint.getCoordinates()))
+                        .append("$maxDistance", radius)));
+        Query query = new BasicQuery(basicDBObject);
+        return query;
+    }
+
+
+    /**
+     * 计算两个经纬度的距离返回（米）
+     *
+     * @param origin      当前起点经纬度
+     * @param destination 目标经纬度
+     * @return
+     */
+    public static double GetDistance(MongoPoint origin, MongoPoint destination) {
+        double lng1 = origin.getCoordinates()[0];
+        double lat1 = origin.getCoordinates()[1];
+        double lng2 = destination.getCoordinates()[0];
+        double lat2 = destination.getCoordinates()[1];
+        double radLat1 = rad(lat1);
+        double radLat2 = rad(lat2);
+        double a = radLat1 - radLat2;
+        double b = rad(lng1) - rad(lng2);
+        double s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a / 2), 2)
+                + Math.cos(radLat1) * Math.cos(radLat2) * Math.pow(Math.sin(b / 2), 2)));
+        s = s * EARTH_RADIUS;
+        s = Math.round(s * 10000) / 10000;
+        return s;
+    }
+
+    private static double rad(double d) {
+        return d * Math.PI / 180.0;
+    }
+
+}
+```
+
+​		然后我们编写实体
+
+```java
+import com.topcom.emergency.vo.MongoPoint;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.CompoundIndexes;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+
+/**
+ * 测试实体
+ * @Author BigKang
+ * @Time 2020-10-29 16:02:49
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize 
+ */
+@Getter
+@Setter
+@ToString
+@EqualsAndHashCode
+@Document(collection = "t_test")
+// 地理位置索引
+@CompoundIndexes(value = {@CompoundIndex(name = "SurroundingsInfo_index",def = "{'location':'2dsphere'}")})
+public class Test{
+
+    /**
+    * 名称
+    */
+    private String name;
+
+    /**
+    * 类型
+    */
+    private String type;
+
+
+    /**
+    * 位置
+    */
+    private MongoPoint location;
+
+}
+```
+
+​		然后我们进行查询,我们查询这个经纬度附近1000米的点信息，然后查询type等于test的数据
+
+```java
+    public static void main(String[] args) {
+        // 经纬度数组
+        double[] coordinates = new double[]{116.403406, 39.923236};
+        // 创建点对象
+        MongoPoint mongoPoint = new MongoPoint(coordinates[0], coordinates[1]);
+
+        // 半径范围，1000米
+        Integer radius = 1000;
+        String filed = "location";
+        // 生成查询条件
+        Query query = MongoQueryUtil.near(filed, mongoPoint,radius);
+        query.addCriteria(Criteria.where("type").is("test"));
+        List<Test> tests = mongoTemplate.find(query, Test.class);
+    }
 ```
 
 
@@ -488,7 +748,7 @@ public class TestFlux {
 
 ```
 
-```
+```json
 {
 "sendUrl":"http://gzmkjcglj.com/uploadData/",
 "startDate":"2019-12-1",

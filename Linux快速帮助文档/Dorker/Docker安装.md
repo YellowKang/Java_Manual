@@ -239,7 +239,7 @@ systemctl start docker
 
 # 添加镜像加速
 
-```
+```sh
 vim /etc/docker/daemon.json
 # 填入一下内容,登录阿里云即可获取
 {
@@ -254,11 +254,61 @@ systemctl restart docker.service
 
 将docker文件存储的路径设置为data/docker，或者其他的挂载盘，可以有效地容灾
 
-```
+```sh
 echo '{
  "registry-mirrors": ["https://ldlov75k.mirror.aliyuncs.com"],
  "graph":"/data/docker"
 }' > /etc/docker/daemon.json
 
+```
+
+# 指定镜像仓库地址
+
+```sh
+{
+# 仓库地址，多个，可以域名或者是IP+端口
+ "insecure-registries" : ["hub.bigkang.club"]
+}
+
+```
+
+# Docker配置（重点）！
+
+​		向Docker配置文件json写入如下
+
+```properties
+# 设置Docker加速
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": ["https://ldlov75k.mirror.aliyuncs.com"],
+  "graph":"/data/docker",
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "3"
+  },
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "storage-driver": "overlay2",
+  "storage-opts": ["overlay2.override_kernel_check=true"],
+  "insecure-registries" : ["hub.bigkang.k8s"]
+}
+EOF
+```
+
+​		注释如下：
+
+```properties
+  "registry-mirrors": 镜像仓库加速
+  "graph": docker数据存储路径
+  "log-driver": 日志驱动
+  "log-opts": {
+    "max-size": 日志文件大小
+    "max-file": 日志文件最大数量
+  },
+  "exec-opts": 执行配置
+  "storage-driver": 存储驱动
+  "storage-opts": 存储驱动设置
+  "insecure-registries" : docker仓库设置（镜像仓库为共有可以pull，docker仓库可以自己push上传）
 ```
 

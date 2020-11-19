@@ -14,7 +14,8 @@ docker run -d \
 -p 9000:9000 \
 -e MINIO_ACCESS_KEY=bigkang123 \
 -e MINIO_SECRET_KEY=bigkang123 \
--v /docker/minio/data:/data minio/minio server /data
+-v /docker/minio/data:/data \
+minio/minio server /data
 ```
 
 然后我们登陆我们的Minio客户端，我们访问ip+端口就能看到如下，我们使用我们刚才设置的Key登陆

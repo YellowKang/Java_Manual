@@ -3,7 +3,7 @@
 将所有的none镜像删除
 
 ```
-docker images|grep none|awk '{print $3 }'|xargs docker rmi
+docker images -a|grep none|awk '{print $3 }'|xargs docker rmi
 ```
 
 docker run --name nginx -d -p 8899:80  -v /data/nginx/conf/nginx.conf:/etc/nginx/nginx.conf  -v /data/nginx/logs:/var/log/nginx -d docker.io/nginx

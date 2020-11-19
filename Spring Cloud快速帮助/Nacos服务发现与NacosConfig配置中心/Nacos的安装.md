@@ -238,6 +238,49 @@ vim cluster.conf
 	2、修改后请将当前的容器提交为新的镜像，否则每次重启集群文件会被刷新掉
 ```
 
+# K8s安装Nacos
+
+​		官网地址：[点击进入](https://nacos.io/zh-cn/docs/use-nacos-with-kubernetes.html)
+
+## 快速启动
+
+​		首先下载部署脚本
+
+```
+git clone https://github.com/nacos-group/nacos-k8s.git
+```
+
+​		然后进入目录文件执行权限，启动		
+
+```sh
+cd nacos-k8s
+chmod +x quick-startup.sh
+./quick-startup.sh
+```
+
+​		然后我们使用ingress-nginx暴露出去，修改文件,我们直接往原nacos文件中写入
+
+```yaml
+echo "
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ingress-nacos-quick
+  annotations:
+    kubernets.io/ingress.class: \"nginx\"
+spec:
+  rules:
+  - host: yunyaonacos.bigkang.club
+    http:
+      paths:
+      - path:
+        backend:
+          serviceName: nacos-headless
+          servicePort: 8848" >> test.yaml
+```
+
 
 
 

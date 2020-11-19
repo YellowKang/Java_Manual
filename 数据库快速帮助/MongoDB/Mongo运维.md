@@ -38,6 +38,8 @@ docker cp  容器id:/data/db /root/test/data
 
 
 
+
+
 # MongoDump迁移数据（整库）
 
 ## 导出数据

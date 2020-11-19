@@ -1,8 +1,8 @@
-# 官方地址
+# 官方地址 
 
-```
-https://github.com/alibaba/easyexcel
-```
+​		GitHub地址：[点击进入](https://github.com/alibaba/easyexcel)
+
+​		  语 雀 地 址：[点击进入](https://www.yuque.com/easyexcel/doc/easyexcel)
 
 # 引入依赖
 
@@ -105,7 +105,7 @@ public class TestEsayExcel {
 public class TestEsayExcel {
     public static void main(String[] args) {
         // 创建reader对象
-        ExcelReader excelReader = EasyExcel.read("/Users/bigkang/Documents/笔记/Java_Manual/企业及开发其他辅助快速帮助/Excel表格快速帮助/test.xlsx", Demo.class, new DemoListener()).build();
+        ExcelReader excelReader = EasyExcel.read("/Users/bigkang/Documents/笔记/Java_Manual/企业及开发其他辅助快速帮助/Excel表格快速帮助/	test.xlsx", Demo.class, new DemoListener()).build();
         // 读取第几个Sheet，从索引指定0表示第一个依次类推，1表示第二个Sheet
         ReadSheet readSheet = EasyExcel.readSheet(1).build();
         // 读取Sheet
@@ -257,11 +257,54 @@ public class ExcelListener<T> extends AnalysisEventListener<T> {
 
 # 进行写入
 
+​		首先创建实体
 
+```java
 
+import com.alibaba.excel.annotation.ExcelProperty;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
+/**
+ * @Author BigKang
+ * @Date 2020/11/9 4:36 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize
+ */
+@Data
+@AllArgsConstructor
+public class TestVo {
 
+    @ExcelProperty("标题ID")
+    private Integer id;
 
+    @ExcelProperty("名称")
+    private String name;
+}
+
+```
+
+​		然后测试写入文件
+
+```java
+    @Test
+    public void test() throws IOException {
+        List<TestVo> list = new ArrayList<>();
+        list.add(new TestVo(1, "BigKang1"));
+        list.add(new TestVo(2, "BigKang2"));
+        list.add(new TestVo(3, "BigKang3"));
+        list.add(new TestVo(4, "BigKang4"));
+        list.add(new TestVo(5, "BigKang5"));
+        String filePath = "/Users/bigkang/Documents/test/";
+        String fileName = UUID.randomUUID().toString() + ".xlsx";
+        File file = new File(filePath + fileName);
+        if (!file.exists()) {
+            file.createNewFile();
+        }
+        EasyExcel.write(file, TestVo.class).sheet("测试Sheet").doWrite(list);
+        System.out.println(fileName);
+    }
+```
 
 # 注意
 
