@@ -2122,7 +2122,7 @@ public class TestK8sController {
 
 ```
 
-### 构建镜像
+### 构建镜像(可以直接从Github下载)
 
 ​		进入115，yunyao3节点
 
@@ -2149,7 +2149,17 @@ docker login https://hub.bigkang.k8s
 docker push hub.bigkang.k8s/library/boot-k8s
 ```
 
-### 创建k8s启动文件
+### 创建k8s启动文件（可以使用打包好的镜像）
+
+​		如需使用公共镜像直接从hub拉取即可
+
+```sh
+# 修改image标签如下，已经上传hub公共仓库
+   spec:
+     containers:
+     - name: boot-k8s
+       image: registry.cn-shanghai.aliyuncs.com/bigkang/boot-k8s
+```
 
 ​		生成文件
 
@@ -2245,17 +2255,232 @@ kubectl get pods -o wide | grep boot-k8s
 
 ​		查看service
 
-```
+```sh
 kubectl get service -o wide | grep boot-k8s
 ```
 
 ​		查看Ingress
 
-```
+```sh
 kubectl get ingress -o wide | grep boot-k8s
 ```
 
+​		启动后添加host映射然后访问即可
 
+```sh
+192.168.1.12 boot.bigkang.k8s
+```
+
+​		https://boot.bigkang.k8s
+
+​		我们一直访问会出现多个不同的信息，默认采用轮询
+
+​		然后我们查看pod
+
+```sh
+# 查看pod
+kubectl get pods -o wide | grep boot-k8s
+# 返回如下3个Pod
+boot-k8s-deploy-f86cd775f-dp8cb   1/1     Running   0          15h   10.244.1.13   yunyao2   <none>           <none>
+boot-k8s-deploy-f86cd775f-hkzl9   1/1     Running   0          15h   10.244.2.5    yunyao3   <none>           <none>
+boot-k8s-deploy-f86cd775f-rlrlz   1/1     Running   0          15h   10.244.1.12   yunyao2   <none>           <none>
+
+# 查看deployment
+kubectl  get deployment 
+# 返回如下
+NAME              READY   UP-TO-DATE   AVAILABLE   AGE
+boot-k8s-deploy   3/3     3            3           15h
+tomcat-deploy     1/1     1            1           19h
+
+# 我们动态进行扩容,扩容至5个pod
+kubectl scale deployment boot-k8s-deploy --replicas 5
+
+# 再次查看Pod
+kubectl get pods -o wide | grep boot-k8s
+
+# 返回如下，发现扩容至5个pod实例
+boot-k8s-deploy-f86cd775f-dp8cb   1/1     Running   0          15h   10.244.1.13   yunyao2   <none>           <none>
+boot-k8s-deploy-f86cd775f-hkzl9   1/1     Running   0          15h   10.244.2.5    yunyao3   <none>           <none>
+boot-k8s-deploy-f86cd775f-k4psx   1/1     Running   0          25s   10.244.2.6    yunyao3   <none>           <none>
+boot-k8s-deploy-f86cd775f-nhv6j   1/1     Running   0          25s   10.244.1.14   yunyao2   <none>           <none>
+boot-k8s-deploy-f86cd775f-rlrlz   1/1     Running   0          15h   10.244.1.12   yunyao2   <none>           <none>
+
+# 我们再进行访问	发现可以负载到5个Pod中
+# 缩容回1个实例
+kubectl scale deployment boot-k8s-deploy --replicas 1
+
+# 再次查看
+kubectl get pods -o wide | grep boot-k8s
+# 返回如下，发现其他容器都被终止只有一个运行
+boot-k8s-deploy-f86cd775f-dp8cb   1/1     Terminating   0          15h     10.244.1.13   yunyao2   <none>           <none>
+boot-k8s-deploy-f86cd775f-hkzl9   1/1     Running       0          15h     10.244.2.5    yunyao3   <none>           <none>
+boot-k8s-deploy-f86cd775f-k4psx   1/1     Terminating   0          2m35s   10.244.2.6    yunyao3   <none>           <none>
+boot-k8s-deploy-f86cd775f-nhv6j   1/1     Terminating   0          2m35s   10.244.1.14   yunyao2   <none>           <none>
+boot-k8s-deploy-f86cd775f-rlrlz   1/1     Terminating   0          15h     10.244.1.12   yunyao2   <none>           <none>
+# 稍等一会后发现只有一个pod了
+```
+
+## 安装CoreDns
+
+​		官网地址：[点击进入](https://github.com/coredns/coredns)
+
+​		CoreDNS是用Go编写的DNS服务器/转发器，它链接[插件](https://coredns.io/plugins)。每个插件执行一个（DNS）功能。
+
+​		CoreDNS可以代替Kubernetes中的标准Kube-DNS运行。使用*kubernetes* 插件，CoreDNS将从Kubernetes集群读取区域数据。它实现了为基于Kubernetes DNS的服务发现定义的规范：[DNS规范](https://github.com/kubernetes/dns/blob/master/docs/specification.md)。
+
+​		首先我们来安装使用CoreDns
+
+```sh
+# 创建目录
+mkdir ~/coreDns && cd ~/coreDns
+# 下载部署脚本
+wget https://raw.githubusercontent.com/coredns/deployment/master/kubernetes/deploy.sh
+wget https://raw.githubusercontent.com/coredns/deployment/master/kubernetes/coredns.yaml.sed
+
+# 启动脚本并且应用
+chmod 7 deploy.sh
+./deploy.sh | kubectl apply -f -
+# 删除原来的kube-dns
+kubectl delete --namespace=kube-system deployment kube-dns
+```
+
+​		如果需要回滚到kube-dns，使用如下(一般不需要)
+
+```sh
+# 下载回滚脚本
+wget https://github.com/coredns/deployment/blob/master/kubernetes/rollback.sh
+
+# 回滚应用
+./rollback.sh | kubectl apply -f -
+
+# 删除CoreDns
+kubectl delete --namespace=kube-system deployment coredns
+```
+
+​		验证是否能够使用CoreDNS
+
+```sh
+# 运行容器
+kubectl run cirros-$RANDOM --rm -it --image=cirros -- sh
+# 进入脚本后我们先查看hosts
+cat /etc/resolv.conf 
+# 返回如下，我们可以看到search的域
+nameserver 10.1.0.10
+search default.svc.cluster.local svc.cluster.local cluster.local openstacklocal
+options ndots:5
+# 测试访问外网
+ping baidu.com
+# 测试我们直接使用service名称访问
+ping boot-k8s-service
+# 返回如下，因为Master执行所以无法ping通，但是我们可以看到DNS解析成功了，成功解析到service的ip
+PING boot-k8s-service (10.1.85.177): 56 data bytes
+```
+
+## kube-proxy使用ipvs（pod无法pingservice问题）
+
+​		我们发现pod中无法ping通service
+
+​		**原因：kube-proxy使用了iptable模式，修改为ipvs模式则可以在pod内ping通clusterIP或servicename**
+
+​		我们查看
+
+```sh
+# 查看kube-proxy
+kubectl get pods -A  | grep kube-proxy
+
+# 返回如下
+kube-system            kube-proxy-2clfd                             1/1     Running   0          24h
+kube-system            kube-proxy-mn9j4                             1/1     Running   0          24h
+kube-system            kube-proxy-mprrf                             1/1     Running   0          24h
+
+# 查看日志
+kubectl logs -n kube-system kube-proxy-mn9j4
+
+# 返回如下
+W1119 03:07:18.587672       1 server_others.go:559] Unknown proxy mode "", assuming iptables proxy
+I1119 03:07:18.593516       1 node.go:136] Successfully retrieved node IP: 192.168.1.115
+I1119 03:07:18.593540       1 server_others.go:186] Using iptables Proxier.
+I1119 03:07:18.593713       1 server.go:583] Version: v1.18.12
+I1119 03:07:18.593978       1 conntrack.go:100] Set sysctl 'net/netfilter/nf_conntrack_max' to 131072
+I1119 03:07:18.593995       1 conntrack.go:52] Setting nf_conntrack_max to 131072
+I1119 03:07:18.594041       1 conntrack.go:100] Set sysctl 'net/netfilter/nf_conntrack_tcp_timeout_established' to 86400
+I1119 03:07:18.594061       1 conntrack.go:100] Set sysctl 'net/netfilter/nf_conntrack_tcp_timeout_close_wait' to 3600
+I1119 03:07:18.594444       1 config.go:315] Starting service config controller
+I1119 03:07:18.594459       1 shared_informer.go:223] Waiting for caches to sync for service config
+I1119 03:07:18.594475       1 config.go:133] Starting endpoints config controller
+I1119 03:07:18.594484       1 shared_informer.go:223] Waiting for caches to sync for endpoints config
+I1119 03:07:18.694579       1 shared_informer.go:230] Caches are synced for service config 
+I1119 03:07:18.694609       1 shared_informer.go:230] Caches are synced for endpoints config 
+
+# 我们可以看到
+I1119 03:07:18.593540       1 server_others.go:186] Using iptables Proxier.
+# 使用的iptables
+```
+
+​		修改为**ipvs模式**
+
+```sh
+# 便捷configMap，cm为简写
+kubectl edit cm kube-proxy -n kube-system
+
+# 找到mod
+    kind: KubeProxyConfiguration
+    metricsBindAddress: ""
+    mode: ""
+    nodePortAddresses: null
+    oomScoreAdj: null
+    portRange: ""
+    showHiddenMetricsForVersion: ""
+
+# 修改为ipvs
+    kind: KubeProxyConfiguration
+    metricsBindAddress: ""
+    mode: "ipvs"
+    nodePortAddresses: null
+    oomScoreAdj: null
+    portRange: ""
+    showHiddenMetricsForVersion: ""
+```
+
+​		然后服务器中设置ipvs配置
+
+```sh
+cat > /etc/sysconfig/modules/ipvs.modules <<EOF
+#!/bin/bash 
+modprobe -- ip_vs 
+modprobe -- ip_vs_rr 
+modprobe -- ip_vs_wrr 
+modprobe -- ip_vs_sh 
+modprobe -- nf_conntrack_ipv4 
+EOF
+```
+
+​		设置权限
+
+```sh
+sudo chmod 755 /etc/sysconfig/modules/ipvs.modules && bash /etc/sysconfig/modules/ipvs.modules && lsmod | grep -e ip_vs -e nf_conntrack_ipv4
+```
+
+​		Master中重启pod
+
+```sh
+kubectl get pod -n kube-system | grep kube-proxy |awk '{system("kubectl delete pod "$1" -n kube-system")}'
+```
+
+​		查看日志
+
+```sh
+kubectl get pods -A  | grep kube-proxy
+
+kubectl logs -n kube-system  kube-proxy-jfl44 
+
+# 返回如下
+I1120 03:55:42.062279       1 node.go:136] Successfully retrieved node IP: 192.168.1.12
+I1120 03:55:42.062316       1 server_others.go:259] Using ipvs Proxier.
+W1120 03:55:42.062496       1 proxier.go:429] IPVS scheduler not specified, use rr by default
+```
+
+​		发现修改为Using ipvs Proxier即可
 
 # 辅助
 

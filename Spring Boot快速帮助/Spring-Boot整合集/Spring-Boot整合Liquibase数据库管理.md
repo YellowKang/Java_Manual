@@ -186,14 +186,6 @@ databaseChangeLog:
 
 
 
-
-
-
-
-
-
-
-
 ```
   - changeSet:
       # 唯一ID，用于标识changeSet，后续可以用来回滚,不同作者都可以使用1，但是不允许一个作者出现两个1
@@ -258,3 +250,104 @@ databaseChangeLog:
             tag: 1
 ```
 
+
+
+
+
+
+
+```
+[mysqld]
+character-set-server=utf8
+[mysqld]
+character-set-server=utf8
+## 同一局域网内注意要唯一
+server-id=100  
+## 开启二进制日志功能，可以随便取（关键）
+log-bin=mysql-bin
+
+[client]
+default-character-set=utf8
+[mysql]
+default-character-set=utf8
+
+
+[client]
+default-character-set=utf8
+[mysql]
+default-character-set=utf8
+
+
+
+```
+
+
+
+```
+databaseChangeLog:
+  - changeSet:
+    id: 1
+    author: bigkang
+    comment: "用户表"
+    runInTransaction: true
+    changes:
+      - createTable:
+        tableName: t_user
+        columns:
+          - column:
+            name: id
+            type: int
+            autoIncrement: true
+            constraints:
+              primaryKey: true
+              nullable: false
+            remarks: 用户ID
+          - column:
+            name: username
+            type: VARCHAR(50)
+            constraints:
+              nullable: false
+            remarks: 用户名称
+          - column:
+            name: password
+            type: VARCHAR(50)
+            constraints:
+              nullable: false
+            remarks: 用户密码
+          - column:
+            name: phone
+            type: varchar(50)
+            constraints:
+              nullable: true
+            remarks: 用户手机号码
+          - column:
+            name: email
+            type: varchar(80)
+            constraints:
+              nullable: true
+            remarks: 用户邮箱
+          - column:
+            name: enable
+            type: tinyint(1)
+            constraints:
+              nullable: true
+            remarks: 用户是否启用
+          - column:
+            name: deleted
+            type: int(11)
+            constraints:
+              nullable: true
+            remarks: 逻辑删除
+          - column:
+            name: update_time
+            type: datetime(0)
+            constraints:
+              nullable: true
+            remarks: 修改时间
+          - column:
+            name: create_time
+            type: datetime(0)
+            constraints:
+              nullable: true
+            remarks: 创建时间
+```

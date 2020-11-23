@@ -16,6 +16,15 @@ java -jar arthas-boot.jar
 
 # 命令
 
+
+
+```sh
+# 查询命令
+help
+```
+
+
+
 ```
 dashboard
 thread

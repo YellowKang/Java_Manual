@@ -250,17 +250,49 @@ PS Old Generation
 
 # 常用调优参数
 
-​		下面列举常用的虚拟机参数
+## 溢出打印dump
 
 ```properties
--XX:+PrintGCDetails																							// 打印GC过程
 -XX:+HeapDumpOnOutOfMemoryError 																// 堆内存溢出时输出异常文件
 -XX:HeapDumpPath=/Users/bigkang/Documents/test/image/jvm.dump		// 指定异常dump文件位置
+
+# 一条龙参数
+-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./dump/jvm.dump
 ```
 
+## GC日志存储
+
+```sh
+-Xloggc:./log/gc-%t.log																							# 打印GC日志到指定目录
+-XX:+PrintGCDetails																									# 打印GC过程
+-XX:+PrintGCDateStamps																							# 打印GC日期
+-XX:+PrintGCTimeStamps																							# 打印GC时间
+-XX:+PrintGCCause																										# 打印Gc原因										
+-XX:+UseGCLogFileRotation																						# 使用Gc日志滚动
+-XX:NumberOfGCLogFiles=10																						# Gc日志数量					
+-XX:GCLogFileSize=100M																							# Gc日志大小（10 * 100） = 1000M = 1G
 
 
+# 一条龙指定Gc参数
+-Xloggc:./logs/gc-%t.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+UseGCLogFileRotation -XX:+PrintGCCause -XX:GCLogFileSize=10M  -XX:NumberOfGCLogFiles=10
 
+
+# 特别参数，打印堆内存GC详细信息
+ -XX:+PrintHeapAtGC				
+# 如下
+Heap after GC invocations=5 (full 1):
+ PSYoungGen      total 111616K, used 6669K [0x000000076ab00000, 0x0000000773c80000, 0x00000007c0000000)
+  eden space 104448K, 0% used [0x000000076ab00000,0x000000076ab00000,0x0000000771100000)
+  from space 7168K, 93% used [0x0000000773580000,0x0000000773c03620,0x0000000773c80000)
+  to   space 10752K, 0% used [0x0000000772780000,0x0000000772780000,0x0000000773200000)
+ ParOldGen       total 97280K, used 7370K [0x00000006c0000000, 0x00000006c5f00000, 0x000000076ab00000)
+  object space 97280K, 7% used [0x00000006c0000000,0x00000006c0732a50,0x00000006c5f00000)
+ Metaspace       used 22322K, capacity 23200K, committed 23296K, reserved 1069056K
+  class space    used 3047K, capacity 3268K, committed 3328K, reserved 1048576K
+}
+```
+
+​		在线分析Gc日志网站：[点击进入](https://gceasy.io/)
 
 
 

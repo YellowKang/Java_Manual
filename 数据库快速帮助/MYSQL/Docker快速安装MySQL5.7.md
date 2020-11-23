@@ -80,3 +80,37 @@ SET NAMES utf8;
 
 
 
+# 一键设置编码
+
+```sql
+set character_set_server = utf8;
+set character_set_database = utf8;
+set collation_connection = utf8_general_ci;
+set collation_database = utf8_general_ci;
+set collation_server = utf8_general_ci;
+set character_set_client = utf8mb4;
+set character_set_results = utf8mb4;
+set character_set_connection = utf8mb4;
+show variables like 'char%';
+```
+
+
+
+
+
+```sql
+docker run -p 3306:3306 \
+--name mysql \
+-e MYSQL_ROOT_PASSWORD=bigkang \
+--privileged=true \
+-v /docker/nacos/data:/var/lib/mysql \
+-v /docker/nacos/conf/my.cnf:/etc/mysql/conf.d/mysql.cnf \
+-d docker.io/mysql:5.7
+```
+
+
+
+```
+
+```
+
