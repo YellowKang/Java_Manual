@@ -84,6 +84,25 @@ elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=E:\卓越
 curl -s -XGET http://192.168.1.14:20269/_cat/count?v
 ```
 
+# 集群异常
+
+​		集群异常通常是主分片出问题了，如果说出现了unassigned情况，就表示我们有分片无法分配。
+
+​		很大有可能导致我们磁盘到达了利用率不往里面写了。
+
+```sh
+PUT /_cluster/settings
+{
+  "transient": {
+    "cluster.routing.allocation.disk.watermark.low": "90%",
+    "cluster.routing.allocation.disk.watermark.high": "95%",
+    "cluster.info.update.interval": "1m"
+  }
+}
+```
+
+
+
 # 索引
 
 ## 修改副本数
@@ -364,9 +383,22 @@ http://182.61.2.16:19201/_cluster/pending_tasks
 http://182.61.2.16:19201/_cluster/reroute
 ```
 
-## 集群更新设置
+## 集群更新设置（零时）
 
 ```http
 http://182.61.2.16:19201/_cluster/settings
+```
+
+
+
+```sh
+PUT /_cluster/settings
+{
+  "transient": {
+    "cluster.routing.allocation.disk.watermark.low": "90%",
+    "cluster.routing.allocation.disk.watermark.high": "95%",
+    "cluster.info.update.interval": "1m"
+  }
+}
 ```
 

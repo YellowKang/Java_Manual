@@ -613,3 +613,30 @@ spring.servlet.multipart.location=/Users/bigkang/Documents/test/image
         }
 ```
 
+
+
+# SpringBoot整合文件预览
+
+​		采用开源软件kkfile
+
+​		官网地址：[点击进入](https://kkfileview.keking.cn/zh-cn/docs/production.html)
+
+​		Docker 启动命令
+
+```
+docker run -itd \
+--name kkfile \
+
+-p 8012:8012 \
+keking/kkfileview
+```
+
+​		使用方式：
+
+​				通过Url即可访问。
+
+```http
+http://192.168.1.17:8012/onlinePreview?url=http://192.168.1.15:9000/test/java%E5%BC%80%E5%8F%91%E6%89%8B%E5%86%8C-%E5%B5%A9%E5%B1%B1%E7%89%88.pdf
+&officePreviewType=pdf
+```
+

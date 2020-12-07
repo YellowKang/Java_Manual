@@ -34,10 +34,10 @@ docker run -d --name rancher --link=mysqldb:db \
 
 
 ```
-docker run -d \
---name rancher \
+docker run -itd \
+--name rancher-server \
 --restart=always \
 -p 8080:8080 \
-
+rancher/server
 ```
 

@@ -41,76 +41,23 @@ cd ~
 
 docker run 运行，-di后台 --name指定名字，最后空格运行jdk1.8这个镜像
 
-docker run -di --name jdk1.8 jdk1.8
+docker run -di --name jdk1.8 jdk1.8		
 
-# 搭建Docker私有仓库
+# 构建JRE基础镜像
 
-## 安装仓库
+## 打包Jre
 
-​		什么是Docker私有仓库呢？我们通常下载镜像是在docker上直接search然后再pull下来，但是如果我们自己将一个Docker镜像只做好了之后如何去下载呢？这个时候就需要使用我们的Docker私有仓库了
+​		先去官网下载JRE环境，然后删除多余的东西重新打包
 
-​		如何使用Docker私有仓库？首先我们先下载仓库
+​		下载Jre地址：[Jre地址](https://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html)
 
-```
-docker pull registry
-```
+​		下载后解压,删除多余jre文件,然后重新压缩包
 
-​		首先我们现更改名字
-
-```
-docker tag docker.io/registry registry
-```
-
-​		然后删除原来的镜像
-
-```
-docker rmi docker.io/registry
-```
-
-​		这样就下载下来了一个仓库然后我们运行仓库
-
-```
-docker run -d --name registry --restart=always -p 5000:5000 registry
-```
-
-​		然后我们docker ps查看一下
-
-​		然后我们测试一下能不能连接上
-
-​			 curl http://localhost:5000/v2/_catalog
-
-​		如果返回{"repositories":[]}
-
-​		就说明启动成功了
-
-​		我们还能通过浏览器访问
-
-​		将localhost换成ip
-
-​		http://localhost:5000/v2/_catalog
-
-```
-"insecure-registries":["192.168.1.161:5000"]
-```
-
-http://140.143.0.227:5000/v2/_catalog
-
-​		
-
-# 构建轻量级JRE基础镜像
-
-先去官网下载JRE环境，然后删除多余的东西重新打包
-
-下载Jre地址：[Jre地址](https://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html)
-
-下载后解压,删除多余jre文件,然后重新压缩包
-
-```
+```sh
 mkdir /tmp/jdk
 tar -zxvf jre-8u231-linux-x64.tar.gz -C /tmp/jdk
 cd /tmp/jdk
-mv jre1.8.0_231 usr
-cd usr
+cd jre1.8.0_231
 rm -rf COPYRIGHT LICENSE README* release THIRDPARTYLICENSEREADME-JAVAFX.txt THIRDPARTYLICENSEREADME.txt Welcome.html
 rm -rf   lib/plugin.jar \
            lib/ext/jfxrt.jar \
@@ -130,60 +77,83 @@ rm -rf   lib/plugin.jar \
            lib/amd64/libjfx*.so
 
 cd ..
-tar zcvf jre8.tar.gz usr
+# 压缩
+tar zcvf jre8.tar.gz jre1.8.0_231
 ```
 
-首先确认自己的当前环境变量是否有PATH，以及JAVA_HOME没有则添加
+​		
 
-然后新建Dockerfile文件
+## alpine轻量级版本
+
+​		然后新建Dockerfile文件
 
 ```sh
+# 环境变量
+export JRE_HOME=/usr/local/java/jre1.8.0_231
+export JAVA_HOME=$JRE_HOME
 echo "FROM docker.io/jeanblanchard/alpine-glibc
 MAINTAINER bigkangsix@qq.com
 # 设置apk源
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
-  && apk update
-# 直接将JDK放入根目录，为/usr/bin  
-ADD jre8.tar.gz /
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-RUN echo 'Asia/Shanghai' > /etc/timezone" > Dockerfile
+RUN echo 'Asia/Shanghai' > /etc/timezone
+
+RUN mkdir /usr/local/java
+# 直接将JDK放入/usr/local/java
+ADD jre8.tar.gz /usr/local/java
+# 设置环境变量
+ENV LANG zh_CN.uft8
+ENV JRE_HOME=$JRE_HOME
+ENV JAVA_HOME=$JRE_HOME
+# 解决本地PATH导致容器异常，直接写死
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$JRE_HOME/bin" > Dockerfile
+rm -rf jre1.8.0_231
 ```
 
-build镜像
+​		build镜像
 
-```
-docker build -t kang/jre1.8 . 
+```sh
+docker build -t bigkang/jre8:alpine .
 docker stop run
 docker rm run
-docker run --name run -di kang/jre1.8:latest
+docker run --name run -di bigkang/jre8:alpine
 docker exec -it run sh
 进入容器输入java命令出现java提示即可
 ```
 
+​		推送阿里云
 
+```sh
+# 登录
+docker login registry.cn-shanghai.aliyuncs.com
 
+# 标记版本号
+docker tag bigkang/jre8:alpine registry.cn-shanghai.aliyuncs.com/bigkang/jre8:alpine
 
-
-
-
-
-
-# 构建轻量级JDK基础镜像
-
-首先解压jdk基础镜像
-
+# 推送至阿里云
+docker push registry.cn-shanghai.aliyuncs.com/bigkang/jre8:alpine
 ```
+
+
+
+# 构建JDK基础镜像
+
+## 打包Jdk
+
+​		下载地址：[Jdk地址](https://www.oracle.com/java/technologies/javase/javase-jdk8-downloads.html)
+
+​		首先解压jdk基础镜像
+
+```sh
+# 创建目录解压jdk
+rm -rf /tmp/jdk
 mkdir /tmp/jdk
 tar -zxvf jdk-8u211-linux-x64.tar.gz -C /tmp/jdk
 cd /tmp/jdk
-mv jdk1.8.0_211 usr
-cd usr
-```
+cd jdk1.8.0_211
 
-删除多余文件
-
-```
+# 删除多余文件
 rm -rf  *src.zip \
         "lib/missioncontrol" \
         "lib/visualvm" \
@@ -222,49 +192,147 @@ rm -rf  *src.zip \
 rm -rf COPYRIGHT LICENSE README* release THIRDPARTYLICENSEREADME-JAVAFX.txt THIRDPARTYLICENSEREADME.txt Welcome.html
 cd jre
 rm -rf COPYRIGHT LICENSE README* release THIRDPARTYLICENSEREADME-JAVAFX.txt THIRDPARTYLICENSEREADME.txt Welcome.html
-```
 
-重新打包
 
-```
+# 返回目录重新打包
 cd ..
 cd ..
-tar zcvf jdk8.tar.gz usr
+tar zcvf jdk8.tar.gz jdk1.8.0_211 
 ```
 
-新建Dockerfile文件
+## Alpine轻量级版本
 
-```
+```sh
+# 环境变量
+export JAVA_HOME=/usr/local/java/jdk1.8.0_211
+export JRE_HOME=$JAVA_HOME/jre
 echo "FROM docker.io/jeanblanchard/alpine-glibc
 MAINTAINER bigkangsix@qq.com
 # 设置apk源
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
-  && apk update
-# 直接将JDK放入根目录，为/usr/bin  
-ADD jdk8.tar.gz /
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
+RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
+RUN wget -q -O /tmp/glibc-2.29-r0.apk  https://github.91chifun.workers.dev//https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.29-r0/glibc-2.29-r0.apk
+RUN apk add /tmp/glibc-2.29-r0.apk 
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
-RUN echo 'Asia/Shanghai' > /etc/timezone" > Dockerfile
-```
+RUN echo 'Asia/Shanghai' > /etc/timezone
+
+RUN mkdir /usr/local/java
+# 直接将JDK放入/usr/local/java
+ADD jdk8.tar.gz /usr/local/java
+# 设置环境变量
+ENV LANG zh_CN.uft8
+ENV JAVA_HOME=$JAVA_HOME
+ENV JRE_HOME=$JRE_HOME
+# 解决本地PATH导致容器异常，直接写死
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$JAVA_HOME/bin" > Dockerfile
 
 
-
-```
-docker build -t kang/jdk1.8 . 
+# 删除停止以前容器
 docker stop run
 docker rm run
-docker run --name run -di kang/jdk1.8:latest
+# 构建镜像
+docker build -t bigkang/jdk8:alpine .
+
+# 启动测试容器
+docker run --name run -di bigkang/jdk8:alpine
+
+# 进入容器
 docker exec -it run sh
-进入容器输入java命令出现java提示即可
+
+# 打印版本
+java -version
 ```
 
-## 安装字体工具库（选装，如果没有特殊要求则不需要安装其他字体）
+​		安装字体工具库（选装，如果没有特殊要求则不需要安装其他字体）
 
-```
+```sh
 apk add font-adobe-100dpi
 ```
 
-# 构建带Ubantu的JDK镜像
+​		推送镜像
+
+```sh
+# 登录
+docker login registry.cn-shanghai.aliyuncs.com
+
+# 标记版本号
+docker tag bigkang/jdk8:alpine registry.cn-shanghai.aliyuncs.com/bigkang/jdk8:alpine
+
+# 推送至阿里云
+docker push registry.cn-shanghai.aliyuncs.com/bigkang/jdk8:alpine
+```
+
+
+
+## CentOS版本
+
+新建Dockerfile文件
+
+```sh
+# 环境变量
+export JAVA_HOME=/usr/local/java/jdk1.8.0_211
+export JRE_HOME=$JAVA_HOME/jre
+# 下载阿里云加速
+wget -O CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+echo "FROM centos:7
+MAINTAINER bigkangsix@qq.com
+# 设置编码
+RUN localedef -c -f UTF-8 -i zh_CN zh_CN.utf8
+ENV LC_ALL "zh_CN.UTF-8"
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ls -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo '$TZ' > /etc/timezone
+
+# 设置yum加速源
+ADD CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo
+# 直接将JDK放入/usr/local/java
+RUN mkdir /usr/local/java
+ADD jdk8.tar.gz /usr/local/java
+# 设置环境变量
+ENV JAVA_HOME=$JAVA_HOME
+ENV JRE_HOME=$JRE_HOME
+# 解决本地PATH导致容器异常，直接写死
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$JAVA_HOME/bin" > Dockerfile
+
+# 删除停止以前容器
+docker stop run
+docker rm run
+# 构建镜像
+docker build -t bigkang/jdk8:centos .
+
+# 启动测试容器
+docker run --name run -di bigkang/jdk8:centos
+
+# 进入容器
+docker exec -it run sh
+
+# 打印版本
+java -version
+```
+
+
+
+## 添加Arthas
+
+​		如果需要将阿里的监控工具**Arthas**整和到jdk里面
+
+```
+wget https://arthas.aliyun.com/arthas-boot.jar
+```
+
+​		然后修改DockerFile,将arthas-boot添加进去即可
+
+```sh
+COPY arthas-boot.jar /arthas-boot.jar
+```
+
+​		然后重新打包		
+
+
+
+# 构建带Ubantu的Jre镜像
 
 先去官网下载JRE环境，然后删除多余的东西重新打包
 
@@ -363,5 +431,55 @@ docker images|grep none|awk '{print $3 }'|xargs docker rmi
 
 ```
 docker ps -a |grep /bin/sh |awk '{print $1 }'|xargs docker rm
+```
+
+
+
+
+
+
+
+```
+docker run --name run -di bigkang/jdk8-arthas:latest
+docker exec -it run sh
+
+docker stop run
+docker rm run
+```
+
+
+
+```sh
+# 环境变量
+export JAVA_HOME=/usr/local/java/jdk1.8.0_211
+export JRE_HOME=$JAVA_HOME/jre
+echo "FROM docker.io/jeanblanchard/alpine-glibc
+MAINTAINER bigkangsix@qq.com
+# 设置apk源
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
+RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
+RUN wget -q -O /tmp/glibc-2.29-r0.apk  https://github.91chifun.workers.dev//https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.29-r0/glibc-2.29-r0.apk
+RUN apk add /tmp/glibc-2.29-r0.apk 
+# 设置时区
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN echo 'Asia/Shanghai' > /etc/timezone
+
+RUN mkdir /usr/local/java
+# 直接将JDK放入/usr/local/java
+ADD jdk8.tar.gz /usr/local/java
+# 设置环境变量
+ENV LANG zh_CN.uft8
+ENV JAVA_HOME=$JAVA_HOME
+ENV JRE_HOME=$JRE_HOME
+# 解决本地PATH导致容器异常，直接写死
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$JAVA_HOME/bin" > Dockerfile
+
+# 构建镜像
+docker build -t bigkang/jdk8:alpine .
+docker stop run
+docker rm run
+docker run --name run -di bigkang/jdk8:alpine
+docker exec -it run sh
 ```
 

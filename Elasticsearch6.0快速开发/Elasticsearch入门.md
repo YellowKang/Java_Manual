@@ -720,6 +720,44 @@ POST _reindex
 }
 ```
 
+### 索引分片
+
+```json
+#动态设置es索引副本数量
+# 对一个Index设置副本
+curl -XPUT 'http://168.7.1.67:9200/index1/_settings' -d '{
+   "number_of_replicas" : 2
+}'
+ 
+#设置es不自动分配分片
+curl -XPUT 'http://168.7.1.67:9200/log4j-emobilelog/_settings' -d '{
+   "cluster.routing.allocation.disable_allocation" : true
+}'
+ 
+#手动移动分片
+curl -XPOST "http://168.7.1.67:9200/_cluster/reroute' -d  '{
+   "commands" : [{
+		"move" : {
+			"index" : "log4j-emobilelog",
+			"shard" : 0,
+			"from_node" : "es-0",
+			"to_node" : "es-3"
+		}
+	}]
+}'
+#手动分配分片
+curl -XPOST "http://168.7.1.67:9200/_cluster/reroute' -d  '{
+   "commands" : [{
+		"allocate" : {
+			"index" : ".kibana",
+			"shard" : 0,
+			"node" : "es-2",
+		}
+	}]
+}'
+
+```
+
 
 
 ## Document（文档）

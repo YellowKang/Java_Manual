@@ -128,8 +128,8 @@ vim /etc/hostname
 ​			vim hello.java，这样就创建了一个叫做hello.java的一个文件，进入之后我们可以在里面写入数据
 ​						，然后按一下Esc然后:wq保存并退出，更多操作可以百度vim编辑器
 ​	
-				>> 文件名 
-					
+​				>> 文件名 
+​					
 					例如：
 	
 						>> hello.java 这样就创建了一个叫做hello.java的文件，
@@ -232,6 +232,8 @@ vim /etc/hostname
 			他会将所有的文件都删除清空掉，这也是所谓的删库跑路，和格式化一样，（包括系统文件）
 			不过一般的公司提供的服务器账户一般都没有这个权限
 
+
+
 # 查询命令手册
 
 
@@ -257,8 +259,8 @@ vim /etc/hostname
 ​	
 ​				（tar解压文件）
 ​	
-					tar -zxvf XXX.tar.gz
-	
+​					tar -zxvf XXX.tar.gz
+​	
 					解压这个XXX.tar.gz文件
 				
 				（tar压缩文件）
@@ -452,8 +454,8 @@ vim /etc/hostname
 ​	
 ​				创建用户：
 ​	
-					useradd 新用户名
-	
+​					useradd 新用户名
+​	
 					passwd 新用户名
 	
 					然后设置密码

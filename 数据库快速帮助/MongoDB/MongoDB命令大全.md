@@ -12,13 +12,28 @@
 
 # 数据库用户管理
 
-user为用户名，pwd为用户密码，role为角色，db为数据库
+## 查询用户
+
+```sh
+# 查询所有用户
+db.system.users.find()
+
+# 查询指定用户名用户
+db.system.users.find({"user":"emergency"})
 
 ```
+
+
+
+## 创建用户
+
+​		user为用户名，pwd为用户密码，role为角色，db为数据库
+
+```sh
 db.createUser({user:"root",pwd:"bigkang",roles:[{role:'dbOwner',db:'test'}]})
 ```
 
-```
+```sh
 数据库用户角色：read、readWrite;
 数据库管理角色：dbAdmin、dbOwner、userAdmin；
 集群管理角色：clusterAdmin、clusterManager、clusterMonitor、hostManager；
@@ -29,7 +44,7 @@ db.createUser({user:"root",pwd:"bigkang",roles:[{role:'dbOwner',db:'test'}]})
 内部角色：__system
 ```
 
-```
+```properties
 Read：允许用户读取指定数据库
 readWrite：允许用户读写指定数据库
 dbAdmin：允许用户在指定数据库中执行管理函数，如索引创建、删除，查看统计或访问system.profile
@@ -51,9 +66,30 @@ docker run --name mongotest -d \
 docker.io/mongo:3.4.9 mongod -f /data/configdb/mongo.conf
 ```
 
+## 删除用户
 
+​		删除指定用户
 
+```sh
+db.system.users.remove({user:"bigkang"})
+```
 
+## 权限
+
+​		给admin用户添加一个权限
+
+```sh
+db.grantRolesToUser("admin", ["clusterAdmin"])
+
+# 指定数据库以及权限
+db.grantRolesToUser("userName", [ { role:"<role>", db:"<database>"} ]) 
+```
+
+​		删除权限
+
+```sh
+db.revokeRolesFromUser("reportsUser",[{ role: "readWrite", db: "accounts" }])
+```
 
 
 

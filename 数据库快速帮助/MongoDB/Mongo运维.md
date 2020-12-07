@@ -74,6 +74,20 @@ mongorestore  -h 192.168.1.11 --port 20168 -u minexhb -p minexhb123 -d minexhb-d
 
 
 
+```sh
+# 指定字段+分页导出
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c mine_base_all -u anjian -p topcom123 --skip=0 --limit=100  -f 企业名称,矿井地址,省,市,县,cityinfo,lng,lat,主要灾害类型,供电方式,序号,开拓方式,核定生产能力,水文地质类型,煤层自燃倾向性,煤矿类型,瓦斯等级,经济类型,行政区划编码,设计生产能力,质量标准化等级,运输方式,通风方式,最大涌水量,允许开采深度,开采类型,矿井状况,score,grade,是否有冲击地压 --type csv -o /Users/bigkang/Documents/test/mongo/mine_base_all.csv 
+```
+
+
+
+```sh
+# 指定字段+分页导出
+mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c accident -u anjian -p topcom123 --skip=0 --limit=100  -f atime,atype,atype2,atype2Alias,province,city,county,cityinfo,companyFullName,companyName,content,deathnumber,from,hangye,lingyu,sgjb,shortName,gis,lng,lat --type csv -o /Users/bigkang/Documents/test/mongo/accident.csv 
+```
+
+
+
 ```
 mongoexport -h 192.168.1.11 --port 20168 -d anjian-db -c acc -u anjian -p topcom123 -f content -q {"content":/溺水/,"atime":{"$gte":1514736000}} --type csv -o C:\Users\topcom\Desktop\mine_base.csv
 ```

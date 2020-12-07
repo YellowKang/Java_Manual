@@ -272,6 +272,76 @@ echo '{
 
 ```
 
+# Docker开放端口（注意事项！！！）
+
+​		修改配置文件新增,我们将端口开放		
+
+```sh
+# 编辑
+vim /usr/lib/systemd/system/docker.service
+
+# 将ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock 修改为
+ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock
+ExecStart=/usr/bin/dockerd -H unix:///var/run/docker.sock -H tcp://192.168.1.115:2375 -H fd:// --containerd=/run/containerd/containerd.sock
+
+
+# 修改后systemctl daemon-reload
+systemctl daemon-reload && systemctl restart docker
+```
+
+
+
+```json
+{
+  	# 监听地址
+	  "hosts":[
+        "tcp://0.0.0.0:2375",
+        "unix:///var/run/docker.sock"
+    ],
+  	# 默认 false, 启动TLS认证开关
+		“tls”: true,
+  	# 默认 ~/.docker/ca.pem，通过CA认证过的的certificate文件路径
+    “tlscacert”: “~/.docker/ca.pem”,
+  	#默认 ~/.docker/cert.pem ，TLS的certificate文件路径
+  	“tlscert”: “~/.docker/cert.pem”,
+  	# 默认~/.docker/key.pem，TLS的key文件路径
+  	“tlskey”: “~/.docker/key.pem”,
+  	# 默认false，使用TLS并做后台进程与客户端通讯的验证
+  	“tlsverify”: true
+}
+```
+
+​		我们生成证书
+
+```sh
+# 生成ca-key
+openssl genrsa -out ~/docker/ca-key.pem 4096
+# 生成ca证书
+openssl req -x509 -sha256 -batch -subj '/C=CN/ST=Sichuan/L=Chengdu/O=Ghostcloud Co.,Ltd/OU=Laboratory/CN=www.bigkang.club' -new -days 3650 -key
+~/docker/ca-key.pem -out ~/docker/ca.pem
+
+# 生成server-key
+openssl genrsa -out ~/docker/server-key.pem 4096
+# 生成server-csr.pem
+openssl req -subj '/CN=DockerDaemon' -sha256 -new -key ~/docker/server-key.pem -out ~/docker/server-csr.pem
+# 生成server-cert.pem，Ip为指定Ip访问
+echo subjectAltName = IP:0.0.0.0,IP:127.0.0.1,IP:192.168.1.100 > ~/docker/allow.listopenssl x509 -req -days 3650 -sha256 -in ~/docker/server-csr.pem -CA ~/docker/ca.pem -CAkey ~/docker/ca-key.pem -CAcreateserial -out ~/docker/server-cert.pem -extfile ~/docker/allow.list
+
+# 生成client-key
+openssl genrsa -out ~/docker/client-key.pem 4096
+# 生成client-csr
+openssl req -subj '/CN=DockerClient' -new -key ~/docker/client-key.pem -out ~/docker/client-csr.pem
+
+
+echo extendedKeyUsage = clientAuth > ~/docker/options.list
+openssl x509 -req -days 365 -sha256 -in ~/docker/client-csr.pem -CA ~/docker/ca.pem -CAkey ~/docker/ca-key.pem
+rm -f ~/docker/server-csr.pem ~/docker/client-csr.pem ~/docker/allow.list ~/docker/options.list
+
+
+```
+
+
+
 # Docker配置（重点）！
 
 ​		向Docker配置文件json写入如下

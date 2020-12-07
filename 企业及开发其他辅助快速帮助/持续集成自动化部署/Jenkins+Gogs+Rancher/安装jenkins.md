@@ -18,7 +18,9 @@ yum install jenkins
 
 # 然后运行容器
 
-我们这里需要挂载目录，由于在jenkins中需要安装jdk，以及maven所以我们将目录挂载到本地，将文件目录创建
+​		我们这里需要挂载目录，由于在jenkins中需要安装jdk，以及maven所以我们将目录挂载到本地，将文件目录创建。
+
+​		直接将宿主机中的Docker挂载到我们自己的Jenkins中
 
 ```shell
 创建挂载目录
@@ -31,11 +33,16 @@ docker run -itd \
 -p 50000:50000 \
 --name jenkins \
 --privileged=true \
+--restart=always \
 -v /var/run/docker.sock:/var/run/docker.sock \
 -v /docker/jenkins/home:/var/jenkins_home \
--v /usr/bin/docker:/usr/bin/docker \
+-v /etc/localtime:/etc/localtime:ro \
+-v $(which docker):/usr/bin/docker \
+-v $(which docker-compose):/usr/local/bin/docker-compose \
 docker.io/jenkins/jenkins:lts
 
+
+# -v $(which docker-compose):/usr/local/bin/docker-compose \可以自行安装或者不用
 
 如果启动失败，docker logs jenkins查看日志
 如果是这个错误
@@ -45,35 +52,28 @@ docker.io/jenkins/jenkins:lts
 sudo chown -R 1000:1000 /docker/jenkins
 ```
 
-启动好了之后我们访问8888端口，我们可以看到他需要一个初始化的密码，我们进入到容器中获取，或者直接从挂载目录获取
+​		然后修改jenkins加速
+
+```sh
+# 修改
+vim /docker/jenkins/home/hudson.model.UpdateCenter.xml
+
+# 修改为如下
+<?xml version='1.1' encoding='UTF-8'?>
+<sites>
+  <site>
+    <id>default</id>
+    <url>http://mirror.xmission.com/jenkins/updates/update-center.json</url>
+</site>
 
 
-
-```
-docker run -itd \
--u root \
--p 18081:8080 \
--p 50000:50000 \
--v /var/run/docker.sock:/var/run/docker.sock \
--v /data/jenkins_home:/var/jenkins_home \
--v /usr/bin/docker:/usr/bin/docker \
-<<<<<<< HEAD
---restart=always \
---name topcom-jenkins \
---privileged=true \
-topcom/jenkins:latest
-
-
-
-=======
-docker.io/jenkins/jenkins:lts
-
-
-/var/jenkins_home/
->>>>>>> ea9815b12005174dac147aea886405a2a0bb0805
+# 加速地址，一下都是，选择一个即可
+https://mirrors.tuna.tsinghua.edu.cn/jenkins/updates/update-center.json 
+http://mirror.esuni.jp/jenkins/updates/update-center.json
+http://mirror.xmission.com/jenkins/updates/update-center.json
 ```
 
-
+​		启动好了之后我们访问8888端口，我们可以看到他需要一个初始化的密码，我们进入到容器中获取，或者直接从挂载目录获取
 
 ```
 挂载目录获取
@@ -157,6 +157,7 @@ java -version
 
 ```
 wget http://mirror.bit.edu.cn/apache/maven/maven-3/3.6.1/binaries/apache-maven-3.6.1-bin.tar.gz
+https://apache.website-solution.net/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
 tar  -zxvf apache-maven-3.6.1-bin.tar.gz 
 mv apache-maven-3.6.1 maven
 rm -rf apache-maven-3.6.1-bin.tar.gz
@@ -377,34 +378,13 @@ docker run ..........
 
 然后我们打开rancher，就能看到新的容器再运行，我们将它克隆，然后修改容器名字，然后删除掉标签就能进行后续的自动化部署了
 
-#### 使用docker插件
+#### 使用docker插件（已经修改，直接使用脚本命令即可）
 
-首先修改docker配置
-
-```
-vim /usr/lib/systemd/system/docker.service
-修改为
-ExecStart=/usr/bin/dockerd -H tcp://0.0.0.0:2375 -H unix://var/run/docker.sock \
-
-systemctl daemon-reload // 1，加载docker守护线程
-systemctl restart docker // 2，重启docker
-```
-
-安装docker插件
+​	安装docker插件
 
 ![](img\docker插件.png)
 
-在全局系统设置中配置docker地址，配置私有仓库
 
-![](img\docker设置1.png)
-
-配置docker通信地址
-
-![](img\docker设置2.png)
-
-然后进入项目中的设置
-
-![](img\项目docker配置.png)
 
 我们设置地址，首先创建构建镜像，然后配置镜像版本，然后push到私有仓库，配置镜像名以及tag版本
 
