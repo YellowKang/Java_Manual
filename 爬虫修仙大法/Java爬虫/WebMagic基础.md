@@ -120,22 +120,5 @@ public class TestSpider implements PageProcessor {
 
 ​			首先我们以百度为示例。
 
-```
-{
-  "city": "达州",
-  "country": "开江",
-  "email": "1360154205@qq.com",
-  "fullName": "Bigkang",
-  "gender": "Male",
-  "idCard": "5130**************",
-  "nickName": "黄康",
-  "password": "bigkang",
-  "phone": 13882193983,
-  "province": "四川",
-  "state": "AVAILABLE",
-  "userType": 2,
-  "username": "13882193983",
-  "workUnit": "北京市朝阳区望京科技园"
-}
-```
+
 

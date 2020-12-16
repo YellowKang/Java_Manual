@@ -1,28 +1,3 @@
-# 启动失败看这里
-
-或者是由于权限的原因
-
-我们使用docker logs -f 容器查看日志
-
-如果发现
-
-![](https://blog-kang.oss-cn-beijing.aliyuncs.com/error1.png)
-
-解决方法
-
-```sh
-vim /etc/sysctl.conf 
-
-在最后一行添加
-vm.max_map_count=655360
-然后退出执行
-sysctl -p
-
-
-```
-
-https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1596190258135.png
-
 # 单机版
 
 ## 	下载镜像
@@ -261,106 +236,99 @@ docker.io/elasticsearch:6.7.0
 
 可以将jvm优化那个删除（由于内存不够设置），可以修改挂载的文件地址（不建议，因为修改地方多），可以修改数据挂载文件或者不指定（不建议） ，然后指定镜像运行容器
 
-
-
-
-
 # Kibana安装
 
-首先先下载Kibana镜像（一定要对应的es版本）
+​		首先先下载Kibana镜像（一定要对应的es版本）
 
 ```sh
 docker pull docker.io/kibana:6.7.0
 ```
 
-然后我们新建一个配置文件用来存储配置文件
+​		然后我们新建一个配置文件用来存储配置文件
 
-然后添加以下内容，下面的hosts地址修改为es地址
+​		然后添加以下内容，下面的hosts地址修改为es地址
 
 ```sh
 mkdir -p /docker/kibana/conf
-
 echo "server.name: kibana
 server.host: \"0\"
 elasticsearch.hosts: [ \"http://172.16.16.4:19201\" ]
 xpack.monitoring.ui.container.elasticsearch.enabled: true" > /docker/kibana/conf/kibana.yml
 ```
 
-
-
-然后我们就能启动容器了
+​		然后我们就能启动容器了
 
 ```sh
 docker run -d \
 --name kibana6.7 \
 -p 15601:5601 \
+--restart=unless-stopped \
 -v /docker/kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml \
 -e ELASTICSEARCH_URL=http://192.168.1.16:10092 docker.io/kibana:6.7.0 
-
-docker run -d \
---name kibana6.7 \
--p 5601:5601 \
--v /docker/kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml \
--e ELASTICSEARCH_URL=http://118.187.4.89:10092/ docker.io/kibana:6.7.0 
 ```
 
-然后等待容器启动一会直接访问5601端口
+​		然后等待容器启动一会直接访问5601端口
 
-注意：（如果连接公网请开放端口或者关闭防火墙否则一直无法连接）
+​		注意：（如果连接公网请开放端口或者关闭防火墙否则一直无法连接）
 
-# 安装Head插件
+# 监控工具
 
-​	首先下载镜像（由于没有6的版本head插件所以使用5）
+## Cerebro
+
+​		目前介绍cerebro好用简单
 
 ```sh
-docker pull  docker.io/mobz/elasticsearch-head:5
-```
-
-​	然后启动容器
-
-```sh
-docker run -d --name head-es -p 9100:9100 docker.io/mobz/elasticsearch-head:5
-```
-
-
-
-## 解决Head插件无法连接Elasticsearch的问题
-
-首先我们先来把Elasticsearch的配置文件修改一点点
-
-```sh
-先从Es中将这个文件从这个容器中拷贝出来
-docker cp elasticsearch6.7:/usr/share/elasticsearch/config/elasticsearch.yml /root/elasticsearch.yml
-
-然后编辑拷贝出来的容器
-vim /root/elasticsearch.yml 
-	
-将下面两行代码加入Es当中，开启Elasticsearch的跨域
-http.cors.enabled: true
-http.cors.allow-origin: "*"
-
-然后把这个文件cp到容器中
-docker cp /root/elasticsearch.yml elasticsearch6.7:/usr/share/elasticsearch/config/elasticsearch.yml
-
-然后重启容器
-docker restart elasticsearch6.7
-```
-
-# 监控工具Cerebro
-
-```
-docker run -d -p 9000:9000 \
---restart=unless-stopped \
+docker run -itd \
 --name cerebro \
+-p 9000:9000 \
+--restart=unless-stopped \
 -v /etc/localtime:/etc/localtime \
 -v cerebro:/opt/cerebro \
 -h cerebro \
 lmenezes/cerebro
 ```
 
-目前介绍cerebro好用简单
+## Head
+
+​		拉取镜像（其实所有版本都支持，不用在意）
+
+```sh
+docker pull  docker.io/mobz/elasticsearch-head:5
+```
+
+​		启动容器
+
+```sh
+docker run -itd \
+--name head-es \
+--restart=unless-stopped \
+-p 9100:9100 \
+docker.io/mobz/elasticsearch-head:5
+```
+
+​		解决Head无法访问的问题
+
+```properties
+# 修改Es配置文件
+# 将下面两行代码加入Es当中，开启Elasticsearch的跨域
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+
+# 然后重启容器
+docker restart elasticsearch6.7
+```
+
+​		骚操作只谷歌插件：直接可以谷歌插件安装Es—Head
 
 # 插件安装
+
+### 下载加速
+
+​		我们可以看使用加速网站进行下载
+
+```sh
+https://github.91chifun.workers.dev//https://github.com/NLPchina/elasticsearch-sql/releases/download/7.9.3.0/elasticsearch-sql-7.9.3.0.zip
+```
 
 ### IK分词器安装
 
@@ -701,6 +669,50 @@ POST /test_pinyin/test/_search
 
 ### 文件搜索Ingest-Attachment插件
 
+#### 在线联网安装		
+
+#### 离线安装
+
+#### 测试
+
+
+
+### SQL插件
+
+​		官网地址：[点击进入](https://github.com/NLPchina/elasticsearch-sql)
+
+#### 在线联网安装		
+
+​		直接进入容器内部进行编辑
+
+```sh
+进入容器内部编辑
+docker exec -it  elasticsearch bash
+
+安装IK分词器插件
+elasticsearch-plugin install https://github.com/NLPchina/elasticsearch-sql/releases/download/6.7.0.0/elasticsearch-sql-6.7.0.0.zip
+```
+
+​		等待下载完成然后cd，然后查看是否有sql插件
+
+#### 离线安装
+
+```sh
+# 下载
+wget install https://github.com/NLPchina/elasticsearch-sql/releases/download/6.7.0.0/elasticsearch-sql-6.7.0.0.zip
+# 解压
+mkdir ./pinyin
+unzip elasticsearch-analysis-pinyin-6.7.0.zip -d ./pinyin/
+
+# 重启es节点
+docker restart elasticsearch
+
+```
+
+#### 测试
+
+
+
 
 
 # Elasticsearch配置详解
@@ -713,24 +725,24 @@ POST /test_pinyin/test/_search
 
 ​				path.logs			 Elasticsearch存储日志的路径
 
-```
-# 数据存储路径
+```sh
+# 数据存储路径,可以设置多个，扩容磁盘格式  $PATH,$PATH,使用逗号分割
 path.data:/usr/share/elasticsearch/data
 # 日志路径
 path.logs:/usr/share/elasticsearch/logs
 ```
 
-​		设置多个数据存储路径
+​		设置多个数据存储路径，以数组方式
 
-```
+```properties
 path.data[0]:/usr/share/elasticsearch/data/es_data_1
 path.data[1]:/usr/share/elasticsearch/data/es_data_2
 path.data[2]:/usr/share/elasticsearch/data/es_data_3
 ```
 
-​		格式化后版本
+​		格式化后Yaml版本
 
-```
+```properties
 path:
 	# 数据存储路径
   data: /usr/share/elasticsearch/data
@@ -738,9 +750,9 @@ path:
   logs: /usr/share/elasticsearch/logs
 ```
 
-​		多个数据路径
+​		多个数据路径Yaml
 
-```
+```yaml
 path:
   data:
   	- /usr/share/elasticsearch/data/es_data_1
@@ -754,7 +766,9 @@ path:
 
 ​		注意：当`cluster.name`节点与集群中的所有其他节点共享节点时，该节点只能加入集群。默认名称为`elasticsearch`，但您应将其更改为描述群集用途的适当名称。确保不要在不同的环境中重复使用相同的集群名称，否则最终可能会导致节点加入了错误的集群。
 
-```
+​		如果想要搭建集群，则集群名称都要设置成一样的
+
+```properties
 cluster.name:bigkang-cluster
 ```
 
@@ -768,13 +782,13 @@ cluster.name:bigkang-cluster
 
 ​				第一种（自定义节点名称）：
 
-```
+```sh
 node.name: prod-data-2
 ```
 
 ​				第二种（我们使用主机名称当做节点名称）：
 
-```
+```sh
 node.name: ${HOSTNAME}
 ```
 
@@ -784,7 +798,7 @@ node.name: ${HOSTNAME}
 
 ​		Elasticsearch中我们使用节点角色大概分别分为四种（不包括远程集群多个集群）：
 
-```
+```properties
 			Master节点（主节点，管理节点）
 			Data节点（数据节点，存储节点）
 			Ingest节点（预处理节点，预处理数据）
@@ -793,7 +807,7 @@ node.name: ${HOSTNAME}
 
 ​		在ELasticsearch中分别的设置为：
 
-```
+```properties
 node.master:  			（默认启用）
 node.data:  				（默认启用）
 node.ingest:  			（默认启用）
@@ -803,30 +817,30 @@ node.ingest:  			（默认启用）
 
 ​		**Master节点**
 
-```
-		Master主节点负责集群范围内的轻量级操作，例如创建或删除索引，跟踪哪些节点是集群的一部分以及确定将哪些分片分配给哪些节点。拥有稳定的主节点对于群集健康非常重要。可以通过主选举过程将任何符合主资格的节点（默认情况下为所有节点）选举为主节点。
-		索引和搜索数据是占用大量CPU，内存和I / O的工作，这可能会对节点的资源造成压力。为了确保您的主节点稳定且不受压力，在较大的群集中，最好将符合角色的专用主节点和专用数据节点分开。
-		尽管主节点还可以充当协调节点， 并将搜索和索引请求从客户端路由到数据节点，但最好不要为此目的使用专用的主节点。对于符合主机要求的节点，其工作量应尽可能少，这对于群集的稳定性很重要。
+```properties
+		# Master主节点负责集群范围内的轻量级操作，例如创建或删除索引，跟踪哪些节点是集群的一部分以及确定将哪些分片分配给哪些节点。拥有稳定的主节点对于群集健康非常重要。可以通过主选举过程将任何符合主资格的节点（默认情况下为所有节点）选举为主节点。
+		# 索引和搜索数据是占用大量CPU，内存和I / O的工作，这可能会对节点的资源造成压力。为了确保您的主节点稳定且不受压力，在较大的群集中，最好将符合角色的专用主节点和专用数据节点分开。
+		# 尽管主节点还可以充当协调节点， 并将搜索和索引请求从客户端路由到数据节点，但最好不要为此目的使用专用的主节点。对于符合主机要求的节点，其工作量应尽可能少，这对于群集的稳定性很重要。
 		
-		上面我们可以看到针对我们的Master节点，就是管理集群的作用，并且我们不能让他有太大的负担（虽然也能作为data节点），所以官方推荐如下设置
+		# 上面我们可以看到针对我们的Master节点，就是管理集群的作用，并且我们不能让他有太大的负担（虽然也能作为data节点），所以官方推荐如下设置
 		
 		node.master: true 
 		node.data: false 
 		node.ingest: false 
 		cluster.remote.connect: false
 		
-		我们可以看到他的作用就只有master节点，并且data和ingest节点都是false，cluster.remote.connect是禁止其他的集群远程连接我们
-		并且查看后面的服务发现章节会对master的脑裂问题进行处理，master是集群中非常重要的
+		# 我们可以看到他的作用就只有master节点，并且data和ingest节点都是false，cluster.remote.connect是禁止其他的集群远程连接我们
+		# 并且查看后面的服务发现章节会对master的脑裂问题进行处理，master是集群中非常重要的
 ```
 
 ​		**Data节点**
 
-```
-		数据节点包含包含您已建立索引的文档的分片。数据节点处理与数据相关的操作，例如CRUD，搜索和聚合。这些操作是I/O，内存和CPU密集型的。监视这些资源并在过载时添加更多数据节点非常重要。
+```properties
+		# 数据节点包含包含您已建立索引的文档的分片。数据节点处理与数据相关的操作，例如CRUD，搜索和聚合。这些操作是I/O，内存和CPU密集型的。监视这些资源并在过载时添加更多数据节点非常重要。
 
-		具有专用数据节点的主要好处是将主角色和数据角色分开。
+		# 具有专用数据节点的主要好处是将主角色和数据角色分开。
 		
-		那么我们肯定就负责干活的节点不需要当master主节点了，所以设置如下
+		# 那么我们肯定就负责干活的节点不需要当master主节点了，所以设置如下
 		
 		node.master: false 
 		node.data: true 
@@ -835,11 +849,11 @@ node.ingest:  			（默认启用）
 
 ​		**Ingest节点**
 
-```
-		Ingest接收节点可以执行由一个或多个接收处理器组成的预处理管道。根据摄取处理器执行的操作类型和所需的资源，拥有专用的摄取节点可能有意义，该节点仅执行此特定任务。
-		这里我们可以看到Ingest节点主要是用于我们执行数据处理执行任务所使用，平时我们单独部署Ingest节点的情况较少。
+```properties
+		# Ingest接收节点可以执行由一个或多个接收处理器组成的预处理管道。根据摄取处理器执行的操作类型和所需的资源，拥有专用的摄取节点可能有意义，该节点仅执行此特定任务。
+		# 这里我们可以看到Ingest节点主要是用于我们执行数据处理执行任务所使用，平时我们单独部署Ingest节点的情况较少。
 		
-		配置如下：
+		# 配置如下：
 		
 		node.master: false
 		node.data: false
@@ -849,21 +863,21 @@ node.ingest:  			（默认启用）
 
 ​		**Query节点**
 
-```
-		如果您不具备处理主要职责，保存数据和预处理文档的能力，那么您将拥有一个仅可路由请求，处理搜索缩减阶段并分配批量索引的协调节点。本质上，仅协调节点可充当智能负载平衡器。
-		仅协调节点可以通过从数据和符合资格的主节点上卸载协调节点角色来使大型集群受益。他们像其他节点一样加入集群并接收完整的集群状态，并且使用集群状态将请求直接路由到适当的位置。
-		在集群中添加过多的仅协调节点可能会增加整个集群的负担，因为选择的主节点必须等待每个节点的集群状态更新确认！仅协调节点的好处不应被夸大-数据节点可以愉快地达到相同的目的。
+```properties
+		# 如果您不具备处理主要职责，保存数据和预处理文档的能力，那么您将拥有一个仅可路由请求，处理搜索缩减阶段并分配批量索引的协调节点。本质上，仅协调节点可充当智能负载平衡器。
+		# 仅协调节点可以通过从数据和符合资格的主节点上卸载协调节点角色来使大型集群受益。他们像其他节点一样加入集群并接收完整的集群状态，并且使用集群状态将请求直接路由到适当的位置。
+		# 在集群中添加过多的仅协调节点可能会增加整个集群的负担，因为选择的主节点必须等待每个节点的集群状态更新确认！仅协调节点的好处不应被夸大-数据节点可以愉快地达到相同的目的。
 		
-		我们可以看到官网中的解释是这样的，Query节点不需要保存数据和处理文档的功能，我们只需要用它来进行路由查询即可。也就是他只负责我们请求的转发，真实的处理由其他节点执行，那么并且我们不能添加太多的查询节点，否则增加了集群负担，并且数据节点同样也能处理。
+		# 我们可以看到官网中的解释是这样的，Query节点不需要保存数据和处理文档的功能，我们只需要用它来进行路由查询即可。也就是他只负责我们请求的转发，真实的处理由其他节点执行，那么并且我们不能添加太多的查询节点，否则增加了集群负担，并且数据节点同样也能处理。
 		
-		那么Query的设置如下
+		# 那么Query的设置如下
 			
 		node.master: false
 		node.data: false
 		node.ingest: false 
 		cluster.remote.connect: false
 		
-		我们可以看到所有的节点角色都为false了，简称3无产品
+		# 我们可以看到所有的节点角色都为false了，简称3无产品
 ```
 
 ## 网络设置
@@ -874,12 +888,12 @@ node.ingest:  			（默认启用）
 
 ​			注意：通常我们设置的是**network.bind_host**
 
-```
-		该节点将绑定到该主机名或IP地址，并将该主机发布（发布）到群集中的其他节点。接受IP地址，主机名， 特殊值或它们的任意组合的数组。请注意，任何包含的值:（例如IPv6地址或包含特殊值之一）都必须加引号，因为它:是YAML中的特殊字符。0.0.0.0是可接受的IP地址，并将绑定到所有网络接口。该值0与值具有相同的作用0.0.0.0。
+```properties
+		# 该节点将绑定到该主机名或IP地址，并将该主机发布（发布）到群集中的其他节点。接受IP地址，主机名， 特殊值或它们的任意组合的数组。请注意，任何包含的值:（例如IPv6地址或包含特殊值之一）都必须加引号，因为它:是YAML中的特殊字符。0.0.0.0是可接受的IP地址，并将绑定到所有网络接口。该值0与值具有相同的作用0.0.0.0。
 
-		默认为_local_。
+		# 默认为_local_。
 		
-		特殊处理的值有一下几种
+		# 特殊处理的值有一下几种
 		
 						1、_[networkInterface]_			网络接口的地址，例如_en0_
 						2、_local_										系统上的任何回送地址，例如127.0.0.1。
@@ -890,8 +904,8 @@ node.ingest:  			（默认启用）
 
 ​		**network.bind_host**	
 
-```
-		这指定了节点应绑定到哪个网络接口以侦听传入的请求。一个节点可以绑定到多个接口，例如两个网卡，或者一个站点本地地址和一个本地地址。默认为 network.host，我们可以理解为能绑定多个，但是默认的话他就绑定了一个network.host，并且默认值是_local_本机
+```properties
+		# 这指定了节点应绑定到哪个网络接口以侦听传入的请求。一个节点可以绑定到多个接口，例如两个网卡，或者一个站点本地地址和一个本地地址。默认为 network.host，我们可以理解为能绑定多个，但是默认的话他就绑定了一个network.host，并且默认值是_local_本机
 		
 		network.bind_host: 0.0.0.0					# 允许所有访问
 		network.bind_host: _local_					# 本机访问
@@ -900,67 +914,67 @@ node.ingest:  			（默认启用）
 
 ​		**network.publish_host**
 
-```
-		发布主机是节点向集群中其他节点发布的单个接口，以便这些节点可以连接到该主机。
+```properties
+		# 发布主机是节点向集群中其他节点发布的单个接口，以便这些节点可以连接到该主机。
 		
-		当前，Elasticsearch节点可能绑定到多个地址，但仅发布一个。如果未指定，则默认为的“最佳”地址network.host，按IPv4 / IPv6堆栈首选项，然后按可达性排序。如果设置 network.host导致多个绑定地址，但仍依赖特定地址进行节点到节点通信，则应显式设置 network.publish_host。
+		# 当前，Elasticsearch节点可能绑定到多个地址，但仅发布一个。如果未指定，则默认为的“最佳”地址network.host，按IPv4 / IPv6堆栈首选项，然后按可达性排序。如果设置 network.host导致多个绑定地址，但仍依赖特定地址进行节点到节点通信，则应显式设置 network.publish_host。
 		
-		以上两个设置都可以像配置一样network.host 接受IP地址，主机名和 特殊值。
+		# 以上两个设置都可以像配置一样network.host 接受IP地址，主机名和 特殊值。
 		
-		我们这里可以看到network.publish_host可以和network.bind_host一样设置主机名和特殊值，但是只能配置一个，也就是说他是单个的，并且这个host我们是需要发送到集群中进行通信的
+		# 我们这里可以看到network.publish_host可以和network.bind_host一样设置主机名和特殊值，但是只能配置一个，也就是说他是单个的，并且这个host我们是需要发送到集群中进行通信的
 		
-		这里我们通常都会写定当前的集群能够访问的IP地址
+		# 这里我们通常都会写定当前的集群能够访问的IP地址,尤其是Docker搭建的时候，否则集群通信会有问题
 		
 		network.publish_host: 192.168.1.177
 ```
 
 ​		**discovery.zen.ping.unicast.hosts**
 
-```
-		为了加入集群，节点需要知道集群中至少其他一些节点的主机名或IP地址。此设置提供了该节点将尝试联系的其他节点的初始列表。
+```properties
+		# 为了加入集群，节点需要知道集群中至少其他一些节点的主机名或IP地址。此设置提供了该节点将尝试联系的其他节点的初始列表。
 		
-		接受IP地址或主机名。如果主机名查找解析为多个IP地址，则将使用每个IP地址进行发现。 
+		# 接受IP地址或主机名。如果主机名查找解析为多个IP地址，则将使用每个IP地址进行发现。 
 		
-		轮询DNS（每次查询从列表中返回不同的IP）可用于发现；不存在的IP地址将引发异常，并在下一轮ping时引起另一个DNS查找（取决于JVM DNS缓存）。
+		# 轮询DNS（每次查询从列表中返回不同的IP）可用于发现；不存在的IP地址将引发异常，并在下一轮ping时引起另一个DNS查找（取决于JVM DNS缓存）。
 		
-		默认为["127.0.0.1", "[::1]"]。
+		# 默认为["127.0.0.1", "[::1]"]。
 		
-		通常我们这里就是配置的其他节点的地址，一般我们会把所有的节点都配置上去，也可以选择只配置一部分，因为他会根据轮询DNS进行节点发现。
+		# 通常我们这里就是配置的其他节点的地址，一般我们会把所有的节点都配置上去，也可以选择只配置一部分，因为他会根据轮询DNS进行节点发现。
 		
 		discovery.zen.ping.unicast.hosts: ["122.114.65.233:9301","122.114.65.233:9302","122.114.65.233:9303"]
 ```
 
 ​		**http.port**
 
-```
-		绑定到传入HTTP请求的端口。接受单个值或范围。如果指定了范围，则该节点将绑定到该范围中的第一个可用端口。
+```properties
+		# 绑定到传入HTTP请求的端口。接受单个值或范围。如果指定了范围，则该节点将绑定到该范围中的第一个可用端口。
 
-		默认为9200-9300。
+		# 默认为9200-9300。
 		
-		这就是我们所说的http端口了
+	  #	这就是我们所说的http端口了
 		
-		transport.port: 9200
+		 transport.port: 9200
 		
-		我们可以指定范围或者固定单个端口号，范围是指第一个被占用就是用第二个依此类推
+		# 我们可以指定范围或者固定单个端口号，范围是指第一个被占用就是用第二个依此类推
 ```
 
 ​		**transport.port**
 
-```
-		用于绑定节点之间通信的端口。接受单个值或范围。如果指定了范围，则该节点将绑定到该范围中的第一个可用端口。
+```properties
+		# 用于绑定节点之间通信的端口。接受单个值或范围。如果指定了范围，则该节点将绑定到该范围中的第一个可用端口。
 
-		默认为9300-9400。
+		# 默认为9300-9400。
 		
-		这就是我们的transport通信端口了
+		# 这就是我们的transport通信端口了
 		
 		transport.port: 9300		
 		
-		我们可以指定范围或者固定单个端口号，范围是指第一个被占用就是用第二个依此类推
+		# 我们可以指定范围或者固定单个端口号，范围是指第一个被占用就是用第二个依此类推
 ```
 
 ### 进阶TCP配制
 
-```
+```properties
 network.tcp.no_delay											启用或禁用“ TCP无延迟” 设置。默认为true。
 
 network.tcp.keep_alive										启用或禁用TCP keep alive。默认为true。
@@ -990,87 +1004,83 @@ network.tcp.receive_buffer_size						TCP接收缓冲区的大小（以size为单
 
 ​		此处网络配置基本都是引用上网络设置，尽量统一，如果需要灵活动态设置可以自定义设置。
 
-```
-http.enabled											设置为false可以完全禁用http模块，默认为true，Elasticsearch节点（和Java客户端）使用传输接口（而非HTTP ）在内部进行通信。http在不打算直接服务REST请求的节点上完全禁用该层可能是有意义的。例如，如果您还有 用于服务所有REST请求的客户端节点，则可以在纯数据节点上禁用HTTP 。但是请注意，您将无法直接向禁用了HTTP的节点发送任何REST请求（例如，检索节点统计信息）。
+```yaml
+http.enabled											 # 设置为false可以完全禁用http模块，默认为true，Elasticsearch节点（和Java客户端）使用传输接口（而非HTTP ）在内部进行通信。http在不打算直接服务REST请求的节点上完全禁用该层可能是有意义的。例如，如果您还有 用于服务所有REST请求的客户端节点，则可以在纯数据节点上禁用HTTP 。但是请注意，您将无法直接向禁用了HTTP的节点发送任何REST请求（例如，检索节点统计信息）。
 
-http.port													绑定端口范围。默认为9200-9300。
+http.port													# 绑定端口范围。默认为9200-9300。
 
-http.publish_port									与该节点通信时，HTTP客户端应使用的端口。当群集节点位于代理服务器或防火墙之后且http.port无法从外部直接寻址时，此选项很有用。
+http.publish_port									# 与该节点通信时，HTTP客户端应使用的端口。当群集节点位于代理服务器或防火墙之后且http.port无法从外部直接寻址时，此选项很有用。
 
-http.bind_host										绑定HTTP服务的主机地址。默认为http.host（如果设置）或network.bind_host
+http.bind_host										# 绑定HTTP服务的主机地址。默认为http.host（如果设置）或network.bind_host
 
-http.publish_host									要发布以供HTTP客户端连接的主机地址。默认为http.host（如果设置）或network.publish_host。
+http.publish_host									# 要发布以供HTTP客户端连接的主机地址。默认为http.host（如果设置）或network.publish_host。
 																							
-http.host													用于将http.bind_host和http.publish_host默认设置为http.host或network.host。
+http.host													# 用于将http.bind_host和http.publish_host默认设置为http.host或network.host。
 																							
-http.max_content_length						HTTP请求的最大内容。默认为 100mb。如果设置为大于Integer.MAX_VALUE，它将重置为100mb。
+http.max_content_length						# HTTP请求的最大内容。默认为 100mb。如果设置为大于Integer.MAX_VALUE，它将重置为100mb。
 
-http.max_initial_line_length			HTTP URL的最大长度。默认为4kb
+http.max_initial_line_length			# HTTP URL的最大长度。默认为4kb
 
-http.max_header_size							允许的标头的最大大小。默认为8kB
+http.max_header_size							# 允许的标头的最大大小。默认为8kB
 
-http.compression									尽可能支持压缩（使用Accept-Encoding）。默认为true。
+http.compression									# 尽可能支持压缩（使用Accept-Encoding）。默认为true。
 
-http.compression_level						定义用于HTTP响应的压缩级别。有效值的范围是1（最小压缩）和9（最大压缩）。默认为3。
+http.compression_level						# 定义用于HTTP响应的压缩级别。有效值的范围是1（最小压缩）和9（最大压缩）。默认为3。
 
-http.cors.enabled									启用或禁用跨域资源共享，即，另一源上的浏览器是否可以对Elasticsearch执行请求。设置为true启用以使Elasticsearch处理飞行前 CORS请求。Access-Control-Allow-Origin如果 列表Origin允许在请求中发送，Elasticsearch将使用标头响应那些请求http.cors.allow-origin。设置为false（默认值）以使Elasticsearch忽略Origin 请求标头，从而有效禁用CORS请求，因为Elasticsearch将永远不会使用Access-Control-Allow-Origin响应标头进行响应。请注意，如果客户端未发送带有Origin标头的飞行前请求，或者客户端未检查服务器的响应标头以验证 Access-Control-Allow-Origin响应标头，则跨域安全性将受到威胁。如果在Elasticsearch上未启用CORS，则客户端知道的唯一方法是发送飞行前请求并意识到缺少所需的响应标头。
+http.cors.enabled									# 启用或禁用跨域资源共享，即，另一源上的浏览器是否可以对Elasticsearch执行请求。设置为true启用以使Elasticsearch处理飞行前 CORS请求。Access-Control-Allow-Origin如果 列表Origin允许在请求中发送，Elasticsearch将使用标头响应那些请求http.cors.allow-origin。设置为false（默认值）以使Elasticsearch忽略Origin 请求标头，从而有效禁用CORS请求，因为Elasticsearch将永远不会使用Access-Control-Allow-Origin响应标头进行响应。请注意，如果客户端未发送带有Origin标头的飞行前请求，或者客户端未检查服务器的响应标头以验证 Access-Control-Allow-Origin响应标头，则跨域安全性将受到威胁。如果在Elasticsearch上未启用CORS，则客户端知道的唯一方法是发送飞行前请求并意识到缺少所需的响应标头。
 
-http.cors.allow-origin						允许哪个起源。默认为不允许原点。如果/在值之前加上和，则将其视为正则表达式，从而允许您支持HTTP和HTTP。例如，/https?:\/\/localhost(:[0-9]+)?/在两种情况下，using 都会适当地返回请求标头。*是有效值，但由于您的Elasticsearch实例可以从任何地方跨越源请求而被视为安全风险。
+http.cors.allow-origin						# 允许哪个起源。默认为不允许原点。如果/在值之前加上和，则将其视为正则表达式，从而允许您支持HTTP和HTTP。例如，/https?:\/\/localhost(:[0-9]+)?/在两种情况下，using 都会适当地返回请求标头。*是有效值，但由于您的Elasticsearch实例可以从任何地方跨越源请求而被视为安全风险。
 
-http.cors.max-age									浏览器发送“预检”选项请求以确定CORS设置。max-age定义结果应缓存的时间。默认为1728000（20天）
+http.cors.max-age									# 浏览器发送“预检”选项请求以确定CORS设置。max-age定义结果应缓存的时间。默认为1728000（20天）
 
-http.cors.allow-methods						允许哪些方法。默认为 OPTIONS, HEAD, GET, POST, PUT, DELETE。
+http.cors.allow-methods						# 允许哪些方法。默认为 OPTIONS, HEAD, GET, POST, PUT, DELETE。
 
-http.cors.allow-headers						允许哪些标题。默认为 X-Requested-With, Content-Type, Content-Length。
+http.cors.allow-headers						# 允许哪些标题。默认为 X-Requested-With, Content-Type, Content-Length。
 
-http.cors.allow-credentials				是否Access-Control-Allow-Credentials 应返回标头。注意：仅当设置设置为时，才返回此标头true。默认为false
+http.cors.allow-credentials				# 是否Access-Control-Allow-Credentials 应返回标头。注意：仅当设置设置为时，才返回此标头true。默认为false
 
-http.detailed_errors.enabled			在响应输出中启用或禁用详细错误消息和堆栈跟踪的输出。注意：当设置为false且error_trace指定了request参数时，将返回错误；如果error_trace未指定，则将返回一条简单消息。默认为true
+http.detailed_errors.enabled			# 在响应输出中启用或禁用详细错误消息和堆栈跟踪的输出。注意：当设置为false且error_trace指定了request参数时，将返回错误；如果error_trace未指定，则将返回一条简单消息。默认为true
 
-http.pipelining										启用或禁用HTTP流水线，默认为true。
+http.pipelining										# 启用或禁用HTTP流水线，默认为true。
 
-http.pipelining.max_events				关闭HTTP连接之前要在内存中排队的最大事件数，默认为10000。
+http.pipelining.max_events				# 关闭HTTP连接之前要在内存中排队的最大事件数，默认为10000。
 
-http.max_warning_header_count			客户端HTTP响应中警告标头的最大数量，默认为无界。
+http.max_warning_header_count			# 客户端HTTP响应中警告标头的最大数量，默认为无界。
 
-http.max_warning_header_size			客户端HTTP响应中警告标头的最大总大小，默认为无限制。
+http.max_warning_header_size			# 客户端HTTP响应中警告标头的最大总大小，默认为无限制。
 ```
-
-
 
 ## Transport设置
 
-https://www.elastic.co/guide/en/elasticsearch/reference/6.8/modules-transport.html
+​		官网介绍：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/modules-transport.html)
 
-```
-transport.port										绑定端口范围。默认为9300-9400。
+```yaml
+transport.port										# 绑定端口范围。默认为9300-9400。
 
-transport.publish_port						集群中其他节点与此节点通信时应使用的端口。当群集节点位于代理服务器或防火墙之后且transport.port无法从外部直接寻址时，此选项很有用。默认为通过分配的实际端口 transport.port。
+transport.publish_port						# 集群中其他节点与此节点通信时应使用的端口。当群集节点位于代理服务器或防火墙之后且transport.port无法从外部直接寻址时，此选项很有用。默认为通过分配的实际端口 transport.port。
 
-transport.bind_host								绑定传输服务的主机地址。默认为transport.host（如果设置）或network.bind_host。
+transport.bind_host								# 绑定传输服务的主机地址。默认为transport.host（如果设置）或network.bind_host。
 
-transport.publish_host						要发布以供集群中的节点连接的主机地址。默认为transport.host（如果设置）或network.publish_host。
+transport.publish_host						# 要发布以供集群中的节点连接的主机地址。默认为transport.host（如果设置）或network.publish_host。
 
-transport.host										用于将transport.bind_host和transport.publish_host默认设置为transport.host或network.host。
+transport.host										# 用于将transport.bind_host和transport.publish_host默认设置为transport.host或network.host。
 
-transport.connect_timeout					用于启动新连接的连接超时（以时间设置格式）。默认为30s。
+transport.connect_timeout					# 用于启动新连接的连接超时（以时间设置格式）。默认为30s。
 
-transport.compress								设置为true启用DEFLATE所有节点之间的压缩（）。默认为false。
+transport.compress								# 设置为true启用DEFLATE所有节点之间的压缩（）。默认为false。
 
-transport.ping_schedule						安排常规的应用程序级ping消息，以确保节点之间的传输连接保持活动状态。5s在传输客户端中默认为，在-1其他位置默认为 （禁用）。最好正确配置TCP保持活动而不是使用此功能，因为TCP保持活动适用于所有种类的长期连接，而不仅仅是传输连接。
+transport.ping_schedule						# 安排常规的应用程序级ping消息，以确保节点之间的传输连接保持活动状态。5s在传输客户端中默认为，在-1其他位置默认为 （禁用）。最好正确配置TCP保持活动而不是使用此功能，因为TCP保持活动适用于所有种类的长期连接，而不仅仅是传输连接。
 ```
 
 ## 服务发现设置
 
 ​		Elasticsearch使用名为“ Zen Discovery”的自定义发现实现来进行节点到节点的集群和主选举。在投入生产之前，应配置两个重要的发现设置。
 
-
-
 ​		**discovery.zen.ping.unicast.hosts**
 
-```
-		开箱即用，无需任何网络配置，Elasticsearch将绑定到可用的环回地址，并将扫描端口9300至9305以尝试连接到同一服务器上运行的其他节点。这提供了自动群集体验，而无需进行任何配置。
-		当要在其他服务器上形成带有节点的集群时，您必须提供集群中其他可能处于活动状态且可联系的其他节点的节点列表。
+```yaml
+		# 开箱即用，无需任何网络配置，Elasticsearch将绑定到可用的环回地址，并将扫描端口9300至9305以尝试连接到同一服务器上运行的其他节点。这提供了自动群集体验，而无需进行任何配置。
+		# 当要在其他服务器上形成带有节点的集群时，您必须提供集群中其他可能处于活动状态且可联系的其他节点的节点列表。
 ```
 
 配置如下
@@ -1089,29 +1099,29 @@ discovery.zen.ping.unicast.hosts:
 
 ​		**discovery.zen.minimum_master_nodes**		
 
-```
-		为防止数据丢失，至关重要的是配置此 discovery.zen.minimum_master_nodes设置，以便每个符合主机要求的节点都知道为形成群集而必须可见的符合主机要求的最小数量。
-		没有此设置，遭受网络故障的群集就有将群集拆分为两个独立的群集（裂脑）的风险，这将导致数据丢失。
+```properties
+		# 为防止数据丢失，至关重要的是配置此 discovery.zen.minimum_master_nodes设置，以便每个符合主机要求的节点都知道为形成群集而必须可见的符合主机要求的最小数量。
+		# 没有此设置，遭受网络故障的群集就有将群集拆分为两个独立的群集（裂脑）的风险，这将导致数据丢失。
 		
-		简单的来说选举节点的最少存活数，当和master发生网络问题，但是和其他节点可以通信时进行选举的最小节点数量，例如我们设置为1，当断开连接的时候我们只要存在1个节点我们就能进行选举。
+		# 简单的来说选举节点的最少存活数，当和master发生网络问题，但是和其他节点可以通信时进行选举的最小节点数量，例如我们设置为1，当断开连接的时候我们只要存在1个节点我们就能进行选举。
 		
-		并且Elasticsearch官方给我们提供了一个合理的设置算法
+		# 并且Elasticsearch官方给我们提供了一个合理的设置算法
 		
-		（master_eligible_nodes / 2）+ 1
+				 （master_eligible_nodes / 2）+ 1
 		
-		换句话说，如果有三个符合主条件的节点，则最小主节点应设置为(3 / 2) + 1或2：
+		# 换句话说，如果有三个符合主条件的节点，则最小主节点应设置为(3 / 2) + 1或2：
 		
-		默认值：1
+		 			默认值：1
 		
-		discovery.zen.minimum_master_nodes: 2
+					设置: discovery.zen.minimum_master_nodes: 2
 		
-		脑裂说明：假设您有一个由两个符合主机资格的节点组成的集群。网络故障会中断这两个节点之间的通信。每个节点都会看到一个符合主控条件的节点...... 随着minimum_master_nodes设置为默认1，这是足以形成一个集群。每个节点都将自己选举为新的主节点（认为其他符合主节点资格的节点已经死亡），结果是两个集群或一个裂脑。在重新启动一个节点之前，这两个节点将永远不会重新加入。已写入重新启动的节点的所有数据都将丢失。
-		现在，假设您有一个具有三个主节点的集群，并将其 minimum_master_nodes设置为2。如果网络拆分将一个节点与其他两个节点分开，则具有一个节点的一侧将看不到足够的符合主机资格的节点，并且将意识到自己无法选举为主机。具有两个节点的一侧将选举一个新的主机（如果需要）并继续正常运行。解决网络拆分后，单个节点将重新加入群集并再次开始服务请求。
+		# 脑裂说明：假设您有一个由两个符合主机资格的节点组成的集群。网络故障会中断这两个节点之间的通信。每个节点都会看到一个符合主控条件的节点...... 随着minimum_master_nodes设置为默认1，这是足以形成一个集群。每个节点都将自己选举为新的主节点（认为其他符合主节点资格的节点已经死亡），结果是两个集群或一个裂脑。在重新启动一个节点之前，这两个节点将永远不会重新加入。已写入重新启动的节点的所有数据都将丢失。
+		# 现在，假设您有一个具有三个主节点的集群，并将其 minimum_master_nodes设置为2。如果网络拆分将一个节点与其他两个节点分开，则具有一个节点的一侧将看不到足够的符合主机资格的节点，并且将意识到自己无法选举为主机。具有两个节点的一侧将选举一个新的主机（如果需要）并继续正常运行。解决网络拆分后，单个节点将重新加入群集并再次开始服务请求。
 ```
 
 ​		并且我们可以通过Rest方式直接修改
 
-```
+```yaml
 PUT _cluster/settings 
 { “ transient” ：{ “ discovery.zen.minimum_master_nodes” ：2 } } 
 ```
@@ -1228,28 +1238,25 @@ rest.action.multi.allow_explicit_index: false
 
 
 
-# Elasticsearch系统配置（Docker启动无需设置）
+# Elasticsearch系统配置（Docker启动无需设置）	
 
-​		设置打开文件最大数
-
-```
+```sh
+#	设置打开文件最大数
 sudo su  
 ulimit -n 65535 
 su elasticsearch 
 ```
 
-​		关闭swap
-
-```
+```sh
+# 关闭swap
 sudo swapoff -a
 
-# 请求路径判断是否设置成功
+# EsRest请求路径判断是否设置成功
 GET _nodes/stats/process?filter_path=**.max_file_descriptors
 ```
 
-​		启用内存锁，防止内存溢出
-
-```
+```sh
+# 启用内存锁，防止内存溢出
 bootstrap.memory_lock: true
 
 # 请求路径判断是否设置成功
@@ -1271,3 +1278,28 @@ Elasticsearch对不同类型的操作使用许多线程池。能够在需要时�
 ```
 
 ​		
+
+启动失败看这里
+
+或者是由于权限的原因
+
+我们使用docker logs -f 容器查看日志
+
+如果发现
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/error1.png)
+
+解决方法
+
+```sh
+vim /etc/sysctl.conf 
+
+在最后一行添加
+vm.max_map_count=655360
+然后退出执行
+sysctl -p
+
+
+```
+
+https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1596190258135.png

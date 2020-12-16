@@ -78,6 +78,7 @@ import org.springframework.context.annotation.Configuration;
  * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
  * @Summarize OkHttp配置
  */
+@Data
 @Configuration
 @ConfigurationProperties(prefix = "okhttp")
 public class OkHttpProperties {
@@ -129,6 +130,7 @@ import java.util.concurrent.TimeUnit;
  * @Summarize OkHttpConfig配置
  */
 @Configuration
+@Data
 public class OkHttpConfig {
 
     private final OkHttpProperties properties;

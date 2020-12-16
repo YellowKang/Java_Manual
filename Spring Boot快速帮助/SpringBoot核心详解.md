@@ -262,3 +262,438 @@ end" 1 name "bigkang"
 
 ```
 
+# SpringBoot创建Bean流程
+
+
+
+```yaml
+SpringApplication.run方法
+	# run方法中刷新上下文	
+	SpringApplication.this.refreshContext(context);
+# 调用Springapplicaiont刷新上下文
+SpringApplication.refreshContext(ConfigurableApplicationContext context)
+	# refresh方法
+	SpringApplication.refresh(ApplicationContext applicationContext)
+			# 转换抽象应用上下文调用刷新方法
+			((AbstractApplicationContext)applicationContext).refresh();
+# 执行刷新
+AbstractApplicationContext.refresh()
+	# 调用刷新Bean工厂（初始化Bean对象）
+	this.finishBeanFactoryInitialization(beanFactory);
+	# 调用实例化单例，ConfigurableListableBeanFactory工厂
+	ConfigurableListableBeanFactory.beanFactory.preInstantiateSingletons();
+# 实现为DefaultListableBeanFactory，调用实例化单例
+DefaultListableBeanFactory.preInstantiateSingletons()
+```
+
+​		开始实例化Bean
+
+```java
+		// 触发所有非懒加载单例bean的初始化，默认Bean都是非懒加载的所以基本都会走这个
+		for (String beanName : beanNames) {
+			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
+			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
+				if (isFactoryBean(beanName)) {
+					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
+					if (bean instanceof FactoryBean) {
+						FactoryBean<?> factory = (FactoryBean<?>) bean;
+						boolean isEagerInit;
+						if (System.getSecurityManager() != null && factory instanceof SmartFactoryBean) {
+							isEagerInit = AccessController.doPrivileged(
+									(PrivilegedAction<Boolean>) ((SmartFactoryBean<?>) factory)::isEagerInit,
+									getAccessControlContext());
+						}
+						else {
+							isEagerInit = (factory instanceof SmartFactoryBean &&
+									((SmartFactoryBean<?>) factory).isEagerInit());
+						}
+						if (isEagerInit) {
+							getBean(beanName);
+						}
+					}
+				}
+				else {
+					getBean(beanName);
+				}
+			}
+		}
+```
+
+​		调用getBean(beanName);
+
+```java
+// 调用getBean（核心）
+getBean(beanName);
+	AbstractBeanFactory.doGetBean
+```
+
+​		然后判断是否单例然后初始化，进行二级缓存以及三级缓存的构建
+
+```java
+				// 创建单例Bean
+				if (mbd.isSingleton()) {
+          // 获取单例（核心，循环依赖），getSingleton构建二级缓存
+					sharedInstance = getSingleton(beanName, () -> {
+						try {
+              // 创建Bean对象，创建Bean并且实例以及createBean构建三级缓存（核心）
+							return createBean(beanName, mbd, args);
+						}
+						catch (BeansException ex) {
+							// 从单例缓存中显式删除实例：它可能已经放在那里
+							// 急于通过创建过程，以允许循环引用解析。
+							// 还删除所有收到对bean的临时引用的bean。
+							destroySingleton(beanName);
+							throw ex;
+						}
+					});
+					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
+				}
+```
+
+​		createBean调用doCreateBean
+
+```java
+		try {
+      // 进行创建Bean对象（核心）
+			Object beanInstance = doCreateBean(beanName, mbdToUse, args);
+			if (logger.isTraceEnabled()) {
+				logger.trace("Finished creating instance of bean '" + beanName + "'");
+			}
+			return beanInstance;
+		}
+		catch (BeanCreationException | ImplicitlyAppearedSingletonException ex) {
+			// 先前检测到的具有正确的bean创建上下文的异常，
+			// 或非法的单例状态，最多可以传达给DefaultSingletonBeanRegistry。
+			throw ex;
+		}
+```
+
+​		进入doCreateBean方法，在这里会创建我们的三级缓存singletonFactories，也就是工厂缓存
+
+```java
+		// 实例化Bean
+		BeanWrapper instanceWrapper = null;
+		// 如果是单例
+		if (mbd.isSingleton()) {
+      // 删除工厂Bean实例，如果有则返回
+			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
+		}
+		// 如果没有实例则进行实例的创建
+		if (instanceWrapper == null) {
+			instanceWrapper = createBeanInstance(beanName, mbd, args);
+		}
+		Object bean = instanceWrapper.getWrappedInstance();
+		Class<?> beanType = instanceWrapper.getWrappedClass();
+		if (beanType != NullBean.class) {
+			mbd.resolvedTargetType = beanType;
+		}
+
+		// 允许后处理器修改合并的bean定义。
+		synchronized (mbd.postProcessingLock) {
+			if (!mbd.postProcessed) {
+				try {
+					applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName);
+				}
+				catch (Throwable ex) {
+					throw new BeanCreationException(mbd.getResourceDescription(), beanName,
+							"Post-processing of merged bean definition failed", ex);
+				}
+				mbd.postProcessed = true;
+			}
+		}
+
+		// 急于缓存单例，以便能够解析循环引用（核心重点），如果是单例并且允许循环依赖（默认true），并且属于正在创建中的Bean
+		boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
+				isSingletonCurrentlyInCreation(beanName));
+		// 如果符合条件进入方法
+		if (earlySingletonExposure) {
+			if (logger.isTraceEnabled()) {
+				logger.trace("Eagerly caching bean '" + beanName +
+						"' to allow for resolving potential circular references");
+			}
+      // 添加单例工厂，也就是我们添加的singletonFactories，也就是工厂缓存（核心）
+			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
+		}
+		// 初始化Bean实例
+		Object exposedObject = bean;
+		try {
+      // 填充属性给Bean
+			populateBean(beanName, mbd, instanceWrapper);
+      // 将Bean进行实例话，并且调用PostProcessors后置处理器
+			exposedObject = initializeBean(beanName, exposedObject, mbd);
+		}
+		catch (Throwable ex) {
+			if (ex instanceof BeanCreationException && beanName.equals(((BeanCreationException) ex).getBeanName())) {
+				throw (BeanCreationException) ex;
+			}
+			else {
+				throw new BeanCreationException(
+						mbd.getResourceDescription(), beanName, "Initialization of bean failed", ex);
+			}
+		}
+```
+
+​		addSingletonFactory添加单例工厂
+
+```java
+	/**
+	 * 添加给定的单例工厂以构建指定的单例
+	 * 如果有必要.
+	 * 渴望注册单例，例如能够解析循环引用.
+	 * @param beanName 这个Bean的名字
+	 * @param singletonFactory 单例对象的工厂
+	 */
+	protected void addSingletonFactory(String beanName, ObjectFactory<?> singletonFactory) {
+		Assert.notNull(singletonFactory, "Singleton factory must not be null");
+		synchronized (this.singletonObjects) {
+      // 如果singletonObjects一级缓存不包含
+			if (!this.singletonObjects.containsKey(beanName)) {
+        // 添加到三级缓存工厂中
+				this.singletonFactories.put(beanName, singletonFactory);
+        // 从二级缓存中删除
+				this.earlySingletonObjects.remove(beanName);
+        // 添加到以及注册的单例Set中
+				this.registeredSingletons.add(beanName);
+			}
+		}
+	}
+```
+
+​		返回创建的对象工厂给getSingleton，回到getSingleton方法
+
+```java
+	/**
+	 * 根据Bean名称，以及对象单例工厂返回Bean对象
+	 * 如果尚未注册，则创建并注册一个新的
+	 * @param beanName Bean的名字
+	 * @param singletonFactory 延迟创建单例的ObjectFactory
+	 * @return 注册的单例对象
+	 */
+	public Object getSingleton(String beanName, ObjectFactory<?> singletonFactory) {
+		Assert.notNull(beanName, "Bean name must not be null");
+		synchronized (this.singletonObjects) {
+      // 从一级缓存中获取，通常刚创建都是没有的
+			Object singletonObject = this.singletonObjects.get(beanName);
+			if (singletonObject == null) {
+				if (this.singletonsCurrentlyInDestruction) {
+					throw new BeanCreationNotAllowedException(beanName,
+							"Singleton bean creation not allowed while singletons of this factory are in destruction " +
+							"(Do not request a bean from a BeanFactory in a destroy method implementation!)");
+				}
+				if (logger.isDebugEnabled()) {
+					logger.debug("Creating shared instance of singleton bean '" + beanName + "'");
+				}
+				beforeSingletonCreation(beanName);
+				boolean newSingleton = false;
+				boolean recordSuppressedExceptions = (this.suppressedExceptions == null);
+				if (recordSuppressedExceptions) {
+					this.suppressedExceptions = new LinkedHashSet<>();
+				}
+        // 核心方法，从单例工厂中获取doCreateBean创建的对象
+				try {
+					singletonObject = singletonFactory.getObject();
+          // 设置为新创建的单例
+					newSingleton = true;
+				}
+				catch (IllegalStateException ex) {
+					singletonObject = this.singletonObjects.get(beanName);
+					if (singletonObject == null) {
+						throw ex;
+					}
+				}
+				catch (BeanCreationException ex) {
+					if (recordSuppressedExceptions) {
+						for (Exception suppressedException : this.suppressedExceptions) {
+							ex.addRelatedCause(suppressedException);
+						}
+					}
+					throw ex;
+				}
+        // 核心重点！！！
+				finally {
+					if (recordSuppressedExceptions) {
+						this.suppressedExceptions = null;
+					}
+          // 创建后我们需要从正在创建的状态中删掉，因为已经完成了创建状态不是创建中
+					afterSingletonCreation(beanName);
+				}
+        // 新创建的单例
+				if (newSingleton) {
+          // 核心，新增单例，表示我们已经完成单例的创建以及注册，并且需要添加到一级缓存中
+					addSingleton(beanName, singletonObject);
+				}
+			}
+			return singletonObject;
+		}
+	}
+```
+
+​		addSingleton
+
+```java
+	/**
+	 * 将给定的单例对象添加到该工厂的单例缓存中
+	 * 渴望注册单例
+	 * @param beanName BeanName名称
+	 * @param singletonObject 单例对象
+	 */
+	protected void addSingleton(String beanName, Object singletonObject) {
+    // 锁对象
+		synchronized (this.singletonObjects) {
+      // 添加到一级缓存
+			this.singletonObjects.put(beanName, singletonObject);
+      // 删除三级缓存
+			this.singletonFactories.remove(beanName);
+      // 删除二级缓存
+			this.earlySingletonObjects.remove(beanName);
+      // 添加到已经注册的单例集中
+			this.registeredSingletons.add(beanName);
+		}
+	}
+```
+
+​		
+
+​		那么我们的二级缓存在哪里呢？其实在我们循环依赖的时候，我们会去进行注入，例如我们创建A但是依赖了B，那么创建完A之后进行属性填充，则会跟着创建B。
+
+​		代码如下：
+
+```java
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+/**
+ * @Summarize Bean对象A，将其标志为Spring组件
+ */
+@Component
+public class BeanA {
+    /**
+     * b 属性
+     */
+    private BeanB b;
+    /**
+     * setter方法注入B
+     * @param b
+     */
+    @Autowired
+    public void setB(BeanB b){
+        this.b = b;
+    }
+}
+
+/**
+ * @Summarize Bean对象B，将其标志为Spring组件
+ */
+@Component
+public class BeanB {
+    /**
+     * A 属性初始化
+     */
+    private BeanA a;
+    /**
+     * setter方法注入A
+     * @param a
+     */
+    @Autowired
+    public void setA(BeanA a){
+        this.a = a;
+    }
+}
+```
+
+​		流程
+
+```
+创建A  -》 填充属性 -》 创建B
+```
+
+​		那么A把B给创建了，轮到了B自己来进行创建的时候现在已经有缓存了所以能直接查询到，这块的代码在我们的最外层的doGetBean中。在我们创建单例前有一个操作叫做getSingleton，获取单例，这是我们循环依赖的解决方案，核心在这里，我们会发现B自己已经被A创建工厂，然后构建二级缓存。
+
+```java
+
+		String beanName = transformedBeanName(name);
+		Object bean;
+
+		// 认真检查单例缓存是否有注册的单例。
+		Object sharedInstance = getSingleton(beanName);
+		if (sharedInstance != null && args == null) {
+			if (logger.isTraceEnabled()) {
+				if (isSingletonCurrentlyInCreation(beanName)) {
+					logger.trace("Returning eagerly cached instance of singleton bean '" + beanName +
+							"' that is not fully initialized yet - a consequence of a circular reference");
+				}
+				else {
+					logger.trace("Returning cached instance of singleton bean '" + beanName + "'");
+				}
+			}
+			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
+		}
+		........其他代码
+						// 创建单例Bean
+				if (mbd.isSingleton()) {
+          // 获取单例（核心，循环依赖），getSingleton构建二级缓存
+					sharedInstance = getSingleton(beanName, () -> {
+						try {
+              // 创建Bean对象，创建Bean并且实例以及createBean构建三级缓存（核心）
+							return createBean(beanName, mbd, args);
+						}
+						catch (BeansException ex) {
+							// 从单例缓存中显式删除实例：它可能已经放在那里
+							// 急于通过创建过程，以允许循环引用解析。
+							// 还删除所有收到对bean的临时引用的bean。
+							destroySingleton(beanName);
+							throw ex;
+						}
+					});
+					bean = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
+				}
+```
+
+​		这里就是解决循环依赖的方法了，我们B被A创建了单例工厂，进行实例，然后轮到B自己进来了以后发现工厂已经被A创建好了，这个时候我们直接获取实例并且添加到二级缓存中。
+
+```java
+	/**
+	 * 返回以给定名称注册的（原始）单例对象
+	 * 检查已经实例化的单例并且还允许早期引用当前创建的单例(解决循环参考).
+	 * @参数 beanName the 要寻找的Bean的名字
+	 * @参数 allowEarlyReference 是否循环依赖进行获取
+	 * @返回 注册的单例对象；如果找不到，则为{@code null}
+	 */
+  protected Object getSingleton(String beanName, boolean allowEarlyReference) {
+     // 从一级缓存中进行获取，也就是完成了创建的
+     Object singletonObject = this.singletonObjects.get(beanName);
+     // 如果一级缓存没有并且这个Bean正在创建中
+     if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
+       // 从二级缓存进行获取
+        singletonObject = this.earlySingletonObjects.get(beanName);
+        // 二级缓存也没有，并且允许循环依赖的话进入方法，并且锁对象
+        if (singletonObject == null && allowEarlyReference) {
+           synchronized (this.singletonObjects) {
+              // 再次从一级缓存获取，重新走一遍流程，加锁保证原子性，防止操作时从其他一级缓存添加
+              singletonObject = this.singletonObjects.get(beanName);
+              // 重新走流程
+              if (singletonObject == null) {
+                 singletonObject = this.earlySingletonObjects.get(beanName);
+                 if (singletonObject == null) {
+                    // 再从三级缓存进行获取，此时B以及被A实例并且创建了线程工厂，表示有循环依赖，如果没有表示第一次创建对象
+                    ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
+                    // 如果从三级缓存查询到了对象工厂，表示出现了循环依赖的问题
+                    if (singletonFactory != null) {
+                       // 从工厂获取实例
+                       singletonObject = singletonFactory.getObject();
+                       // 添加到二级缓存
+                       this.earlySingletonObjects.put(beanName, singletonObject);
+                       // 删除掉三级缓存
+                       this.singletonFactories.remove(beanName);
+                    }
+                 }
+              }
+           }
+        }
+     }
+     return singletonObject;
+  }
+```
+
+​		如果是第一次A创建则会返回空，进行CreateBean操作，如果A创建并且填充B，B这个类也会进行单例获取，这个时候就可以从三级缓存中获取到，并且创建二级缓存了。
+
+​		如果是没有出现循环依赖，则不会创建二级缓存！！！

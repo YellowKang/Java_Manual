@@ -438,12 +438,9 @@ query.addCriteria(Criteria.where("reply").elemMatch(Criteria.where("answerDept")
 }
 ```
 
-​		下面我们编写一个location用于存储我们的经纬度类型
+​		下面我们编写一个location的类用于存储我们的经纬度类型
 
 ```java
-import com.mongodb.client.model.geojson.GeoJsonObjectType;
-
-
 /**
  * @Author BigKang
  * @Date 2020/10/29 5:34 下午
@@ -453,9 +450,86 @@ import com.mongodb.client.model.geojson.GeoJsonObjectType;
 public class MongoPoint {
 
     /**
-     * Mongo点索引类型
+     * Mongo经纬度类型
      */
-    private String type = GeoJsonObjectType.POINT.getTypeName();
+    private String type = MongoPointUtil.MONGO_POINT_TYPE;
+
+    /**
+     * 经纬度数组【经度，纬度】
+     */
+    private double[] coordinates;
+
+    /**
+     * 无参构造方法
+     */
+    public MongoPoint(){
+
+    }
+
+    /**
+     * 设置创建构造方法初始化信息
+     * @param longitude
+     * @param latitude
+     */
+    public MongoPoint(double longitude,double latitude){
+        MongoPointUtil.checkLongitude(longitude);
+        MongoPointUtil.checkLatitude(latitude);
+        coordinates =  new double[]{longitude,latitude};
+    }
+
+    /**
+     * 获取坐标信息
+     * @return
+     */
+    public double[] getCoordinates(){
+        MongoPointUtil.checkCoordinates(this.coordinates);
+        return this.coordinates;
+    }
+
+}
+
+```
+
+​		然后我们编写一个工具类，帮助我们快速生成Query接口，并且添加一个计算距离的工具类
+
+```java
+
+import com.mongodb.client.model.geojson.GeoJsonObjectType;
+import org.springframework.util.Assert;
+
+/**
+ * @Author BigKang
+ * @Date 2020/11/16 4:23 下午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize Mongo点常量
+ */
+public class MongoPointUtil {
+
+    /**
+     * Mongo点类型
+     */
+    public static final String MONGO_POINT_TYPE = GeoJsonObjectType.POINT.getTypeName();
+
+    /**
+     * 空Mongo点信息
+     */
+    public static final String NULL_MONGO_POINT_MESSAGE = "坐标信息为空！";
+
+    /**
+     * 异常经度信息
+     */
+    public static final String ERROR_LNG_EXCEPTION_MESSAGE = "Illegal longitude exception！";
+
+    /**
+     * 异常纬度信息
+     */
+    public static final String ERROR_LAT_EXCEPTION_MESSAGE = "Illegal latitude exception！";
+
+    /**
+     * 经纬度长度信息异常
+     */
+    public static final String ERROR_LNG_LAT_LENGTH_EXCEPTION_MESSAGE = "Longitude and latitude information is empty or illegal length exception！";
+
 
     /**
      * 最小经度下限
@@ -479,133 +553,51 @@ public class MongoPoint {
      */
     private static final Integer COORDINATES_LENGTH = 2;
 
-    /**
-     * 经纬度数组【经度，纬度】
-     */
-    private double[] coordinates;
-
-    public MongoPoint(){
-
-    }
-
-    /**
-     * 设置创建构造方法初始化信息
-     * @param longitude
-     * @param latitude
-     */
-    public MongoPoint(double longitude,double latitude){
-        checkLongitude(longitude);
-        checkLatitude(latitude);
-        coordinates =  new double[]{longitude,latitude};
-    }
 
     /**
      * 检查经度
      */
-    public void checkLongitude(double lng){
-        if(lng > MAX_LONGITUDE || lng < MIN_LONGITUDE){
-            throw new RuntimeException("Illegal longitude exception！");
+    public static void checkLongitude(double lng) {
+        if (lng > MAX_LONGITUDE || lng < MIN_LONGITUDE) {
+            throw new RuntimeException(ERROR_LNG_EXCEPTION_MESSAGE);
         }
     }
 
     /**
      * 检查纬度
      */
-    public void checkLatitude(double lat){
-        if(lat > MAX_LATITUDE || lat < MIN_LATITUDE){
-            throw new RuntimeException("Illegal latitude exception！");
+    public static void checkLatitude(double lat) {
+        if (lat > MAX_LATITUDE || lat < MIN_LATITUDE) {
+            throw new RuntimeException(MongoPointUtil.ERROR_LAT_EXCEPTION_MESSAGE);
         }
     }
 
     /**
-     * 获取坐标信息
-     * @return
+     * 检查经纬度数组
+     *
+     * @param coordinates
      */
-    public double[] getCoordinates(){
-        if(coordinates == null || coordinates.length <= 0 || coordinates.length != COORDINATES_LENGTH){
-            throw new NullPointerException("Longitude and latitude information is empty or illegal length exception！");
+    public static void checkCoordinates(double[] coordinates) {
+        if (coordinates == null || coordinates.length <= 0 || coordinates.length != COORDINATES_LENGTH) {
+            throw new NullPointerException(ERROR_LNG_LAT_LENGTH_EXCEPTION_MESSAGE);
         }
         checkLongitude(coordinates[0]);
         checkLongitude(coordinates[1]);
-        return coordinates;
     }
 
+    /**
+     * 检查点
+     */
+    public static void checkPoint(MongoPoint point) {
+        Assert.notNull(point, NULL_MONGO_POINT_MESSAGE);
+        if (point != null) {
+            double[] coordinates = point.getCoordinates();
+            Assert.notNull(coordinates, NULL_MONGO_POINT_MESSAGE);
+            Assert.isTrue(coordinates.length != 0, NULL_MONGO_POINT_MESSAGE);
+        }
+    }
 }
 
-```
-
-​		然后我们编写一个工具类，帮助我们快速生成Query接口，并且添加一个计算距离的工具类
-
-```java
-
-import com.mongodb.BasicDBObject;
-import com.topcom.emergency.vo.MongoPoint;
-import org.springframework.data.mongodb.core.query.BasicQuery;
-import org.springframework.data.mongodb.core.query.Query;
-
-/**
- * @Author BigKang
- * @Date 2020/10/30 11:07 上午
- * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
- * @Summarize Mongo查询工具类
- */
-public class MongoQueryUtil {
-
-    /**
-     * 赤道半径
-     */
-    private static Integer EARTH_RADIUS = 6378137;
-
-    /**
-     * Mongo near 地理位置查询
-     *
-     * @param field      地理位置字段
-     * @param mongoPoint Mongo地图点
-     * @param radius     半径范围，默认米
-     * @return
-     */
-    public static Query near(String field, MongoPoint mongoPoint, Integer radius) {
-        BasicDBObject basicDBObject = new BasicDBObject();
-        basicDBObject.put(field,
-                new BasicDBObject(
-                        "$near", new BasicDBObject()
-                        .append("$geometry", new BasicDBObject()
-                                .append("type", "Point")
-                                .append("coordinates", mongoPoint.getCoordinates()))
-                        .append("$maxDistance", radius)));
-        Query query = new BasicQuery(basicDBObject);
-        return query;
-    }
-
-
-    /**
-     * 计算两个经纬度的距离返回（米）
-     *
-     * @param origin      当前起点经纬度
-     * @param destination 目标经纬度
-     * @return
-     */
-    public static double GetDistance(MongoPoint origin, MongoPoint destination) {
-        double lng1 = origin.getCoordinates()[0];
-        double lat1 = origin.getCoordinates()[1];
-        double lng2 = destination.getCoordinates()[0];
-        double lat2 = destination.getCoordinates()[1];
-        double radLat1 = rad(lat1);
-        double radLat2 = rad(lat2);
-        double a = radLat1 - radLat2;
-        double b = rad(lng1) - rad(lng2);
-        double s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a / 2), 2)
-                + Math.cos(radLat1) * Math.cos(radLat2) * Math.pow(Math.sin(b / 2), 2)));
-        s = s * EARTH_RADIUS;
-        s = Math.round(s * 10000) / 10000;
-        return s;
-    }
-
-    private static double rad(double d) {
-        return d * Math.PI / 180.0;
-    }
-
-}
 ```
 
 ​		然后我们编写实体

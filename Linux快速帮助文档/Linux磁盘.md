@@ -110,3 +110,24 @@ mount | grep /dev/xvdc
 UUID=d04f7568-91f4-496a-996e-e67cbb337300 /data                       ext4     defaults        0 0
 ```
 
+
+
+
+
+# NFS挂载
+
+​		挂载我们将nfs.langfang.oceanstor9000-1.com:/sfs-anqscdsj-liantong-03 这个NFS资源，挂载到/data2
+
+```sh
+mount -t nfs nfs.langfang.oceanstor9000-1.com:/sfs-anqscdsj-liantong-03 /data2
+```
+
+​		永久挂载
+
+```sh
+# 将挂载写入到/etc/fstab
+echo "nfs.langfang.oceanstor9000-1.com:/sfs-anqscdsj-liantong-03  /data2           nfs     rw,soft,intr    0 0" >>  /etc/fstab
+# 查看文件
+cat /etc/fstab
+```
+

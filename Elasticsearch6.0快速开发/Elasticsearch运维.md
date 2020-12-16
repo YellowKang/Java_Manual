@@ -28,12 +28,12 @@ http://ip地址:9200/_cat
 
 ```http
 --山东
-elasticdump --output=http://10.212.1.33:20269/yuqing_2019_2/ --input=E:\卓越讯通\煤矿项目\山东煤监局\sd_month2.json --type=data    
+elasticdump --output=http://10.212.1.33:20269/yuqing_2019_2/ --input=E:\山东\sd_month2.json --type=data    
  --后面这个有的版本加了报错  --headers='{"content-type": "application/json"}'
 --河北
-elasticdump --output=http://10.224.0.86:19200/yuqing_2019_6/ --input=E:\卓越讯通\煤矿项目\河北煤矿\hb_month625.json --type=data 
+elasticdump --output=http://10.224.0.86:19200/yuqing_2019_6/ --input=E:\河北\hb_month625.json --type=data 
 --新疆
-elasticdump --output=http://172.35.0.33:20369/yuqing_2019_6/ --input=E:\卓越讯通\煤矿项目\新疆\xj_month621.json --type=data
+elasticdump --output=http://172.35.0.33:20369/yuqing_2019_6/ --input=E:\新疆\xj_month621.json --type=data
 
 
 
@@ -71,16 +71,16 @@ Windows
 
 ```
 --山东
- elasticdump --input=http://192.168.1.14:20269/yuqing_2019_2*/ --output=E:\卓越讯通\煤矿项目\山东煤监局\sd_month2.json  --searchBody  {\"query\":{\"bool\":{\"filter\":[{\"range\":{\"pubTime\":{\"gte\":1548950400000,\"lt\":1551369600000}}},{\"match_phrase\":{\"content\":\"山东\"}}]}}} &
+ elasticdump --input=http://192.168.1.14:20269/yuqing_2019_2*/ --output=E:\山东\sd_month2.json  --searchBody  {\"query\":{\"bool\":{\"filter\":[{\"range\":{\"pubTime\":{\"gte\":1548950400000,\"lt\":1551369600000}}},{\"match_phrase\":{\"content\":\"山东\"}}]}}} &
 --新疆
-elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=E:\卓越讯通\煤矿项目\新疆\xj_month621.json      --searchBody  {\"query\":{\"bool\":{\"filter\":[{\"range\":{\"pubTime\":{\"gte\":1559318400000,\"lt\":1561910400000}}},{\"match_phrase\":{\"content\":\"新疆\"}}]}}} &
+elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=E:\新疆\xj_month621.json      --searchBody  {\"query\":{\"bool\":{\"filter\":[{\"range\":{\"pubTime\":{\"gte\":1559318400000,\"lt\":1561910400000}}},{\"match_phrase\":{\"content\":\"新疆\"}}]}}} &
 --河北
-elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=E:\卓越讯通\煤矿项目\河北煤矿\hb_month625.json    --searchBody  {\"query\":{\"bool\":{\"filter\":[{\"range\":{\"pubTime\":{\"gte\":1561305600000,\"lt\":1561910400000}}},{\"match_phrase\":{\"content\":\"河北\"}}]}}} &
+elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=E:\河北\hb_month625.json    --searchBody  {\"query\":{\"bool\":{\"filter\":[{\"range\":{\"pubTime\":{\"gte\":1561305600000,\"lt\":1561910400000}}},{\"match_phrase\":{\"content\":\"河北\"}}]}}} &
 ```
 
 # 查询所有数据总数
 
-```
+```http
 curl -s -XGET http://192.168.1.14:20269/_cat/count?v
 ```
 
@@ -107,23 +107,26 @@ PUT /_cluster/settings
 
 ## 修改副本数
 
-```
-PUT index01/_settings  {"number_of_replicas": 2}
+```json
+PUT index01/_settings
+{
+  "number_of_replicas": 2
+}
 ```
 
 ## 查询分片以及副本信息
 
-我们通过cat
+​		我们通过cat
 
-```
+```http
 http://182.61.2.16:19201/_cat/shards
 ```
 
 ## 重建索引
 
-也可以叫做索引复制，我们将test001复制到test002，但是我们需要注意，重新索引不会从源索引复制设置。映射，分片计数，副本等必须提前配置。
+​		也可以叫做索引复制，我们将test001复制到test002，但是我们需要注意，重新索引不会从源索引复制设置。映射，分片计数，副本等必须提前配置。所以我们需要先建mapping
 
-```
+```sh
 POST _reindex
 {
   "source": {
@@ -133,6 +136,37 @@ POST _reindex
     "index": "test002"
   }
 }
+```
+
+## 强制分片
+
+​		6.7分片
+
+```
+
+```
+
+​		ES2.3版本分片
+
+```properties
+# 设置yuqing_2020_9_4索引副本集
+curl -XPUT 'http://localhost:19200/yuqing_2020_9_4/_settings' -d '{
+    "index": {
+       "number_of_replicas": "1"
+    }
+}'
+
+
+# 强制分配主分片，yuqing_2020_9_4 分片“9” 到  es-data3 上
+curl -XPOST 'http://localhost:19200/_cluster/reroute' -d '{
+    "commands" : [
+        {
+          "allocate" : {
+              "index" : "yuqing_2020_9_4", "shard" : 9, "node" : "es-data3","allow_primary": "true"
+          }
+        }
+    ]
+}'
 ```
 
 
@@ -184,27 +218,27 @@ node														节点名称
 
 ## 查询节点信息
 
-我们访问/_nodes端点
+​		我们访问/_nodes端点
 
 ```http
 http://182.61.2.16:19201/_nodes
 ```
 
-可以查询出所有的ES的节点信息，以及节点的状态
+​		可以查询出所有的ES的节点信息，以及节点的状态
 
-我们也能过滤指定的节点信息，例如查询es-node1-master节点信息
+​		我们也能过滤指定的节点信息，例如查询es-node1-master节点信息
 
 ```http
 http://182.61.2.16:19201/_nodes/es-node1-master/
 ```
 
-查看节点状态
+​		查看节点状态
 
 ```http
 http://182.61.2.16:19201/_nodes/es-node1-master/nodes
 ```
 
-返回如下信息
+​		返回如下信息
 
 ```json
 {
@@ -254,13 +288,19 @@ http://182.61.2.16:19201/_nodes/es-node1-master/nodes
 }
 ```
 
-还有其他的查询类型
+​		还有其他的查询类型
 
 ```http
 http://182.61.2.16:19201/_nodes/es-node1-master/jvm					#查询jvm信息
 http://182.61.2.16:19201/_nodes/es-node1-master/settings		#查询设置信息
 http://182.61.2.16:19201/_nodes/es-node1-master/os					#查询系统信息等等
 http://182.61.2.16:19201/_nodes/es-node1-master/stats				#统计节点信息
+```
+
+​		查询数据节点，只有数据节点才会分配资源使用_cat/allocation都是数据节点
+
+```http
+http://182.61.2.16:19201/_cat/allocation?v
 ```
 
 
@@ -375,12 +415,6 @@ http://182.61.2.16:19201/_cluster/stats
 
 ```http
 http://182.61.2.16:19201/_cluster/pending_tasks
-```
-
-## 集群重新设置路由
-
-```http
-http://182.61.2.16:19201/_cluster/reroute
 ```
 
 ## 集群更新设置（零时）

@@ -47,6 +47,36 @@ public class CustomWebCommonConfig{
 }
 ```
 
+# 版本问题
+
+​		注意：SpringBoot2.4.0以后报错，无法跨域。
+
+​		原因：参考博客：[点击进入](https://blog.csdn.net/ASAS1314/article/details/110524116)
+
+```java
+@Configuration
+public class ResourcesConfig implements WebMvcConfigurer {
+    /**
+     * 跨域配置
+     */
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        //对那些请求路径进行跨域处理
+        registry.addMapping("/**")
+                // 允许的请求头，默认允许所有的请求头
+                .allowedHeaders("*")
+                // 允许的方法，默认允许GET、POST、HEAD
+                .allowedMethods("*")
+                // 探测请求有效时间，单位秒
+                .maxAge(1800)
+                // 支持的域
+                .allowedOrigins("*");
+    }
+}
+```
+
+
+
 # 在线测试
 
 打开浏览器，然后F12，点击Console控制台，直接执行js即可测试
