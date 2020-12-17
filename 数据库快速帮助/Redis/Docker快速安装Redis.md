@@ -210,11 +210,16 @@ daemonize no
 #我们将6个redis设置为1637   1-6的端口
 port 16371
 
-# 绑定的主机地址
+# 绑定的主机地址,指定 redis 只接收来自于该IP地址的请求，如果不进行设置，那么将处理所有请求
 #bind 0.0.0.0
 
 # 当 客户端闲置多长时间后关闭连接，如果指定为0，表示关闭该功能
 timeout 300
+
+
+#此参数确定了TCP连接中已完成队列(完成三次握手之后)的长度， 当然此值必须不大于Linux系统定义的/proc/sys/net/core/somaxconn值，默认是511，而Linux的默认参数值是128。当系统并发量大并且客户端速度缓慢的时候，可以将这二个参数一起参考设定。该内核参数默认值一般是128，对于负载很大的服务程序来说大大的不够。一般会将它修改为2048或者更大。在/etc/sysctl.conf中添加:net.core.somaxconn = 2048，然后在终端中执行sysctl -p
+tcp-backlog 511
+
 
 # 指定日志记录级别，Redis总共支持四个级别：debug、verbose、notice、warning，
 #默认为verbose
@@ -274,8 +279,14 @@ appendfilename appendonly.aof
 # 指定更新日志条件，共有3个可选值： 
 #no：表示等操作系统进行数据缓存同步到磁盘（快） 
 #always：表示每次更新操作后手动调用fsync()将数据写到磁盘（慢，安全） 
-#everysec：表示每秒同步一次（折衷，默认值）
+#everysec：表示每秒同步一次（折中，默认值）
 appendfsync everysec
+
+#在aof重写的时候，如果打开了aof-rewrite-incremental-fsync开关，系统会每32MB执行一次fsync。这对于把文件写入磁盘是有帮助的，可以避免过大的延迟峰值
+aof-rewrite-incremental-fsync yes
+ 
+#在rdb保存的时候，如果打开了rdb-save-incremental-fsync开关，系统会每32MB执行一次fsync。这对于把文件写入磁盘是有帮助的，可以避免过大的延迟峰值
+rdb-save-incremental-fsync yes
 
 #开启集群
 cluster-enabled yes

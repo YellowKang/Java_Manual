@@ -1,4 +1,4 @@
-# 什么是Mybatis-Plus
+# 	什么是Mybatis-Plus
 
 ​		为简化开发而生 ，只做增强不做改变，引入它不会对现有工程产生影响，如丝般顺滑。 只需简单配置，即可快速进行 CRUD 操作，从而节省大量时间。 热加载、代码生成、分页、性能分析等功能一应俱全。 
 
@@ -651,6 +651,68 @@ public class GenDatabaseKey {
 ```
 
 # 配置方面
+
+## XML配置
+
+​		我们设置配置文件，配置扫描包路径没如果是放在Resource可以扫描到，如果放在Java代码中则需要修改Build打包文件
+
+​		配置扫描代码中的xml文件（否则打包时，com下的包路径里面的xml扫描不到）
+
+```xml
+    <build>
+          <resources>
+              <resource>
+                  <directory>${basedir}/src/main/java</directory>
+                  <includes>
+                      <include>**/*.xml</include>
+                  </includes>
+              </resource>
+          </resources>
+    </build>
+```
+
+​		配置文件扫描路径：
+
+​			yaml版本
+
+```properties
+mybatis-plus:
+  mapper-locations:
+    - "classpath*:/mapper/**/*.xml"
+    - "classpath*:/**/mapper/xml/*.xml"
+```
+
+​		 properties版本
+
+```properties
+mybatis-plus.mapper-locations[0]=classpath*:/mapper/**/*.xml
+mybatis-plus.mapper-locations[1]=classpath*:/**/mapper/xml/*.xml
+```
+
+​		然后编写Xml文件
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--配置Mapper映射-->
+<mapper namespace="com.topcom.mp.security.mapper.SysUserMapper">
+		<!--查询语句，定义接口名称，参数类型，以及结果集映射-->
+    <select id="getById" parameterType="java.lang.Long" resultType="java.util.Map">
+       select * from t_sys_user where id = #{id}
+    </select>
+</mapper>
+```
+
+​		然后编写Mapper，调用即可
+
+```java
+public interface SysUserMapper extends BaseMpDao<SysUser, Long> {
+
+   Map<String,Object> getById(Long id);
+
+}
+```
 
 # MP代码生成器
 

@@ -206,3 +206,14 @@ du -hs
 ```
 git config  credential.helper store     
 ```
+
+
+
+# 强制拉取远程不同版本
+
+
+
+```git
+git pull origin master --allow-unrelated-histories
+```
+
