@@ -18,7 +18,16 @@ docker run -d \
 -v /docker/maven-nexus/data:/nexus-data \
 sonatype/nexus3
 ```
-然后访问8081端口就能看到界面，默认账号为：admin，默认密码为：admin123
+​		然后访问8081端口就能看到界面，默认账号为：admin，默认密码为：admin123
+
+​		新版本可能需要查询密码
+
+```sh
+# Your admin user password is located in /nexus-data/admin.password on the server.
+docker cp maven-nexus:/nexus-data/admin.password /tmp/nexus.password && cat /tmp/nexus.password
+```
+
+
 
 # 修改用户名以及密码
 

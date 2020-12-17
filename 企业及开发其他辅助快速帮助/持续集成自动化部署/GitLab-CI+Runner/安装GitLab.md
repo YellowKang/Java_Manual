@@ -21,29 +21,30 @@ docker run --restart=always -d \
 -v /docker/gitlab/config:/etc/gitlab \
 -v /docker/gitlab/logs:/var/log/gitlab \
 -v /docker/gitlab/data:/var/opt/gitlab \
-docker.io/twang2218/gitlab-ce-zh
+twang2218/gitlab-ce-zh:11.1.4
 ```
 
 ​		然后访问10080，设置默认的root密码
 
 ​		docker-compose方式启动
 
+​		docker-compose安装参照：
+
 ```sh
-version: '3'
- services:
-    gitlab:
-      image: 'gitlabcezh/gitlab-ce-zh'
+# 创建文件夹，并且进入
+mkdir /root/gitlab-compose && cd /root/gitlab-compose
+# 写入文件，并且启动
+cat > docker-compose.yaml << EOF
+version: "3"
+services:
+  gitlab:
+      image: 'twang2218/gitlab-ce-zh:11.1.4'
       restart: always
-      hostname: '192.168.157.134'
       container_name: 'gitlab'
+      hostname: 'git.bigkang.k8s'
       environment:
-        TZ: 'Asia/Shanghai'
         GITLAB_OMNIBUS_CONFIG: |
-        	# 暴露出去的Url
-          external_url 'http://192.168.157.134'
-          # 时区
-          gitlab_rails['time_zone'] = 'Asia/Shanghai'
-          # ssh端口，复制链接时地址上的，跟宿主机映射端口一致即可
+          external_url 'http://139.9.70.155'
           gitlab_rails['gitlab_shell_ssh_port'] = 22
           unicorn['port'] = 8888
           # Nginx监听端口
@@ -53,14 +54,16 @@ version: '3'
         - '8443:443'
         - '2222:22'
       volumes:
-				- /docker/gitlab/config:/etc/gitlab
-				- /docker/gitlab/logs:/var/log/gitlab
-				- /docker/gitlab/data:/var/opt/gitlab
+        - /docker/gitlab/config:/etc/gitlab
+        - /docker/gitlab/logs:/var/log/gitlab
+        - /docker/gitlab/data:/var/opt/gitlab
+EOF
+
+# 启动
+docker-compose up -d
 ```
 
-# 问题
 
-​		切记不要使用root用户去操作，否则会出现权限问题
 
 ## GItLab的URl和SSH问题
 
