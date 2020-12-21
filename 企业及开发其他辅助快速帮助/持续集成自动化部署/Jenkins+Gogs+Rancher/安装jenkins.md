@@ -110,30 +110,23 @@ cat /var/jenkins_home/secrets/initialAdminPassword
 
 # 安装Jdk
 
-​		我们安装jdk只需要将linux的jdk包放到/docker/jenkins/home的路径下解压就可以了
+​		解压JDK
 
-​		![](img\jdk宿主机.png)
+```sh
+# 解压
+tar -zxvf jdk-8u211-linux-x64.tar.gz
+
+# 复制
+cp -r ./jdk1.8.0_211 /docker/jenkins/home
+```
+
+​		我们安装jdk只需要将linux的jdk包放到/docker/jenkins/home的路径下解压就可以了
 
 ​		这样的话我们jdk就好了（因为jenkins只需要javahome，不需要环境变量，所以解压即可用）,但是为了安装maven所以也需要配置环境变量
 
-在末尾加上环境变量
+​		然后我们配置jenkins
 
-```
-vim /etc/profile
-----------------------
-JAVA_HOME=/docker/jenkins/home/jdk1.8.0_211
-export JAVA_HOME
-export PATH=$PATH:$JAVA_HOME/bin
-
-然后退出，然后刷新
-source /etc/profile
-使用命令查看版本，出现则成功
-java -version
-```
-
-然后我们配置jenkins
-
-找到你的系统管理，然后点击全局工具
+​		找到你的系统管理，然后点击全局工具
 
 ​		![](img\全局maven.png)
 
@@ -153,53 +146,94 @@ java -version
 
 ​		cd /docker/jenkins/home
 
-​		下载maven然后解压，配置maven_home
+​		下载maven然后解压，或者手动下载后解压
 
-```
-wget http://mirror.bit.edu.cn/apache/maven/maven-3/3.6.1/binaries/apache-maven-3.6.1-bin.tar.gz
-https://apache.website-solution.net/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz
-tar  -zxvf apache-maven-3.6.1-bin.tar.gz 
-mv apache-maven-3.6.1 maven
-rm -rf apache-maven-3.6.1-bin.tar.gz
+```sh
+wget https://apache.website-solution.net/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz -P /docker/jenkins/home
+cd /docker/jenkins/home
+tar  -zxvf apache-maven-3.6.3-bin.tar.gz 
+mv apache-maven-3.6.3 maven
+rm -rf apache-maven-3.6.3-bin.tar.gz
 ```
 
 ​		配置maven环境
 
-```
-vim /etc/profile
-----------------------
-MAVEN_HOME=/docker/jenkins/home/maven
-export MAVEN_HOME
-export PATH=$PATH:$JAVA_HOME/bin:$MAVEN_HOME/bin
-这里Maven需要java环境
-然后退出，然后刷新
-source /etc/profile
-使用命令查看版本，出现则成功
-mvn -v
-```
+​		配置阿里云加速maven仓库
 
-配置阿里云加速maven仓库
-
-```
+```sh
+# 修改Setting文件
 vim /docker/jenkins/home/maven/conf/settings.xml
 
+# 修改为如下
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+          
+  <!-- 配置Maven仓库包存储地址 -->
+	<localRepository>/var/jenkins_home/maven/repository</localRepository>
 
-
-找到他的mirrors，将下面代码添加到最上面
-<mirrors>
-    <mirror>
-      <id>alimaven</id>
-      <name>aliyun maven</name>
-      <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
-      <mirrorOf>central</mirrorOf>        
-    </mirror>
-  </mirrors>
-然后设置仓库位置，我们放在var下，因为是容器内，我们又挂载了jenkins，所以这里写容器的目录
-<localRepository>/var/jenkins_home/maven/repository</localRepository>
-并且我们后续需要使用docker的maven插件所以也要添加插件分组
   <pluginGroups>
-    <pluginGroup>com.spotify</pluginGroup>
+        <pluginGroup>com.spotify</pluginGroup>
   </pluginGroups>
+
+  <proxies>
+  </proxies>
+  
+  <!-- 配置账户id，用于访问Maven -->
+  <servers>
+        <server>
+          	<!-- id名，maven中需要配置 -->
+            <id>releases</id>
+          	<!-- 私服用户名 -->
+            <username>admin</username>
+            <!-- 私服密码 -->
+            <password>beluga</password>
+        </server>
+        <server>
+            <id>snapshots</id>
+            <username>admin</username>
+            <password>beluga</password>
+        </server>
+  </servers>
+   
+  <!-- 配置阿里云加速 -->
+  <mirrors>
+   
+     <mirror>
+        <id>nexus-aliyun</id>
+        <mirrorOf>central</mirrorOf>
+        <name>Nexus aliyun</name>
+        <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+    </mirror>
+    
+  </mirrors>
+
+  <profiles>
+  			<!-- 配置私服地址 -->
+        <profile>
+            <id>nexus</id>
+            <repositories>
+                <repository>
+                  <id>nexus-aliyun</id>
+                  <name>Nexus aliyun</name>
+                  <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+                </repository>
+                <repository>
+                    <id>nexus</id>
+                    <name>local private nexus</name>
+										<url>http://192.168.1.11:8081/repository/maven-public/</url>  
+                </repository>
+                <repository>
+                    <id>nexus-snapshots</id>
+                    <name>local private nexus snapshots</name>
+                    <url>http://192.168.1.11:8081/repository/maven-snapshots/</url>  
+                </repository>
+            </repositories>
+        </profile>
+  </profiles>
+  <activeProfiles>
+        <activeProfile>nexus</activeProfile>
+  </activeProfiles>
 ```
 
 如果需要使用maven私服请修改配置
@@ -254,7 +288,11 @@ vim /docker/jenkins/home/maven/conf/settings.xml
 
 Maven配置不用管我们找到maven安装，给他取个名字（随便取），然后我们把自动安装取消掉，我们自己配置路径，注意（这里的路径是docker内部的路径，这也是为什么我们需要挂载目录的原因）
 
+​		
 
+```
+/var/jenkins_home/maven
+```
 
 ![](img\全局maven安装.png)
 
@@ -262,27 +300,31 @@ Maven配置不用管我们找到maven安装，给他取个名字（随便取）�
 
 # 进行持续集成
 
-## 引入Maven插件
+## 引入Maven插件（插件方式）
 
 我们首先在Java程序中引入Maven的插件，并且设置好版本，image为私有仓库地址加端口号，版本为镜像版本，并且设置一个变量叫JAR_FILE，这样我们编写dockerfile的时候就能不用自己改地址了
 
-```
+```xml
     <properties>
         <java.version>1.8</java.version>
+      	<!-- 镜像仓库地址或者域名 -->
         <docker.image.prefix>111.67.196.127:5000</docker.image.prefix>
+      	<!-- 镜像版本 -->
         <docker.image.version>v1.0</docker.image.version>
     </properties>
 ```
 
-```
-
-			<plugin>
+```xml
+					<plugin>
                 <groupId>com.spotify</groupId>
                 <artifactId>dockerfile-maven-plugin</artifactId>
                 <version>1.3.7</version>
-                <configuration>
-                    <repository>${docker.image.prefix}/${project.artifactId}</repository>
-                    <tag>${version}</tag>
+               <configuration>
+                    <!--   docker私有仓库用户名,已登录则不需要 -->
+                    <username>admin</username>
+                    <password>bigkang</password>
+                    <repository>${docker.image.prefix}/topcom-basis/${project.artifactId}</repository>
+                    <tag>${docker.image.version}</tag>
                     <buildArgs>
                         <JAR_FILE>target/${project.build.finalName}.jar</JAR_FILE>
                     </buildArgs>
@@ -350,9 +392,11 @@ vim /docker/jenkins/home/maven/conf/settings.xml
 
 ### 两种方式
 
-#### 使用maven插件
+#### 使用maven插件(推荐使用)
 
-这样就把项目引入了，然后我们来添加maven执行命令
+​		直接使用Maven命令即可推送，简单方便
+
+​		这样就把项目引入了，然后我们来添加maven执行命令
 
 ![](img\build脚本.png)
 
@@ -388,25 +432,21 @@ docker run ..........
 
 我们设置地址，首先创建构建镜像，然后配置镜像版本，然后push到私有仓库，配置镜像名以及tag版本
 
-### 推荐方式（看这里）
-
-结合maven的build，加上docker插件的push，这是最推荐使用的方式
-
-![](img\mvn dockerbuild.png)
-
-```
-clean package dockerfile:build
-```
-
-然后使用docker的push
-
-![](img\docker pushimage.png)
-
-我们选择构建成功之后，然后push，然后push的镜像名字，以及tag版本号
-
 # 问题总汇
 
 jenkins首先先检查maven的配置文件是否引入插件配置，然后jenkins的用户是否是以root启动，（不然无法使用docker），然后是docker的挂载文件以及私有仓库。（私有仓库在上面的笔记中有）
+
+# 微服务聚合项目打包
+
+​		构建时指定模块project打包
+
+```sh
+ clean package -pl ./test/test-mp-security
+```
+
+​		构建Docker镜像时指定工作目录下打包的路径即可
+
+
 
 # 常见帮助
 

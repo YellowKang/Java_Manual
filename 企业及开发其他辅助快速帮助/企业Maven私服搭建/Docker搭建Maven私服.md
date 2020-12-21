@@ -1,15 +1,17 @@
 # 创建挂载文件夹
 
-```
+```sh
+# 创建文件夹
 mkdir -p /docker/maven-nexus/data
-
 #创建权限
 chmod /docker/maven-nexus/data
 ```
 
 # 运行容器
 
-```
+​		启动容器命令
+
+```sh
 docker run -d \
 --name maven-nexus \
 --restart=always \
@@ -26,8 +28,6 @@ sonatype/nexus3
 # Your admin user password is located in /nexus-data/admin.password on the server.
 docker cp maven-nexus:/nexus-data/admin.password /tmp/nexus.password && cat /tmp/nexus.password
 ```
-
-
 
 # 修改用户名以及密码
 
@@ -75,10 +75,11 @@ http://maven.aliyun.com/nexus/content/groups/public/
 
 然后将maven的setting.xml改为如下servers修改你自己的maven的用户名以及密码，profiles是maven的地址只需要修改url即可，然后我们就能从maven私服下载jar包了
 
-```
+```xml
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 http://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <!-- 配置Maven仓库包存储地址 -->
   <localRepository>/platform/services/maven/repository</localRepository>
 
   <pluginGroups>
@@ -87,10 +88,15 @@ http://maven.aliyun.com/nexus/content/groups/public/
 
   <proxies>
   </proxies>
+  
+  <!-- 配置账户id，用于访问Maven -->
   <servers>
         <server>
+          	<!-- id名，maven中需要配置 -->
             <id>releases</id>
+          	<!-- 私服用户名 -->
             <username>admin</username>
+            <!-- 私服密码 -->
             <password>beluga</password>
         </server>
         <server>
@@ -100,7 +106,16 @@ http://maven.aliyun.com/nexus/content/groups/public/
         </server>
   </servers>
    
+  <!-- 配置阿里云加速 -->
   <mirrors>
+   
+     <mirror>
+        <id>nexus-aliyun</id>
+        <mirrorOf>central</mirrorOf>
+        <name>Nexus aliyun</name>
+        <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+    </mirror>
+    
   </mirrors>
 
   <profiles>
@@ -108,15 +123,15 @@ http://maven.aliyun.com/nexus/content/groups/public/
             <id>nexus</id>
             <repositories>
                 <repository>
+                  <id>nexus-aliyun</id>
+                  <name>Nexus aliyun</name>
+                  <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+                </repository>
+                <repository>
                     <id>nexus</id>
                     <name>local private nexus</name>
-					<url>http://152.136.68.184:8081/repository/maven-public/</url>  
+										<url>http://152.136.68.184:8081/repository/maven-public/</url>  
                 </repository>
-            </repositories>
-        </profile>
-        <profile>
-            <id>nexus-snapshots</id>
-            <repositories>
                 <repository>
                     <id>nexus-snapshots</id>
                     <name>local private nexus snapshots</name>
@@ -125,10 +140,9 @@ http://maven.aliyun.com/nexus/content/groups/public/
             </repositories>
         </profile>
   </profiles>
-    <activeProfiles>
+  <activeProfiles>
         <activeProfile>nexus</activeProfile>
-        <activeProfile>nexus-snapshots</activeProfile>
-    </activeProfiles>
+  </activeProfiles>
 
 ```
 

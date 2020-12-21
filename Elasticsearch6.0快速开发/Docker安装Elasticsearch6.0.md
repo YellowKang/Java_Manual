@@ -252,7 +252,7 @@ docker pull docker.io/kibana:6.7.0
 mkdir -p /docker/kibana/conf
 echo "server.name: kibana
 server.host: \"0\"
-elasticsearch.hosts: [ \"http://172.16.16.4:19201\" ]
+elasticsearch.hosts: [ \"http://192.168.1.12:10092\" ]
 xpack.monitoring.ui.container.elasticsearch.enabled: true" > /docker/kibana/conf/kibana.yml
 ```
 
@@ -264,7 +264,7 @@ docker run -d \
 -p 15601:5601 \
 --restart=unless-stopped \
 -v /docker/kibana/conf/kibana.yml:/usr/share/kibana/config/kibana.yml \
--e ELASTICSEARCH_URL=http://192.168.1.16:10092 docker.io/kibana:6.7.0 
+-e ELASTICSEARCH_URL=http://http://192.168.1.12:10092 docker.io/kibana:6.7.0 
 ```
 
 ​		然后等待容器启动一会直接访问5601端口
@@ -322,6 +322,16 @@ docker restart elasticsearch6.7
 
 # 插件安装
 
+### 官网插件
+
+​		Es插件官网地址
+
+```http
+https://www.elastic.co/guide/en/elasticsearch/plugins/index.html
+```
+
+
+
 ### 下载加速
 
 ​		我们可以看使用加速网站进行下载
@@ -337,11 +347,14 @@ https://github.91chifun.workers.dev//https://github.com/NLPchina/elasticsearch-s
 直接进入容器内部进行编辑
 
 ```sh
-进入容器内部编辑
+# 进入容器内部编辑
 docker exec -it  elasticsearch bash
 
-安装IK分词器插件
+# 安装IK分词器插件(Github官网)
 elasticsearch-plugin install https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.7.0/elasticsearch-analysis-ik-6.7.0.zip
+
+# 或者加速下载（第三方加速）
+elasticsearch-plugin install https://github.91chifun.workers.dev//https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.7.0/elasticsearch-analysis-ik-6.7.0.zip
 
 ```
 
@@ -462,11 +475,15 @@ GET _analyze
 直接进入容器内部进行编辑
 
 ```sh
-进入容器内部编辑
+# 进入容器内部编辑
 docker exec -it  elasticsearch bash
 
-安装IK分词器插件
+# 安装IK分词器拼音插件(Github官网)
 elasticsearch-plugin install https://github.com/medcl/elasticsearch-analysis-pinyin/releases/download/v6.7.0/elasticsearch-analysis-pinyin-6.7.0.zip
+
+
+# 安装IK分词器插件(第三方加速)
+elasticsearch-plugin install https://github.91chifun.workers.dev//https://github.com/medcl/elasticsearch-analysis-pinyin/releases/download/v6.7.0/elasticsearch-analysis-pinyin-6.7.0.zip
 ```
 
 等待下载完成然后cd，然后查看是否有pinyin插件
@@ -671,7 +688,30 @@ POST /test_pinyin/test/_search
 
 #### 在线联网安装		
 
+```sh
+# 进入容器内部编辑
+docker exec -it  elasticsearch bash
+
+# 安装IK分词器拼音插件(Github官网)
+elasticsearch-plugin install https://artifacts.elastic.co/downloads/elasticsearch-plugins/ingest-attachment/ingest-attachment-6.7.0.zip
+
+
+# 安装IK分词器插件(第三方加速)
+elasticsearch-plugin install https://github.91chifun.workers.dev//https://github.com/medcl/elasticsearch-analysis-pinyin/releases/download/v6.7.0/elasticsearch-analysis-pinyin-6.7.0.zip
+```
+
 #### 离线安装
+
+```sh
+# 下载
+wget install https://artifacts.elastic.co/downloads/elasticsearch-plugins/ingest-attachment/ingest-attachment-6.7.0.zip
+# 解压
+mkdir ./ingest-attachment
+unzip ingest-attachment-6.7.0.zip -d ./ingest-attachment/
+
+# 重启es节点
+docker restart elasticsearch
+```
 
 #### 测试
 
@@ -680,6 +720,8 @@ POST /test_pinyin/test/_search
 ### SQL插件
 
 ​		官网地址：[点击进入](https://github.com/NLPchina/elasticsearch-sql)
+
+​		SQL有两种方式进行实现：使用插件，或者使用官方的[Xpack-SQL](https://www.elastic.co/guide/en/elasticsearch/reference/6.7/xpack-sql.html)
 
 #### 在线联网安装		
 
