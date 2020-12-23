@@ -187,6 +187,8 @@ spring.redis.timeout=2000ms
 
 ​		官网地址：[点击进入](https://github.com/redisson/redisson)
 
+​		官网Wiki：[点击进入](https://github.com/redisson/redisson/wiki/Table-of-Content)
+
 ## 引入依赖
 
 ```xml
@@ -427,6 +429,159 @@ transportMode: "NIO"
 
 ​		参考下方RedisTemplate进阶
 
+## Redisson进阶
+
+### 分布式锁和同步器
+
+#### 分布式锁
+
+​		用于Java的基于Redis的分布式可重入[Lock](https://static.javadoc.io/org.redisson/redisson/3.11.6/org/redisson/api/RLock.html)对象并实现`java.util.concurrent.locks.Lock`接口
+
+​		如果获取锁的Redisson实例崩溃，则该锁可能会在获取状态下永久挂起。为避免此Redisson维护锁看门狗，它会在锁持有人Redisson实例处于活动状态时延长锁的到期时间。默认情况下，锁看门狗超时为30秒，可以通过[Config.lockWatchdogTimeout](https://github.com/redisson/redisson/wiki/2.-Configuration#lockwatchdogtimeout)设置进行更改。
+
+​		Redisson还允许`leaseTime`在锁定获取期间指定参数。在指定的时间间隔后，锁定的锁将自动释放。
+
+​		`RLock`对象的行为符合Java Lock规范。这意味着只有锁所有者线程才能解锁它，否则`IllegalMonitorStateException`将引发该锁。否则考虑使用[RSemaphore](https://github.com/mrniko/redisson/wiki/8.-distributed-locks-and-synchronizers/#86-semaphore)对象。
+
+​		同步获取锁的方式
+
+```java
+				// 获取锁对象
+				RLock lock = redisson.getLock("bigkang-lock");
+
+					// 同步获取锁的几种方式
+
+							// 传统的锁方法
+							lock.lock();
+
+							// 获取锁定，并在锁定10秒钟后自动将其解锁
+							lock.lock(10, TimeUnit.SECONDS);
+							
+							// 等待最长100秒的锁获取，并在10秒后自动将其解锁
+							boolean res = lock.tryLock(100, 10, TimeUnit.SECONDS);
+							// 如果成功获取在进行解锁
+							if (res) {
+                 try {
+                   ...
+                 } finally {
+                     lock.unlock();
+                 }
+              }
+```
+
+​			异步获取锁的方式
+
+```java
+				// 获取锁对象
+				RLock lock = redisson.getLock("bigkang-lock");
+
+					// 异步获取锁的几种方式
+
+							// 传统异步获取锁方法
+							RFuture<Void> lockFuture = lock.lockAsync();
+
+							// 获取锁定，并在锁定10秒钟后自动将其解锁
+							RFuture<Void> lockFuture = lock.lockAsync(10, TimeUnit.SECONDS);
+							
+							// 等待最长100秒的锁获取，并在10秒后自动将其解锁
+							RFuture<Boolean> lockFuture = lock.tryLockAsync(100, 10, TimeUnit.SECONDS);
+							// 异步解锁
+							lockFuture.whenComplete((res, exception) -> {
+                  // ...
+                  lock.unlockAsync();
+              });
+```
+
+#### 公平锁
+
+​		用于Java的基于Redis的分布式重入公平[锁定](https://static.javadoc.io/org.redisson/redisson/3.11.6/org/redisson/api/RLock.html)对象实现`java.util.concurrent.locks.Lock`接口。
+
+​		公平锁保证线程将以与请求它相同的顺序来获取它。所有等待的线程都已排队，如果某个线程死亡，则Redisson等待其返回5秒钟。例如，如果5个线程由于某种原因而死亡，则延迟将为25秒。
+
+​		如果获取锁的Redisson实例崩溃，则该锁可能会在获取状态下永久挂起。为避免此Redisson维护锁看门狗，它会在锁持有人Redisson实例处于活动状态时延长锁的到期时间。默认情况下，锁看门狗超时为30秒，可以通过[Config.lockWatchdogTimeout](https://github.com/redisson/redisson/wiki/2.-Configuration#lockwatchdogtimeout)设置进行更改。
+
+​		Redisson还允许`leaseTime`在锁定获取期间指定参数。在指定的时间间隔后，锁定的锁将自动释放。
+
+​		`RLock`对象的行为符合Java Lock规范。这意味着只有锁所有者线程才能解锁它，否则`IllegalMonitorStateException`将引发该锁。否则考虑使用[RSemaphore](https://github.com/mrniko/redisson/wiki/8.-distributed-locks-and-synchronizers/#86-semaphore)对象。
+
+```java
+        RLock lock = redisson.getFairLock("bigkang-lock");
+```
+
+#### 多重锁
+
+​		基于Redis的分布式`MultiLock`对象允许对[Lock](https://static.javadoc.io/org.redisson/redisson/3.11.6/org/redisson/api/RLock.html)对象进行分组并将其作为单个锁进行处理。每个`RLock`对象可能属于不同的Redisson实例。
+
+​		如果获得了`MultiLock`崩溃的Redisson实例崩溃，则该实例`MultiLock`可能会永远处于捕获状态。为避免此Redisson维护锁看门狗，它会在锁持有人Redisson实例处于活动状态时延长锁的到期时间。默认情况下，锁看门狗超时为30秒，可以通过[Config.lockWatchdogTimeout](https://github.com/redisson/redisson/wiki/2.-Configuration#lockwatchdogtimeout)设置进行更改。
+
+​		其他都是上方锁一样
+
+```java
+        RLock lock1 = redisson1.getLock("lock1");
+        RLock lock2 = redisson2.getLock("lock2");
+        RLock lock3 = redisson3.getLock("lock3");
+				RLock multiLock = redisson.getMultiLock(lock1, lock2, lock3);
+```
+
+#### 读写锁
+
+​		用于Java的基于Redis的分布式重入[ReadWriteLock](http://static.javadoc.io/org.redisson/redisson/3.11.6/org/redisson/api/RReadWriteLock.html)对象实现`java.util.concurrent.locks.ReadWriteLock`接口。读锁和写锁均实现[RLock](https://github.com/redisson/redisson/wiki/8.-distributed-locks-and-synchronizers/#81-lock)接口。
+
+​		允许多个ReadLock所有者和一个WriteLock所有者。
+
+​		如果获取锁的Redisson实例崩溃，则该锁可能会在获取状态下永久挂起。为避免此Redisson维护锁看门狗，它会在锁持有人Redisson实例处于活动状态时延长锁的到期时间。默认情况下，锁看门狗超时为30秒，可以通过[Config.lockWatchdogTimeout](https://github.com/redisson/redisson/wiki/2.-Configuration#lockwatchdogtimeout)设置进行更改。
+
+​		其他和上方一样
+
+```java
+        // 获取Redis锁对线
+				RReadWriteLock rwlock = redisson.getReadWriteLock("myLock");
+
+				// 获取读锁
+        RLock lock = rwlock.readLock();
+
+        // 获取写锁
+        RLock lock = rwlock.writeLock();
+```
+
+#### 信号量
+
+​		与Java类似的基于Redis的分布式[信号量](http://static.javadoc.io/org.redisson/redisson/3.11.6/org/redisson/api/RSemaphore.html)`java.util.concurrent.Semaphore`对象。
+
+​		可以在使用前进行初始化，但这不是必需的，可以通过`trySetPermits(permits)`方法获得允许的数量。
+
+```java
+				// 获取Redis信号量
+				RSemaphore semaphore = redisson.getSemaphore("mySemaphore");
+
+				// 获得单信号量的锁
+				semaphore.acquire();
+
+				// 获得10个信号量的锁
+				semaphore.acquire(10);
+
+				// 尝试获取锁
+				boolean res = semaphore.tryAcquire();
+			
+        // 尝试获取锁，或等待15秒
+        boolean res = semaphore.tryAcquire(15, TimeUnit.SECONDS);
+
+        // 尝试获取锁，10个信号量
+        boolean res = semaphore.tryAcquire(10);
+
+        // 尝试获取锁，10个信号量，15秒钟获取不到放弃获取
+        boolean res = semaphore.tryAcquire(10, 15, TimeUnit.SECONDS);
+        if (res) {
+           try {
+             ...
+           } finally {
+               semaphore.release();
+           }
+        }
+```
+
+
+
 # RedisTemplate进阶
 
 ## 常用操作
@@ -473,7 +628,10 @@ transportMode: "NIO"
 
         // 设置一个Key为bigkang，值为"123"，没有返回值
         redisTemplate.opsForValue().set("bigkang","123");
-	
+
+				// 设置一个Key为bigkang，值为"123",一个小时后超时，没有返回值
+        redisTemplate.opsForValue().set("bigkang","123",1L,TimeUnit.HOURS);
+
 				// 获取bigkang这个Key的Value值
         Object get = redisTemplate.opsForValue().get("bigkang");
 
@@ -505,25 +663,193 @@ transportMode: "NIO"
 				// 批量获取键值对，返回List,不存在返回Null
         List<Object> objects = redisTemplate.opsForValue().multiGet(Arrays.asList("bigkang1", "bigkang2", "bigkang3"));
         
+        // 如果不存在则设置，并且设置超时时间，类似于Setnx
+        Boolean aBoolean = redisTemplate.opsForValue().setIfAbsent("bigkang", "lock", 1L, TimeUnit.HOURS);
+
+        // 如果存在则设置，不存在返回false，并且设置超时时间，类似于Setex
+        Boolean aBoolean = redisTemplate.opsForValue().setIfPresent("bigkang", "lock1", 1L, TimeUnit.HOURS);
+
+				// 查询Key的索引起始下标到结束，从0开始到3表示查询最前面的4个字符
+        String str = redisTemplate.opsForValue().get("bigkang", 0, 3);
+
+        // 对索引为9的下标开始插入，会覆盖索引为9的下标然后进行插入
+        redisTemplate.opsForValue().set("bigkang", "qweasdzxc",9);
 ```
 
 
 
 ## List操作
 
+```java
+        // List操作都是采用opsForList,表示对List进行操作，会根据redisTemplate的泛型序列化
+        ListOperations<Object, Object> objectObjectListOperations = redisTemplate.opsForList();
 
+        // 向Key的左边插入一个1，返回当前List个数
+        Long count = redisTemplate.opsForList().leftPush("bigkang", 3);
+				// 向Key的左边插入多个元素，返回当前List个数
+        Long count = redisTemplate.opsForList().leftPushAll("bigkang", 1, 2, 3);
+       
+				// 向Key的右边插入一个元素，返回当前List个数
+        Long count = redisTemplate.opsForList().rightPush("bigkang", 1);
+				// 向Key的右边插入多个元素，返回当前List个数
+        Long count = redisTemplate.opsForList().rightPushAll("bigkang", 1, 2, 3);
+
+        // 设置0索引为1这个值，表示最左边的元素变成1，会覆盖原来的值
+        redisTemplate.opsForList().set("bigkang",0,1);
+
+				// 从List左边吐出一个值
+        Object left = redisTemplate.opsForList().leftPop("bigkang");
+        // 从List右边吐出一个值
+        Object right = redisTemplate.opsForList().rightPop("bigkang");
+
+				// 从第一个Key的最右边吐出一个值，并且Push到另一个Key的最左边，返回这个值
+        Object value = redisTemplate.opsForList().rightPopAndLeftPush("bigkang", "bigkang1");
+        
+			  // 根据索引获取value，0表示最左边的元素
+        Object value = redisTemplate.opsForList().index("bigkang", 0);
+
+        // 根据Key的List的索引下标，位置范围返回相应的List元素，0-3表示第一个到第四个元素返回4个，如果List只有3个元素则只会返回3个
+        List<Object> values = redisTemplate.opsForList().range("bigkang", 0, 3);
+
+				// 返回某个List的元素个数
+        Long count = redisTemplate.opsForList().size("bigkang");
+
+				// 从左边查询，找到1这个元素，并且在1的右边插入1.1,返回插入后的元素个数,类
+				// 似于linsert <key> AFTER/BEFORE <value> <newvalue>
+        Long count = redisTemplate.opsForList().rightPush("bigkang", 1, 1.1);
+				// 从左边查询，找到1这个元素，并且在1的左边插入0.9,返回插入后的元素个数
+        Long count = redisTemplate.opsForList().leftPush("bigkang", 1, 0.9);
+
+				// 根据Key，从左边开始查询，查询3这个元素，删除2个值为3的元素
+        redisTemplate.opsForList().remove("bigkang",2,3);
+
+        // 根据Key，从左边开始查询，查询3这个元素，删除2个值为3的元素，返回成功删除的个数
+        Long count = redisTemplate.opsForList().remove("bigkang", 2, 3);				
+```
 
 ## Set操作
 
+```java
+        // Set操作都是采用opsForSet,表示对Set进行操作，会根据redisTemplate的泛型序列化
+        SetOperations<Object, Object> objectObjectSetOperations = redisTemplate.opsForSet();
 
+				// 向某个Key中的Set，添加3个元素
+        Long bigkang = redisTemplate.opsForSet().add("bigkang", 1, 2, 3);
+
+        // 获取某个Set中的所有成员
+        Set<Object> values = redisTemplate.opsForSet().members("bigkang");
+
+				// 返回Set中的元素个数
+        Long count = redisTemplate.opsForSet().size("bigkang");
+			
+        // 判断Set中是否包含这个元素
+        Boolean exists = redisTemplate.opsForSet().isMember("bigkang", 1);
+
+				// 删除Set中的一个或者多个元素，返回删除的个数
+        Long delCount = redisTemplate.opsForSet().remove("bigkang", 1,2,3);
+
+				// 从Set中随机吐出一个元素，并且删除元素，返回Null表示没有元素
+        Object value = redisTemplate.opsForSet().pop("bigkang");
+        // 从Set中随机吐出3个元素，并且删除元素
+        List<Object> values = redisTemplate.opsForSet().pop("bigkang", 3);
+
+				// 从Set中随机获取一个元素，不删除元素
+        Object value = redisTemplate.opsForSet().randomMember("bigkang");
+        // 从Set中随机获取3个元素，不删除元素
+        List<Object> values = redisTemplate.opsForSet().randomMembers("bigkang", 3);
+
+			  // 获取两个Set的交集,K1有的元素，并且K2也有的元素
+        Set<Object> values = redisTemplate.opsForSet().intersect("bigkang", "bigkang1");
+
+				// 获取两个Set的差集,K1有的元素，K2没有的元素，K2有但是K1没有的，也就是和交集取反
+        Set<Object> values = redisTemplate.opsForSet().difference("bigkang", "bigkang1");
+
+				// 获取两个Set的合集，也就是将两个Set合并到一起，去除重复值
+        Set<Object> values = redisTemplate.opsForSet().union("bigkang", "bigkang1");
+```
 
 ## Hash操作
 
+```java
+				// Hash操作都是采用opsForHash,表示对Hash进行操作，会根据redisTemplate的泛型序列化
+				HashOperations<Object, Object, Object> objectObjectObjectHashOperations = redisTemplate.opsForHash();
 
+        // 向Hash添加一个属性，name，值为黄康
+        redisTemplate.opsForHash().put("bigkang","name","黄康");
+
+        // 删除Hash中的一个或者多个属性，返回删除成功的属性数量
+        Long count = redisTemplate.opsForHash().delete("bigkang", "age");
+	
+        //  向Hash，PUT多个元素
+        Map<String,Object> map = new HashMap<>();
+        map.put("name","蔡徐坤");
+        map.put("like","唱跳RAP打篮球");
+        map.put("descr","鸡哥");
+        redisTemplate.opsForHash().putAll("bigkang",map);
+
+				// 获取Hash中的某一个属性
+        Object value = redisTemplate.opsForHash().get("bigkang", "name");
+
+				// 获取Hash中的多个属性
+        List<Object> values = redisTemplate.opsForHash().multiGet("bigkang", Arrays.asList("name", "like", "descr"));
+
+				// 判断某个属性是否存在
+        Boolean exists = redisTemplate.opsForHash().hasKey("bigkang", "name");
+
+				// 返回Hash所有的Key的名字
+        Set<Object> keys = redisTemplate.opsForHash().keys("bigkang");
+
+       // 返回Hash所有的Value
+        List<Object> values = redisTemplate.opsForHash().values("bigkang");
+
+				// 将Hash中的某个属性+1，然后返回添加后的Value
+        Long value = redisTemplate.opsForHash().increment("bigkang", "age", 1);
+
+        // 返回整个Hash的数据，以Map方式,java.util.LinkedHashMap
+        Map<Object, Object> map = redisTemplate.opsForHash().entries("bigkang");
+```
 
 ## Zset操作
 
+```java
+				// ZSet操作都是采用opsForZSet,表示对ZSet进行操作，会根据redisTemplate的泛型序列化
+				ZSetOperations<Object, Object> objectObjectZSetOperations = redisTemplate.opsForZSet();
 
+				// 向Zset添加一个a,分值为1.1，返回添加成功或者失败，已经存在则返回失败修改分值
+        Boolean add = redisTemplate.opsForZSet().add("bigkang", "a", 0.9);
+
+				// 创建一个Set，添加对象，以及分值
+        Set<ZSetOperations.TypedTuple<Object>> tupleSet = new HashSet<>();
+        tupleSet.add(new DefaultTypedTuple("a",1.0));
+        tupleSet.add(new DefaultTypedTuple("b",2.0));
+        tupleSet.add(new DefaultTypedTuple("c",3.0));
+        // 返回Add的数量
+        Long count = redisTemplate.opsForZSet().add("bigkang", tupleSet);
+
+       	// 查询分值从小到大的元素，按索引查询，0到3表示正序的从第一个到第四个元素
+        Set<Object> values = redisTemplate.opsForZSet().range("bigkang", 0, 3);
+			  // 查询分值从大到小的元素，按索引查询，0到3表示倒序的从第一个到第四个元素
+        Set<Object> values = redisTemplate.opsForZSet().reverseRange("bigkang", 0, 3);
+				// 0到-1表示查询所有,倒序，range表示正序
+        Set<Object> values = redisTemplate.opsForZSet().reverseRange("bigkang", 0, -1);
+				
+				// 根据Zset分数范围查询，查询0.1分数到2.0分数区间的数据并且返回分数值，正序
+				Set<ZSetOperations.TypedTuple<Object>> values = redisTemplate.opsForZSet().rangeByScoreWithScores("bigkang", 0.1, 2.0);
+				// 根据分值查询，不返回分值，只返回Value，同理range正序，reverseRange倒序
+				Set<Object> values = redisTemplate.opsForZSet().rangeByScore("bigkang", 0.1, 2.0);
+
+
+				// 给ZSet的某一个元素d，添加分值，添加分值为1，并且返回添加后的分值
+        Double score = redisTemplate.opsForZSet().incrementScore("bigkang", "d", 1);
+				
+        // 删除ZSet中的一个或者多个元素，返回成功删除的元素个数
+        Long count = redisTemplate.opsForZSet().remove("bigkang", Arrays.asList("a"));
+
+				// 返回改元素的倒序排名，分数越高，值越小，最小为0，0+1则为排名第一的分数
+        Long reverseRank = redisTemplate.opsForZSet().reverseRank("bigkang", "b");
+        // Rank表示相反，分数越小则值越小
+        Long rank = redisTemplate.opsForZSet().rank("bigkang", "b");
+```
 
 # 通用进阶
 
@@ -564,6 +890,36 @@ public class RedisConfig extends CachingConfigurerSupport {
 
 }
 ```
+
+## Redisson序列化问题
+
+​		Redisson序列化默认采用org.redisson.codec.MarshallingCodec
+
+​		那么我们如何修改这个序列化呢？
+
+​		我们直接从配置文件中修改即可
+
+​		序列化问题官网地址：[点击进入](https://github.com/redisson/redisson/wiki/4.-%E6%95%B0%E6%8D%AE%E5%BA%8F%E5%88%97%E5%8C%96)
+
+```properties
+---------------------------------------------------------
+# 原配置
+---------------------------------------------------------
+
+				nettyThreads: 32
+        codec: !<org.redisson.codec.MarshallingCodec> {}
+        transportMode: "NIO"
+        
+---------------------------------------------------------
+# 修改后，我们将其修改为JsonJacksonCodec
+---------------------------------------------------------
+
+				nettyThreads: 32
+        codec: !<org.redisson.codec.JsonJacksonCodec> {}
+        transportMode: "NIO"
+```
+
+​		Redisson提供了很多种序列化的方法，找到Redisson包下面的org.redisson.codec，提供了很多种序列化方式
 
 ## 连接池测试
 

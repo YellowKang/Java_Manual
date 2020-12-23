@@ -179,10 +179,6 @@ getset <key> <value>
 getset bigkang 123			
 ```
 
-​			 msetnx <key1> <value1> <key2> <value2> .....      同时设置一个或多个 key-value 对，当且仅当所			
-
-​													有给定key 都不存在
-
 ### 哈希（Hash）的操作
 
 ```sh
@@ -272,10 +268,10 @@ linsert bigkang AFTER 1 0.9
 # 在bigkang这个key的值为1的后面插入1.1
 linsert bigkang BEFORE 1 1.1
 
-# 从根据某个Key，找到某个Value，并且在这个Key左边删除几个值
+# 从根据某个Key，找到Value,删除这个Value几个个数
 lrem <key> <n> <value>
-# 在bigkang中，1开始向左边，删除一个（包括自己也算一个），n为1表示删除自己
-lrem bigkang 1 1
+# 在bigkang中，从左边开始查询，删除1这个元素，删除两个（可能元素List中有多个1）
+lrem bigkang 2 1
 ```
 
 ### 字符串集合（set）的操作
