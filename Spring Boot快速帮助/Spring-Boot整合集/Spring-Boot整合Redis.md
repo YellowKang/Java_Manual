@@ -580,7 +580,22 @@ transportMode: "NIO"
         }
 ```
 
+### 布隆过滤器
 
+```java
+        // 获取Redis布隆过滤器
+        RBloomFilter<Object> bloomFilter = redissonClient.getBloomFilter("bigkang11");
+        // 布隆过滤器如果不存在则创建
+        if (!bloomFilter.isExists()) {
+            // 预计存储100000000个元素，百分之3的误差
+            bloomFilter.tryInit(100000000L,0.03);
+        }
+        // 添加元素
+        bloomFilter.add("1.1");
+        bloomFilter.add("1.2");
+        // 判断布隆过滤器是否存在
+        System.out.println(bloomFilter.contains("1.2"));
+```
 
 # RedisTemplate进阶
 

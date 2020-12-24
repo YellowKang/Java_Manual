@@ -456,6 +456,8 @@ docker rm redis{4,5,6}
 
 # Redis配置文件详解
 
+​		如下配置采用5.0，跟多版本参考官网：[点击进入](https://redis.io/topics/config)
+
 ## 网络与数据库相关
 
 ```properties
@@ -533,10 +535,10 @@ dir /usr/local/redis/var
 ## 复制集
 
 ```properties
-# slave从节点的Ip以及端口号（可以不配置）
+# slave从节点的Ip以及端口号（可以不配置）（老版本Redis配置）
 # slaveof <masterip> <masterport>
 
-# 复制选项，slave复制对应的master。
+# 复制选项，slave复制对应的master。（新版本配置）
 # replicaof <masterip> <masterport>
  
 #如果master设置了requirepass，那么slave要连上master，需要有master的密码才行。masterauth就是用来配置master的密码，这样可以在连上master后进行认证。
@@ -575,10 +577,9 @@ repl-disable-tcp-nodelay no
 # 当master不可用，Sentinel会根据slave的优先级选举一个master。最低的优先级的slave，当选master。而配置成0，永远不会被选举
 replica-priority 100
  
-#redis提供了可以让master停止写入的方式，如果配置了min-replicas-to-write，健康的slave的个数小于N，mater就禁止写入。master最少得有多少个健康的slave存活才能执行写命令。这个配置虽然不能保证N个slave都一定能接收到master的写操作，但是能避免没有足够健康的slave的时候，master不能写入来避免数据丢失。设置为0是关闭该功能
+#redis提供了可以让master停止写入的方式，如果配置了min-replicas-to-write，健康的slave的个数小于N，mater就禁止写入。master最少得有多少个健康的slave存活才能执行写命令。这个配置虽然不能保证N个slave都一定能接收到master的写操作，但是能避免没有足够健康的slave的时候，master不能写入来避免数据丢失。设置为0是关闭该功能,防止脑裂问题，默认关闭
 # min-replicas-to-write 3
- 
-# 延迟小于min-replicas-max-lag秒的slave才认为是健康的slave
+# 延迟小于min-replicas-max-lag秒的slave才认为是健康的slave,防止脑裂问题
 # min-replicas-max-lag 10
  
 # 设置1或另一个设置为0禁用这个特性。
