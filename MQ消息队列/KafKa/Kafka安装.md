@@ -267,20 +267,23 @@ docker-compose up -d
 
 ### 搭建Kafka1
 
-IP为公网IP此处采用
+​		IP为公网IP此处采用
 
-创建挂载目录
+​		创建挂载目录
 
+```sh
+mkdir -p /docker/kafka-cluster/kafka1/{data,config,logs}
 ```
-mkdir -p /docker/kafka-cluster/kafka1/{data,conf,logs}
-```
 
-创建docker-compose文件
+​		创建docker-compose文件,  ！！ 注意每台Kafka的BrokerID都不能一样
 
 ```properties
+# 创建文件存放Docker-compose文件
 mkdir /root/kafka1
 cd /root/kafka1
-echo "version: '3'
+# 写入Docker-Compose文件
+cat > /root/kafka1/docker-compose.yaml << EOF
+version: '3'
 services:
   kafka1:
     container_name: kafka1
@@ -288,41 +291,85 @@ services:
     restart: always
     privileged: true
     environment:
-      JMX_PORT: 9999
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_HOST_NAME: 114.67.80.169
+      KAFKA_ADVERTISED_HOST_NAME: 139.9.70.155
       KAFKA_ADVERTISED_PORT: 9092
-      KAFKA_ZOOKEEPER_CONNECT: 114.67.80.169:2181,182.61.2.16:2181,106.12.113.62:2181
+      KAFKA_ZOOKEEPER_CONNECT: 192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181
       KAFKA_BROKER_ID: 0
       KAFKA_HEAP_OPTS: "-Xmx500m -Xms500m"
     volumes:
       - /docker/kafka-cluster/kafka1/data:/kafka
-      - /docker/kafka-cluster/kafka1/conf:/opt/kafka/config
+      # - /docker/kafka-cluster/kafka1/config:/opt/kafka/config
       - /docker/kafka-cluster/kafka1/logs:/opt/kafka/logs
     ports:
-      - 9092:9092" > docker-compose.yaml
+      - 9092:9092
+EOF
 ```
 
-运行
+​		运行
 
-```
+```sh
 docker-compose up -d
+```
+
+​		运行成功后将配置文件Copy出来
+
+```sh
+docker cp kafka1:/opt/kafka/config  /docker/kafka-cluster/kafka1
+```
+
+​		然后修改配置文件，放开config重新启动即可
+
+```properties
+cd /root/kafka1
+# 写入Docker-Compose文件
+cat > /root/kafka1/docker-compose.yaml << EOF
+version: '3'
+services:
+  kafka1:
+    container_name: kafka1
+    image: wurstmeister/kafka
+    restart: always
+    privileged: true
+    environment:
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_HOST_NAME: 139.9.70.155
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ZOOKEEPER_CONNECT: 192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181
+      KAFKA_BROKER_ID: 0
+      KAFKA_HEAP_OPTS: "-Xmx500m -Xms500m"
+    volumes:
+      - /docker/kafka-cluster/kafka1/data:/kafka
+      - /docker/kafka-cluster/kafka1/config:/opt/kafka/config
+      - /docker/kafka-cluster/kafka1/logs:/opt/kafka/logs
+    ports:
+      - 9092:9092
+EOF
+```
+
+​		然后重启
+
+```sh
+docker-compose stop && docker-compose rm -f && docker-compose up -d
 ```
 
 ### 搭建Kafka2
 
-创建挂载目录
+​		创建挂载目录
 
-```
-mkdir -p /docker/kafka-cluster/kafka2/{data,conf,logs}
+```sh
+mkdir -p /docker/kafka-cluster/kafka2/{data,config,logs}
 ```
 
-创建docker-compose文件
+​		创建docker-compose文件
 
 ```properties
+# 创建文件存放Docker-compose文件
 mkdir /root/kafka2
 cd /root/kafka2
-echo "version: '3'
+# 写入Docker-Compose文件
+cat > /root/kafka2/docker-compose.yaml << EOF
+version: '3'
 services:
   kafka2:
     container_name: kafka2
@@ -330,33 +377,76 @@ services:
     restart: always
     privileged: true
     environment:
-      JMX_PORT: 9999
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_HOST_NAME: 182.61.2.16
+      KAFKA_ADVERTISED_HOST_NAME: 139.9.80.252
       KAFKA_ADVERTISED_PORT: 9092
-      KAFKA_ZOOKEEPER_CONNECT: 114.67.80.169:2181,182.61.2.16:2181,106.12.113.62:2181
+      KAFKA_ZOOKEEPER_CONNECT: 192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181
       KAFKA_BROKER_ID: 1
       KAFKA_HEAP_OPTS: "-Xmx500m -Xms500m"
     volumes:
       - /docker/kafka-cluster/kafka2/data:/kafka
-      - /docker/kafka-cluster/kafka2/conf:/opt/kafka/config
+      # - /docker/kafka-cluster/kafka2/config:/opt/kafka/config
       - /docker/kafka-cluster/kafka2/logs:/opt/kafka/logs
     ports:
-      - 9092:9092" > docker-compose.yaml
+      - 9092:9092
+EOF
 ```
 
-运行
+​		运行	
 
-```
+```sh
 docker-compose up -d
 ```
+
+​		运行成功后将配置文件Copy出来
+
+```sh
+docker cp kafka2:/opt/kafka/config  /docker/kafka-cluster/kafka2
+```
+
+​		然后修改配置文件，放开config重新启动即可
+
+```properties
+cd /root/kafka2
+# 写入Docker-Compose文件
+cat > /root/kafka2/docker-compose.yaml << EOF
+version: '3'
+services:
+  kafka2:
+    container_name: kafka2
+    image: wurstmeister/kafka
+    restart: always
+    privileged: true
+    environment:
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_HOST_NAME: 139.9.80.252
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ZOOKEEPER_CONNECT: 192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181
+      KAFKA_BROKER_ID: 1
+      KAFKA_HEAP_OPTS: "-Xmx500m -Xms500m"
+    volumes:
+      - /docker/kafka-cluster/kafka2/data:/kafka
+      - /docker/kafka-cluster/kafka2/config:/opt/kafka/config
+      - /docker/kafka-cluster/kafka2/logs:/opt/kafka/logs
+    ports:
+      - 9092:9092
+EOF
+```
+
+​		然后重启
+
+```sh
+docker-compose stop && docker-compose rm -f && docker-compose up -d
+```
+
+​		
 
 ### 搭建Kafka3
 
 创建挂载目录
 
-```
-mkdir -p /docker/kafka-cluster/kafka3/{data,conf,logs}
+```sh
+mkdir -p /docker/kafka-cluster/kafka3/{data,config,logs}
 ```
 
 创建docker-compose文件
@@ -364,7 +454,8 @@ mkdir -p /docker/kafka-cluster/kafka3/{data,conf,logs}
 ```properties
 mkdir /root/kafka3
 cd /root/kafka3
-echo "version: '3'
+cat > /root/kafka3/docker-compose.yaml << EOF
+version: '3'
 services:
   kafka3:
     container_name: kafka3
@@ -372,55 +463,166 @@ services:
     restart: always
     privileged: true
     environment:
-      JMX_PORT: 9999
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-      KAFKA_ADVERTISED_HOST_NAME: 106.12.113.62
+      KAFKA_ADVERTISED_HOST_NAME: 124.71.9.101
       KAFKA_ADVERTISED_PORT: 9092
-      KAFKA_ZOOKEEPER_CONNECT: 114.67.80.169:2181,182.61.2.16:2181,106.12.113.62:2181
+      KAFKA_ZOOKEEPER_CONNECT: 192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181
       KAFKA_BROKER_ID: 2
       KAFKA_HEAP_OPTS: "-Xmx500m -Xms500m"
     volumes:
       - /docker/kafka-cluster/kafka3/data:/kafka
-      - /docker/kafka-cluster/kafka3/conf:/opt/kafka/config
+      #- /docker/kafka-cluster/kafka3/config:/opt/kafka/config
       - /docker/kafka-cluster/kafka3/logs:/opt/kafka/logs
     ports:
-      - 9092:9092" > docker-compose.yaml
+      - 9092:9092
+EOF
 ```
 
-运行
+​		运行
 
-```
+```sh
 docker-compose up -d
+```
+
+​		运行成功后将配置文件Copy出来
+
+```sh
+docker cp kafka3:/opt/kafka/config  /docker/kafka-cluster/kafka3
+```
+
+​		然后修改配置文件，放开config重新启动即可
+
+```properties
+mkdir /root/kafka3
+cd /root/kafka3
+cat > /root/kafka3/docker-compose.yaml << EOF
+version: '3'
+services:
+  kafka3:
+    container_name: kafka3
+    image: wurstmeister/kafka
+    restart: always
+    privileged: true
+    environment:
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_HOST_NAME: 124.71.9.101
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ZOOKEEPER_CONNECT: 192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181
+      KAFKA_BROKER_ID: 2
+      KAFKA_HEAP_OPTS: "-Xmx500m -Xms500m"
+    volumes:
+      - /docker/kafka-cluster/kafka3/data:/kafka
+      - /docker/kafka-cluster/kafka3/config:/opt/kafka/config
+      - /docker/kafka-cluster/kafka3/logs:/opt/kafka/logs
+    ports:
+      - 9092:9092
+EOF
+```
+
+​		然后重启
+
+```sh
+docker-compose stop && docker-compose rm -f && docker-compose up -d
+```
+
+​		
+
+### 测试Kafka集群
+
+​		我们使用命令创建一个topic
+
+```sh
+# 进入容器
+docker exec -it kafka3 bash
+# 创建topic
+./kafka-topics.sh --create --zookeeper 114.67.80.169:2181,182.61.2.16:2181,106.12.113.62:2181 --replication-factor 1 --partitions 1 --topic test2
+```
+
+```
+./kafka-topics.sh --create --zookeeper 192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181 --replication-factor 1 --partitions 1 --topic test2
 ```
 
 # 搭建Kafka-Manager监控工具
 
-```
-mkdir -p /root/kafka-manager
-cd /root/kafka-manager
+​		创建挂载盘
+
+```sh
+mkdir -p /root/kafka-manager && mkdir -p /docker/kafka-manager/conf
+cd /docker/kafka-manager/conf
 ```
 
+​		修改配置文件用户名和密码
+
+```sh
+# 编辑配置文件
+vim /docker/kafka-manager/conf/application.conf
+# 添加如下
+play.crypto.secret="^<csmm5Fx4d=r2HEX8pelM3iBkFVv?k[mc;IZE<_Qoq8EkX_/7@Zt6dP05Pzea3U"
+play.crypto.secret=${?APPLICATION_SECRET}
+
+play.i18n.langs=["en"]
+play.http.requestHandler = "play.http.DefaultHttpRequestHandler"
+play.http.context = "/"
+play.application.loader=loader.KafkaManagerLoader
+
+kafka-manager.zkhosts="kafka-manager-zookeeper:2181"
+kafka-manager.zkhosts=${?ZK_HOSTS}
+pinned-dispatcher.type="PinnedDispatcher"
+pinned-dispatcher.executor="thread-pool-executor"
+application.features=["KMClusterManagerFeature","KMTopicManagerFeature","KMPreferredReplicaElectionFeature","KMReassignPartitionsFeature"]
+akka {
+  loggers = ["akka.event.slf4j.Slf4jLogger"]
+  loglevel = "INFO"
+}
+basicAuthentication.enabled=true
+basicAuthentication.username="admin"
+basicAuthentication.password="admin123"
+basicAuthentication.realm="Kafka-Manager"
+kafka-manager.consumer.properties.file=${?CONSUMER_PROPERTIES_FILE}
 ```
+
+​		启动文件
+
+```properties
+# 进入Compose目录
+cd /root/kafka-manager
+# APPLICATION_SECRET 为KafkaManager密码
+
 echo "version: '3'
 services:
   kafka3:
     container_name: kafka-manager
-    image: sheepkiller/kafka-manager:latest
+    image: sheepkiller/kafka-manager:1.3.1.8
     restart: always
     privileged: true
-  	ports:
-    	- "19000:9000"
-  	environment:
-    	ZK_HOSTS: 114.67.80.169:2181
-   	 	APPLICATION_SECRET: bigkang" > docker-compose.yaml
+    ports:
+      - 19000:9000
+    environment:
+      ZK_HOSTS: 192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181
+      APPLICATION_SECRET: bigkang" > docker-compose.yaml
+    volumes:
+      - /docker/kafka-manager/conf/application.conf:/kafka-manager-1.3.1.8/conf/application.conf
 ```
 
-然后启动访问添加集群
+​		然后启动
+
+```sh
+docker-compose up -d
+```
+
+​		然后访问：http://localhost:19000
+
+​		然后启动访问添加集群
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1609078719891.png)
+
+
+
+
 
 
 
 ```
-./kafka-topics.sh --create --zookeeper 114.67.80.169:2181,182.61.2.16:2181,106.12.113.62:2181 --replication-factor 1 --partitions 1 --topic test2
 
 ```
 

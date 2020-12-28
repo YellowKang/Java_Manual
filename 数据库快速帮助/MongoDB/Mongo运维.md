@@ -142,6 +142,8 @@ iconv -f UTF8 -t gb18030 管道.csv > 管道_GBK.csv
 iconv -f UTF8 -t gb18030 房屋建筑.csv > 房屋建筑_GBK.csv
 
 
+iconv -f gb18030 -t UTF8
+
 -h ： 主机
 --port ：端口号
 -d ：数据库名

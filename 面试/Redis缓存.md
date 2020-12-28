@@ -301,7 +301,7 @@
 			4: SDS中存储了字符串的长度信息，我们可以直接根据起始位置，找到长度，获取数据，从而避免了二进制所导致问题
 ```
 
-​		下面是SDS所存储的数据：
+​		下面是SDS所存储的数据（老版本SDS >= 3.0）：
 
 ```c
 struct sdshr{
@@ -364,6 +364,43 @@ struct sdshr{
             			但是Redis作为一个内存缓存中间件来说的话，只要性能高，是可以牺牲一部分内存的
 ```
 
+​		新版本的SDS,在SDS >= 4.0的版本源码如下：[点击进入](https://github.com/redis/redis/blob/unstable/src/sds.h)
+
+```c
+/* 注意： sdshdr5 从未使用过， 我们只是直接访问标志字节.
+ * 但是，这里记录类型 5 SDS 字符串的布局. */
+struct __attribute__ ((__packed__)) sdshdr5 {
+    unsigned char flags; /*3 lsb 的类型，和 5 msb 的字符串长度 */
+    char buf[];
+};
+struct __attribute__ ((__packed__)) sdshdr8 {
+    uint8_t len; /* 已经使用的长度 */
+    uint8_t alloc; /* 排除掉Header以及null之后的可分配空间 */
+    unsigned char flags; /* 3 lsb类型，5个未使用位 */
+    char buf[];
+};
+struct __attribute__ ((__packed__)) sdshdr16 {
+    uint16_t len; /* used */
+    uint16_t alloc; /* excluding the header and null terminator */
+    unsigned char flags; /* 3 lsb of type, 5 unused bits */
+    char buf[];
+};
+struct __attribute__ ((__packed__)) sdshdr32 {
+    uint32_t len; /* used */
+    uint32_t alloc; /* excluding the header and null terminator */
+    unsigned char flags; /* 3 lsb of type, 5 unused bits */
+    char buf[];
+};
+struct __attribute__ ((__packed__)) sdshdr64 {
+    uint64_t len; /* used */
+    uint64_t alloc; /* excluding the header and null terminator */
+    unsigned char flags; /* 3 lsb of type, 5 unused bits */
+    char buf[];
+};
+```
+
+
+
 ## 集群主节点挂掉了怎么办
 
 ​		在Redis的Cluster集群模式下，我们以3主3从为示例，那么当其中的一个分片的Master宕掉了之后，那么Redis集群将会进行选举，选举条件为，存活Master节点  > 总Master节点 / 2。
@@ -401,17 +438,80 @@ struct sdshr{
 
 ## 你们用了redis，redis的底层数据结构了解多少？
 
-​		简单动态字符串
+​		简单动态字符串				官方源码：[点击进入](https://github.com/redis/redis/blob/unstable/src/sds.h)
 
-​		链表
+​		链表									
 
-​		字典
+​		字典									官方源码：[点击进入](https://github.com/redis/redis/blob/unstable/src/dict.h)
 
-​		跳跃表
+​		跳跃表							
 
 ​		整数集合
 
 ​		压缩列表
+
+## Redis的数据是如何存储的？
+
+​		**字典**是Redis最基础的数据结构，一个字典即一个DB，Redis支持多DB，例如，16个数据库就对应16个字典，
+
+## Redis如果出现Key的哈希碰撞怎么办？
+
+​		**Redis字典采用Hash表实现**，针对碰撞问题，采用的方法为“链地址法”，也就是链表+引用，例如某两个Key的Hash都一样，例如都是3，那么这个3存储的不是K和V，而是一个Key的引用，当发生冲突了的时候我们找到3，然后根据3找到这个饮用，如果这个Key对应，那么久取出他的值，如果不是这个Key，我们找到他的next，他指向下一个节点，我们再找到这个下一个节点他也同样有一个next指针，这样就解决了Hash碰撞的问题。
+
+​		点击查看Redis字典源码：[点击进入](https://github.com/redis/redis/blob/unstable/src/dict.h)
+
+​		字典Entry元素的定义如下
+
+```c
+typedef struct dictEntry {
+  	// Key
+    void *key;
+    union {
+        void *val;
+        uint64_t u64;
+        int64_t s64;
+        double d;
+    } v; // Value
+  	// next指针指向下一个节点
+    struct dictEntry *next;
+} dictEntry;
+```
+
+​		那么如果产生大量的Hash碰撞的话就会将这个Hash表退化成链表，这种情况我们怎么解决呢？Redis的方案是“双buffer”，正常流程使用一个buffer，当发现碰撞剧烈（判断依据为当前槽位数和Key数的对比），分配一个更大的buffer，然后逐步将数据从老的buffer迁移到新的buffer。
+
+​		如下是C源码中对于
+
+```c
+dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing)
+{
+    long index;
+    dictEntry *entry;
+    dictht *ht;
+
+    if (dictIsRehashing(d)) _dictRehashStep(d);
+
+    /* Get the index of the new element, or -1 if
+     * the element already exists. */
+    if ((index = _dictKeyIndex(d, key, dictHashKey(d,key), existing)) == -1)
+        return NULL;
+
+    /* Allocate the memory and store the new entry.
+     * Insert the element in top, with the assumption that in a database
+     * system it is more likely that recently added entries are accessed
+     * more frequently. */
+    ht = dictIsRehashing(d) ? &d->ht[1] : &d->ht[0];
+    entry = zmalloc(sizeof(*entry));
+    entry->next = ht->table[index];
+    ht->table[index] = entry;
+    ht->used++;
+
+    /* Set the hash entry fields. */
+    dictSetKey(d, entry, key);
+    return entry;
+}
+```
+
+​		也就是我们的扩容。
 
 ## 一个key值如何在redis集群中找到存储在哪里
 

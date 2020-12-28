@@ -1,0 +1,22 @@
+ 1、Vue的对象的内容
+
+	<script >
+
+            创建vue对象
+            var vm = new Vue({
+                dom对象
+                el:"#app",
+
+                数据
+                data:{
+                    name:"康哥"
+                },
+
+		方法
+		methods:{
+			add(){
+				alert("66");
+			}
+		}
+            });
+    	</script>

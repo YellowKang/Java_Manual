@@ -470,16 +470,22 @@ public class User extends BaseJpaEntity {
 
 ### Jpa多表条件构造
 
-通过
+​		通过
 
-```
-//两张表关联查询
-Join<User, Role> roleJoin = root.join(root.getModel().getSet("roles", Role.class), JoinType.LEFT);
-
-predicate.add(cb.like(roleJoin.get("roleName"),"%管理员%"));
+```java
+    //两张表关联查询
+    Join<User, Role> roleJoin = root.join(root.getModel().getSet("roles", Role.class), JoinType.LEFT);
+    predicate.add(cb.like(roleJoin.get("roleName"),"%管理员%"));
 ```
 
 ​		首先我们需要查询用户，所以Join的实体是User，以及Role，然后我们从root中获得模型，再从模型中设置角色，然后Join的类型为左连接。
 
 ​		然后add我们的查询条件为角色包含管理员的角色关联的用户，将用户查询出来。
+
+​		双层关联，用户关联角色，角色关联角色信息，我们想通过角色信息来进行查询，直接使用roleInfo即可。
+
+```java
+		Join<User, Role> roleJoin = root.join(root.getModel().getSet("roles", Role.class), JoinType.LEFT);
+		Join<Object, RoleInfo> join = roleJoin.join("roleInfo", JoinType.LEFT);
+```
 
