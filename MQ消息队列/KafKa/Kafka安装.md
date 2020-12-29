@@ -1,16 +1,18 @@
 # Docker&单机版Zookeeper&单机版Kafka
 
-​	首先我们先下载zookeeper和kafka镜像
+​		！！！生产环境推荐使用如下集群Kafka，并且挂载出配置文件以及数据盘等
+
+​		首先我们先下载zookeeper和kafka镜像
 
 ```sh
-下载Zookeeper镜像
+# 下载Zookeeper镜像
 docker pull docker.io/wurstmeister/zookeeper
 
-下载Kafka镜像
+# 下载Kafka镜像
 docker pull docker.io/wurstmeister/kafka
 ```
 
-​	然后按顺序启动Zookeeper和kafka
+​		然后按顺序启动Zookeeper和kafka
 
 ```sh
 启动Zookeeper容器
@@ -32,59 +34,46 @@ docker run -d \
 
 # Linux安装单机Kafka
 
-首先确保有一个Zookeeper，然后我们将Kafka放进去解压
+​		首先确保有一个Zookeeper，然后我们将Kafka放进去解压
 
-然后修改server.proerties中的zookeeper.connect=192.168.213.11:2181 （这里写Zookeeper的地址）
+​		然后修改server.proerties中的zookeeper.connect=192.168.213.11:2181 （这里写Zookeeper的地址）
 
 ```sh
 vim service.properties
 ```
 
-然后我们进入到bin目录下然后启动kafka
+​		然后我们进入到bin目录下然后启动kafka
 
 ```sh
 nohup ./kafka-server-start.sh ../config/server.properties > my.log &
 ```
 
-这样就启动了Kafka，那么我们来创建一个Topic
+​		这样就启动了Kafka，那么我们来创建一个Topic
 
 ```sh
 ./kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test
 ```
 
-创建一个replication为一个，partition分区为一个，叫做test的topic
+​		创建一个replication为一个，partition分区为一个，叫做test的topic
 
-然后查询topic
+​		然后查询topic
 
 ```sh
 ./kafka-topics.sh -list -zookeeper localhost:2181
 ```
 
-然后我们就来使用生产者和消费者了
+​		然后我们就来使用生产者和消费者了
 
-首先是生产者，我们创建一个kafka生产者，topic为test，然后不要关闭，打开另一个窗口
+​		首先是生产者，我们创建一个kafka生产者，topic为test，然后不要关闭，打开另一个窗口
 
 ```sh
 ./kafka-console-producer.sh --broker-list localhost:9092 --topic test
 ```
 
-然后是消费者（消费当前的kafka中的test这个topic），这个窗口也不要关闭，我们回到生产者随便输入然后回车，再看消费者的窗口，那么这样就能消费数据了
+​		然后是消费者（消费当前的kafka中的test这个topic），这个窗口也不要关闭，我们回到生产者随便输入然后回车，再看消费者的窗口，那么这样就能消费数据了
 
 ```sh
 ./kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning
-```
-
-ps -ef | grep nacos | grep -v grep|awk '{print $2}'|xargs kill -9
-
-清理缓存
-
-```
-查看缓存
-free -m
-清理缓存
-echo 1 > /proc/sys/vm/drop_caches
-echo 2 > /proc/sys/vm/drop_caches
-echo 3 > /proc/sys/vm/drop_caches
 ```
 
 # Kafka集群以及Zookeeper集群
@@ -618,11 +607,133 @@ docker-compose up -d
 
 
 
+# Kafka配置详解
 
 
 
+```properties
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-```
+# see kafka.server.KafkaConfig for additional details and defaults
 
+############################# 服务器基础 #############################
+
+# Broker的ID。对于每个代理，必须将其设置为唯一的整数，集群中的节点ID，不能重复。
+broker.id=0
+
+############################# Socket套接字服务器设置 #############################
+
+# socket服务器监听的地址。它将获取返回的值
+# java.net.InetAddress.getCanonicalHostName()如果没有配置。
+#   格式:
+#     listeners = listener_name://host_name:port
+#   示例:
+#     listeners = PLAINTEXT://your.host.name:9092
+listeners=PLAINTEXT://0.0.0.0:9092
+# 代理将向生产者和消费者通告，如果没有设置,如果配置了，它会使用“listener”的值。否则，它将使用该值
+# 返回java.net.InetAddress.getCanonicalHostName()。（默认注释）
+#advertised.listeners=PLAINTEXT://your.host.name:9092
+# 将监听器名称映射到安全协议，默认情况下它们是相同的。更多细节请参阅配置文档（默认注释）
+#listener.security.protocol.map=PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL
+# 服务器用于接收来自网络的请求并向网络发送响应的线程数
+num.network.threads=3
+# 服务器用于处理请求的线程数，可能包括磁盘I/O
+num.io.threads=8
+# socket服务器使用的发送缓冲区
+socket.send.buffer.bytes=102400
+# socket服务器使用的接收缓冲区
+socket.receive.buffer.bytes=102400
+# socket服务器接收请求的最大大小(防止OOM)
+socket.request.max.bytes=104857600
+
+############################# 日志基础设置 #############################
+
+# 一个用逗号分隔的目录列表，用于存储日志文件（存放数据目录）
+log.dirs=/kafka/kafka-logs-fc1aa97971a2
+# 每个主题的默认日志分区数。更多的分区允许更大的
+# 并行处理，但这也会导致更多的文件
+# Broker
+num.partitions=1
+# 每个数据目录用于启动时日志恢复和关闭时刷新的线程数。
+# 当数据目录位于RAID阵列时，建议增加该值。
+num.recovery.threads.per.data.dir=1
+
+############################# 内部Topic设置  #############################
+
+# 组元数据内部主题“__consumer_offsets”和“__transaction_state”的复制因子
+# 对于开发测试以外的任何内容，建议使用大于1的值，以确保可用性，例如3。
+offsets.topic.replication.factor=1
+transaction.state.log.replication.factor=1
+transaction.state.log.min.isr=1
+
+############################# 日志刷新策略 #############################
+
+#消息会立即写入文件系统，但是默认情况下我们只使用fsync()进行同步
+#操作系统缓存懒惰。以下配置控制将数据刷新到磁盘。
+#这里有几个重要的权衡:
+# 1。
+#		持久性:如果不使用复制，未刷新的数据可能会丢失。
+# 2。
+#		延迟:当刷新发生时，非常大的刷新间隔可能会导致延迟峰值，因为有很多数据需要刷新。
+# 3。
+#		吞吐量:刷新通常是成本最高的操作，较小的刷新间隔可能会导致过多的查找。
+#下面的设置允许配置刷新策略以在一段时间或之后刷新数据
+#每N条消息(或同时)。这可以全局执行，并在每个主题的基础上覆盖。
+# 在强制将数据刷新到磁盘之前要接受的消息数量（默认不开启）
+#log.flush.interval.messages=10000
+# 强制刷新之前，一条消息可以在日志中保存的最大时间（默认不开启）
+#log.flush.interval.ms=1000
+
+############################# 日志保留策略 #############################
+
+# 以下配置控制日志段的处理。政策可以
+# 设置为在一个时间段后或在给定大小已累积后删除段 .设置在一段时间后删除段。
+# 一个段将被删除，只要满足*任一*条件。删除总是发生
+# 从日志的末尾开始。
+# 删除日志文件的最小年龄（小时）
+log.retention.hours=168
+# 基于大小的日志保留策略。从日志中删除段，除非剩余的
+# 段落在log.retention.bytes下面。独立于log.retention.hours的功能。（默认不开启）
+#log.retention.bytes=1073741824
+# 日志段文件的最大大小。当达到这个大小时，将创建一个新的日志段（单位：字节）。
+log.segment.bytes=1073741824
+# 检查日志段以确定它们是否可以被删除的时间间隔
+# 保留策略
+log.retention.check.interval.ms=300000
+
+############################# Zookeeper配置 #############################
+
+# Zookeeper连接字符串(详见Zookeeper文档)。这是一个逗号分隔的主机:端口对，每个对应一个zk
+# 服务器。如。“127.0.0.1:3000 127.0.0.1:3001 127.0.0.1:3002”。您还可以在url中附加一个可选的chroot字符串来指定
+# kafka znode的根目录。
+zookeeper.connect=192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181
+# 连接zookeeper超时时间单位（ms）
+zookeeper.connection.timeout.ms=18000
+
+############################# Group协调器设置 #############################
+
+# 下面的配置指定了GroupCoordinator延迟初始消费者再平衡的时间(以毫秒为单位)。当新成员加入组时，再平衡将被group.initial.rebalance.delay.ms的值进一步延迟，直到max.poll.interval.ms的最大值。
+# 默认值是3秒。
+# 我们在这里重写为0，因为它为开发和测试提供了更好的开箱即用体验。
+# 但是，在生产环境中，默认值3秒更合适，因为这将有助于避免在应用程序启动时进行不必要的、潜在的昂贵的重新平衡。
+group.initial.rebalance.delay.ms=0
+# 发布的端口号以及Host，会存入Zookeeper提供集群通信
+advertised.port=9092
+advertised.host.name=139.9.70.155
+# 端口号
+port=9092
 ```
 

@@ -285,14 +285,14 @@ GET /索引名/_mapping
 
 定制dynamic，定制自己的字段，这个mapping类型为integer，它的dynamic为true
 
-```
+```properties
 "number":{
 		"type":"integer",
 		"dynamic":true
 }
 ```
 
-```
+```properties
 "dynamic":true					遇到陌生字段，就进行dynamic mapping
 "dynamic":false					遇到陌生字段，就忽略
 "dynamic":strict				遇到陌生字段，就报错
@@ -300,7 +300,7 @@ GET /索引名/_mapping
 
 这个属性可以直接加在类型上"dynamic": "strict",例如，那么这个类型就是不可变的了，如果我们新建了mapping中没有的字段那么就会报错
 
-```
+```properties
 PUT /myindex/_mapping/books
 {
     "dynamic": "strict",
@@ -318,7 +318,7 @@ PUT /myindex/_mapping/books
 
 ​		//  是否在_source之外存储一份，例如用于stored_fields属性查询出来，相当于我们将这数据额外存储了一份
 
-```
+```properties
 "title":{
 	"type":"text",
 	"store":false     
@@ -327,16 +327,16 @@ PUT /myindex/_mapping/books
 
 ​		// 分词索引，不分词是：false,设置成false，字段将不会被索引
 
-```
+```properties
 "title":{
 	"type":"text",
 	"index": true   
 }
 ```
 
+​		// 指定分词器,默认分词器为standard analyzer
 
-
-```
+```properties
 "title":{
 	"type":"text",
 	"analyzer":"ik_max_word"
@@ -347,36 +347,36 @@ ik_max_word				最细粒度拆分		例如：我今天在北京{我，今天，�
 ik_smart				最粗粒度拆分		例如：我今天在北京{我，今天，在北京，我今天在北京}
 ```
 
-//指定分词器,默认分词器为standard analyzer
+​		// 字段级别的分数加权，默认值是1.0
 
-```
+```properties
 "title":{
 	"type":"text",
 	"boost":1.23
 }
 ```
 
-//字段级别的分数加权，默认值是1.0
+​		// 对not_analyzed字段，默认都是开启，分词字段不能使用，对排序和聚合能提升较大性能，节约内存
 
-```
+```properties
 "title":{
 	"type":"text",
 	"doc_values":false
 }
 ```
 
-//对not_analyzed字段，默认都是开启，分词字段不能使用，对排序和聚合能提升较大性能，节约内存
+​		// 针对分词字段，参与排序或聚合时能提高性能，不分词字段统一建议使用doc_value
 
-```
+```properties
 "title":{
 	"type":"text",
 	"fielddata":{"format":"disabled"}
 }
 ```
 
-//针对分词字段，参与排序或聚合时能提高性能，不分词字段统一建议使用doc_value
+​		// 可以对一个字段提供多种索引模式，同一个字段的值，一个分词，一个不分词
 
-```
+```properties
 "title":{
 	"type":"text",	
 	"fields":{
@@ -388,88 +388,86 @@ ik_smart				最粗粒度拆分		例如：我今天在北京{我，今天，在�
 }
 ```
 
-//可以对一个字段提供多种索引模式，同一个字段的值，一个分词，一个不分词
+​		// 超过100个字符的文本，将会被忽略，不被索引
 
-```
+```properties
 "title":{
 	"type":"text",
 	"ignore_above":100
 }
 ```
 
-//超过100个字符的文本，将会被忽略，不被索引
+​		// 设置是否此字段包含在_all字段中，默认是true，除非index设置成no选项
 
-```
+```properties
 "title":{
 	"type":"text",
 	"include_in_all":ture
 }
 ```
 
-//设置是否此字段包含在_all字段中，默认是true，除非index设置成no选项
+​		// 4个可选参数docs（索引文档号） ,freqs（文档号+词频），positions（文档号+词频+位置，通常用来距离查询），offsets（文档号+词频+位置+偏移量，通常被使用在高亮字段）分词字段默认是position，其他的默认是docs
 
-```
+```properties
 "title":{
 	"type":"text",
 	"index_options":"docs"
 }
 ```
 
-//4个可选参数docs（索引文档号） ,freqs（文档号+词频），positions（文档号+词频+位置，通常用来距离查询），offsets（文档号+词频+位置+偏移量，通常被使用在高亮字段）分词字段默认是position，其他的默认是docs
+​		// 分词字段默认配置，不分词字段：默认{"enable":false}，存储长度因子和索引时boost，建议对需要参与评分字段使用 ，会额外增加内存消耗量
 
-```
+```properties
 "title":{
 	"type":"text",
 	"norms":{"enable":true,"loading":"lazy"}
 }
 ```
 
-//分词字段默认配置，不分词字段：默认{"enable":false}，存储长度因子和索引时boost，建议对需要参与评分字段使用 ，会额外增加内存消耗量
+​		// 设置一些缺失字段的初始化值，只有string可以使用，分词字段的null值也会被分词
 
-```
+```properties
 "title":{
 	"type":"text",
 	"null_value":"NULL"
 }
 ```
 
-//设置一些缺失字段的初始化值，只有string可以使用，分词字段的null值也会被分词
+​		// 影响距离查询或近似查询，可以设置在多值字段的数据上火分词字段上，查询时可指定slop间隔，默认值是100
 
-```
+```properties
 "title":{
 	"type":"text",
 	"position_increament_gap":0
 }
 ```
 
-//影响距离查询或近似查询，可以设置在多值字段的数据上火分词字段上，查询时可指定slop间隔，默认值是100
+​		// 设置搜索时的分词器，默认跟ananlyzer是一致的，比如index时用standard+ngram，搜索时用standard用来完成自动提示功能
 
-```
+```properties
 "title":{
 	"type":"text",
 	"search_analyzer":"ik"
 }
 ```
 
-//设置搜索时的分词器，默认跟ananlyzer是一致的，比如index时用standard+ngram，搜索时用standard用来完成自动提示功能
+​		// 默认是TF/IDF算法，指定一个字段评分策略，仅仅对字符串型和分词类型有效
 
-```
+```properties
 "title":{
 	"type":"text",
 	"similarity":"BM25"
 }
 ```
 
-//默认是TF/IDF算法，指定一个字段评分策略，仅仅对字符串型和分词类型有效
+​		// 默认不存储向量信息，支持参数yes（term存储），with_positions（term+位置）,with_offsets（term+偏移量），with_positions_offsets(term+位置+偏移量) 对快速高亮fast vector highlighter能提升性能，但开启又会加大索引体积，不适合大数据量用
 
-```
+```properties
 "title":{
 	"type":"text",
 	"term_vector":"no"
 }
 ```
-
-//默认不存储向量信息，支持参数yes（term存储），with_positions（term+位置）,with_offsets（term+偏移量），with_positions_offsets(term+位置+偏移量) 对快速高亮fast vector highlighter能提升性能，但开启又会加大索引体积，不适合大数据量用
 
 ## Index（索引）
 
@@ -477,7 +475,7 @@ ik_smart				最粗粒度拆分		例如：我今天在北京{我，今天，在�
 
 ​		使用Kibana创建一个索引为docment1，然后设置中3个分片，1个副本备份（注：创建主分片以后不能更改，但是副本集是可以修改数量的）
 
-```
+```properties
 PUT /docment1
 {
   "settings": {
@@ -1912,6 +1910,16 @@ POST /index1/_search?size=0
 #### 最大值
 
 #### 最小值
+
+#### 时间聚合
+
+​		我们有时候需要根据时间来进行聚合，格式化成不同类型的时间
+
+```
+
+```
+
+
 
 
 
