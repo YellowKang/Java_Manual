@@ -79,7 +79,7 @@
         // acks = all（消息不丢失）
         //      这意味着领导者将等待完整的同步副本到确认记录。这保证只要至少一个同步副本，记录也不会丢失仍然有效。这是最强大的保证。它等于acks = -1的设置。
         // 默认-1
-        properties.put(ProducerConfig.ACKS_CONFIG, -1);
+        properties.put(ProducerConfig.ACKS_CONFIG, "-1");
 
         // producer将在请求传输之间到达的任何记录组合成单个批处理请求。通常情况下，只有在记录到达的速度比发送的速度快的情况下，才会发生这种情况。
         // 然而，在某些情况下，客户可能希望减少请求数，即使在中等负载下。这个设置通过添加少量也就是说，制作人不是立即发送一条消息，而是等待到允许发送其他记录的给定延迟，以便发送可以批处理在一起。
@@ -146,7 +146,7 @@
         // 如果没有提供TransactionalId，则生产者被限制为等幂交付。注意,<代码>启用。如果配置了TransactionalId，则必须启用幂等性。
         // 默认是null，这意味着不能使用事务。注意，默认情况下，事务需要至少有三个broker的集群，这是生产环境的推荐设置;
         // 对于开发，你可以通过调整broker设置transaction.state.log.replication.factor
-        properties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG,null);
+        // properties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG,null);
         return properties;
     }
 ```
@@ -237,8 +237,23 @@
 
 ​		创建一个生产者
 
-```
+```java
+     		// 设置日志级别
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        List<Logger> loggerList = loggerContext.getLoggerList();
+        loggerList.forEach(logger -> {
+            logger.setLevel(Level.INFO);
+        });
 
+        // 根据配置文件创建KafkaProducer
+        KafkaProducer<String, String> producer = new KafkaProducer<String, String>(getProperties());
+				
+				// 循环发送消息
+        for (int i = 0; i < 100; i++) {
+            ProducerRecord record = new ProducerRecord("test_topic","bigkang",String.valueOf(i));
+            System.out.println(producer.send(record).get());
+            Thread.sleep(1000);
+        }
 ```
 
 

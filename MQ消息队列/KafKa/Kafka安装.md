@@ -280,6 +280,8 @@ services:
     restart: always
     privileged: true
     environment:
+      # 监控端口，可选，kafka-eagle需要
+    	# JMX_PORT: 9999
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_HOST_NAME: 139.9.70.155
       KAFKA_ADVERTISED_PORT: 9092
@@ -292,6 +294,7 @@ services:
       - /docker/kafka-cluster/kafka1/logs:/opt/kafka/logs
     ports:
       - 9092:9092
+      - 9999:9999
 EOF
 ```
 
@@ -321,6 +324,8 @@ services:
     restart: always
     privileged: true
     environment:
+    	# 监控端口，可选，kafka-eagle需要
+    	# JMX_PORT: 9999
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_HOST_NAME: 139.9.70.155
       KAFKA_ADVERTISED_PORT: 9092
@@ -333,6 +338,7 @@ services:
       - /docker/kafka-cluster/kafka1/logs:/opt/kafka/logs
     ports:
       - 9092:9092
+      - 9999:9999
 EOF
 ```
 
@@ -366,6 +372,8 @@ services:
     restart: always
     privileged: true
     environment:
+      # 监控端口，可选，kafka-eagle需要
+    	# JMX_PORT: 9999
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_HOST_NAME: 139.9.80.252
       KAFKA_ADVERTISED_PORT: 9092
@@ -378,6 +386,7 @@ services:
       - /docker/kafka-cluster/kafka2/logs:/opt/kafka/logs
     ports:
       - 9092:9092
+      - 9999:9999
 EOF
 ```
 
@@ -407,6 +416,8 @@ services:
     restart: always
     privileged: true
     environment:
+      # 监控端口，可选，kafka-eagle需要
+    	# JMX_PORT: 9999
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_HOST_NAME: 139.9.80.252
       KAFKA_ADVERTISED_PORT: 9092
@@ -419,6 +430,7 @@ services:
       - /docker/kafka-cluster/kafka2/logs:/opt/kafka/logs
     ports:
       - 9092:9092
+      - 9999:9999
 EOF
 ```
 
@@ -452,6 +464,8 @@ services:
     restart: always
     privileged: true
     environment:
+      # 监控端口，可选，kafka-eagle需要
+    	# JMX_PORT: 9999
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_HOST_NAME: 124.71.9.101
       KAFKA_ADVERTISED_PORT: 9092
@@ -464,6 +478,7 @@ services:
       - /docker/kafka-cluster/kafka3/logs:/opt/kafka/logs
     ports:
       - 9092:9092
+      - 9999:9999
 EOF
 ```
 
@@ -493,6 +508,8 @@ services:
     restart: always
     privileged: true
     environment:
+      # 监控端口，可选，kafka-eagle需要
+    	# JMX_PORT: 9999
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_HOST_NAME: 124.71.9.101
       KAFKA_ADVERTISED_PORT: 9092
@@ -505,6 +522,7 @@ services:
       - /docker/kafka-cluster/kafka3/logs:/opt/kafka/logs
     ports:
       - 9092:9092
+      - 9999:9999
 EOF
 ```
 
@@ -531,7 +549,7 @@ docker exec -it kafka3 bash
 ./kafka-topics.sh --create --zookeeper 192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181 --replication-factor 1 --partitions 1 --topic test2
 ```
 
-# 搭建Kafka-Manager监控工具
+# 搭建Kafka-Manager监控工具(简单方便)
 
 ​		创建挂载盘
 
@@ -606,6 +624,194 @@ docker-compose up -d
 ![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1609078719891.png)
 
 
+
+# 搭建Kafka-Eagle监控工具（功能强大）
+
+​		创建目录
+
+```sh
+mkdir -p ~/kafka-eagle && cd ~/kafka-eagle
+```
+
+​		再创建一个启动文件
+
+```sh
+vim entrypoint.sh
+```
+
+​		写入如下
+
+```sh
+#!/usr/bin/env bash
+/opt/kafka-eagle/bin/ke.sh start
+tail -f /opt/kafka-eagle/kms/logs/catalina.out
+```
+
+​		权限
+
+```sh
+chmod 777  entrypoint.sh
+```
+
+​		下载包
+
+```sh
+wget https://github.com/smartloli/kafka-eagle-bin/archive/v2.0.3.tar.gz
+```
+
+​		然后创建DockerFile文件
+
+```
+vim Dockerfile
+```
+
+​		写入如下
+
+```dockerfile
+FROM java:8-alpine
+ENV KE_HOME=/opt/kafka-eagle
+ENV EAGLE_VERSION=2.0.3
+
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+ADD entrypoint.sh /usr/bin
+COPY v2.0.3.tar.gz /opt/v2.0.3.tar.gz
+RUN apk --update add wget gettext tar bash sqlite
+#get and unpack kafka eagle
+RUN mkdir -p /opt/kafka-eagle/conf;cd /opt && \
+    tar zxvf v${EAGLE_VERSION}.tar.gz -C kafka-eagle --strip-components 1 && \
+    cd kafka-eagle;tar zxvf kafka-eagle-web-${EAGLE_VERSION}-bin.tar.gz --strip-components 1 && \
+    chmod +x /opt/kafka-eagle/bin/ke.sh && \
+    mkdir -p /hadoop/kafka-eagle/db
+EXPOSE 8080
+ENTRYPOINT ["/usr/bin/entrypoint.sh"]
+WORKDIR /opt/kafka-eagle
+```
+
+​		然后构建镜像
+
+```sh
+docker build -t kafka-eagle:2.0.3 .
+```
+
+​		配置数据库以及Zk地址，数据库需要root或者创建表的权限，会自动创建表
+
+​		镜像需要自己构建，创建配置文件
+
+```sh
+# 创建配置文件挂载目录
+mkdir -p /docker/kafka-eagle/conf
+vim /docker/kafka-eagle/conf/system-config.properties
+```
+
+​		编辑文件写入如下，修改集群zk，kafka存储，web端口以及数据库地址
+
+```properties
+# 配置集群，可以配置多个，使用逗号隔开
+kafka.eagle.zk.cluster.alias=cluster1
+# zk地址  集群名.zk.list=${KAFKA_ZOOKEEPER_HOSTS}
+cluster1.zk.list=192.168.1.12:2181,192.168.1.28:2181,192.168.1.115:2181
+
+
+cluster1.kafka.eagle.broker.size=20
+######################################
+# 配置Kafka存储Offset
+######################################
+# kafka存储  集群名.kafka.eagle.offset.storage=kafka
+cluster1.kafka.eagle.offset.storage=kafka
+
+######################################
+# Zk连接线程
+######################################
+kafka.zk.limit.size=25
+
+######################################
+# Web端口
+######################################
+kafka.eagle.webui.port=8080
+
+
+######################################
+# enable kafka 开启图表
+# 及开始sql查询
+######################################
+kafka.eagle.metrics.charts=true
+kafka.eagle.sql.fix.error=true
+
+######################################
+# 提醒的email
+######################################
+kafka.eagle.mail.enable=true
+kafka.eagle.mail.sa=alert_sa
+kafka.eagle.mail.username=alert_sa@163.com
+kafka.eagle.mail.password=mqslimczkdqabbbh
+kafka.eagle.mail.server.host=smtp.163.com
+kafka.eagle.mail.server.port=25
+
+
+######################################
+# 删除kafka topic 的token
+######################################
+kafka.eagle.topic.token=admin
+
+######################################
+# kafka sasl authenticate
+######################################
+kafka.eagle.sasl.enable=false
+kafka.eagle.sasl.protocol=SASL_PLAINTEXT
+kafka.eagle.sasl.mechanism=PLAIN
+kafka.eagle.sasl.client=/hadoop/kafka-eagle/conf/kafka_client_jaas.conf
+
+# Default use sqlite to store data
+#kafka.eagle.driver=org.sqlite.JDBC
+# It is important to note that the '/hadoop/kafka-eagle/db' path must exist.
+#kafka.eagle.url=jdbc:sqlite:/hadoop/kafka-eagle/db/ke.db
+#kafka.eagle.username=root
+#kafka.eagle.password=smartloli
+
+# 配置数据库地址
+kafka.eagle.driver=com.mysql.jdbc.Driver
+kafka.eagle.url=jdbc:mysql://192.168.1.11:3306/eagle?useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull
+kafka.eagle.username=root
+kafka.eagle.password=123
+```
+
+​		需要Kafka开启JMX
+
+​		需要修改ZK  以及数据库的地址用户名密码
+
+​		Or使用我上传打包好的镜像
+
+```sh
+docker pull bigkang/kafka-eagle:2.0.3
+```
+
+​		编写docker-compose启动脚本
+
+```properties
+# 创建目录
+mkdir -p ~/kafka-eagle && cd ~/kafka-eagle
+cat > docker-compose.yaml << EOF
+version: '3'
+services:
+  kafka-eagle:
+    container_name: kafka-eagle
+    image: kafka-eagle:2.0.3
+    ports:
+      - "8048:8080"
+    volumes:
+      - /docker/kafka-eagle/conf/system-config.properties:/opt/kafka-eagle/conf/system-config.properties
+EOF
+```
+
+​		启动后访问
+
+```http
+http://192.168.1.11:8048/ke
+用户名：admin
+密码：123456
+```
+
+​		
 
 # Kafka配置详解
 

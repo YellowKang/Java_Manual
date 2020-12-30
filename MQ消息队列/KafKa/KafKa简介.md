@@ -118,3 +118,11 @@ kafka-console-producer.sh --bootstrap-server 139.9.70.155:9092,139.9.80.252:9092
 kafka-console-producer.sh --bootstrap-server 139.9.70.155:9092,139.9.80.252:9092,124.71.9.101:9092  --topic test_topic --property parse.key=true
 ```
 
+
+
+
+
+```
+kafka-console-producer.sh --bootstrap-server 139.9.70.155:9092,139.9.80.252:9092,124.71.9.101:9092  --topic test_topic
+```
+

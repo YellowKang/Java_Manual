@@ -505,6 +505,242 @@ zrank bigkang B
 ​			 如遇到AOF文件损坏，可通过
 ​				redis-check-aof --fix appendonly.aof 进行恢复
 
+# Redis进阶（5.0）
+
+## Redis源码
+
+​		地址如下，可以自定义修改版本
+
+```http
+https://github.com/redis/redis/blob/5.0/src/sds.h
+```
+
+## Redis数据DB
+
+​		Redis是一个一个的DB，那么这个DB到底是一个什么样结构的数据呢？
+
+​		如下是Redis官方的源码（5.0）
+
+```c
+/* Redis数据库表示。有多个数据库标识从0(默认数据库)到配置的最大值的整数数据库。数据库号是结构中的“id”字段*/
+typedef struct redisDb {
+    dict *dict;                 /* 这个数据库的键空间（字典类型） */
+    dict *expires;              /* 设置超时的键的超时 */
+    dict *blocking_keys;        /* 客户端等待数据的密钥(BLPOP) */
+    dict *ready_keys;           /* 接收到推送的阻塞键 */
+    dict *watched_keys;         /* EXEC CAS的监视键 */
+    int id;                     /* 数据库ID */
+    long long avg_ttl;          /* 平均TTL，仅用于统计 */
+    list *defrag_later;         /* 要逐个进行磁盘整理的键名列表 */
+} redisDb;
+```
+
+​		我们可以看到Redis的数据库主要的数据是存放在字典中的
+
+## Redis数据Dict字典
+
+​		官网源码地址：https://github.com/redis/redis/blob/5.0/src/dict.h
+
+​		我们找到dict字典的定义：
+
+```c
+// 字典类型数据定义
+typedef struct dict {
+    dictType *type; /* 字典类型数组 */
+    void *privdata; /* 私有数据 */
+    dictht ht[2]; /* 字典Hash表数组 */
+    long rehashidx; /* 如果 rehashidx == -1，表示没有进行Rehash*/
+    unsigned long iterators; /* 当前正在运行的迭代器数 */
+} dict;
+```
+
+​		主要的数据是存放在我们的字典Hash表数组中的我们在来看一下这个dictht，字典Hash表
+
+```c
+// 字典Hash表类型数据定义
+typedef struct dictht {
+    dictEntry **table; /* Hash表，存放一个又一个的字典元素 */
+    unsigned long size; /* 哈希表大小，即哈希表数组大小 */
+    unsigned long sizemask; /* 哈希表大小掩码，总是等于size-1，主要用于计算索引 */
+    unsigned long used; /* 已使用节点数，即已使用键值对数 */
+} dictht;
+```
+
+​		那么更加主要的就是我们的每一个字典的元素，表示我们存放的元素数据
+
+```c
+// 字典元素类型数据定义
+typedef struct dictEntry {
+  	// 无类型指针，Key指向Val值
+    void *key;
+    // 值，是一个公用体,他有可能是一个指针，或者一个64位正整数，或者64位int，浮点数
+    union {
+       	// 值指针
+        void *val;
+      	// 64位正整数
+        uint64_t u64;
+      	// 64位int
+        int64_t s64;
+      	// 浮点数
+        double d;
+    } v;
+  	// next节点，每一个dictEntry都是一个链表，用于处理Hash冲突
+    struct dictEntry *next;
+} dictEntry;
+```
+
+### Redis字典扩容（ReHash）
+
+​		我们知道上方的dict，有两个Hash表，那么为什么我们要放两个Hash表呢？
+
+​		答案就是我们Redis的Hash表在进行扩容的时候需要用到的，那么下面我们来看一下源码中的解释吧。
+
+​		int dictRehash(dict *d, int n);
+
+​		源码位置：https://github.com/redis/redis/blob/5.0/src/dict.c
 
 
-​			
+
+## SDS动态字符串
+
+​	动态字符串（simple dynamic string）
+
+​		首先我们需要了解什么是sds动态字符串
+
+​		我们知道Redis是采用C语言进行编写的，而所有的Key键都是字符串String类型，以及我们的很多的Value也会存储字符串，那么我们就要首先了解C语言的字符串了。
+
+​		C语言中是没有String这个字符串类型的，而是采用的一个char数组，然后以\0作为一个结束符
+
+```java
+		// C语言中的字符串
+		char *str;
+    str = "redis";
+		printf("%s",str);
+
+		// 但是实际上这个str在转成String字符串的时候底层的char数组被转了,后面会多出一个/0的字符串结束符
+		char str[5] = {'r','e','d','i','s','\0'};
+```
+
+​		那么我们在获取字符串的长度的时候，我们就会发现一个问题，我们需要遍历这个char数组，获取长度的时间复杂度是O(N)。
+
+​		并且我们还会发现一个问题，我们存储二进制的时候，如果说二进制流中出现\0的时候，就会出现问题。
+
+​		使用C字符串数组有以下问题
+
+```properties
+			1: 字符串数组的长度都是固定的，并且我们追加或者修改字符串数组相当于都是在重新创建内存空间，损耗内存
+			2: 获取字符串长度时需要遍历字符串数组，时间复杂度较高，大量查询长度，会引起性能问题
+			3: 存储二进制数据时，例如文件等等我们使用\0判断是否结尾，会导致二进制数据存储、查询长度、获取数据时引发的一系列问题
+```
+
+​		总体上来说则使用C语言转换后的String并不适合Redis用来存储，那么针对字符串的Key我们怎么去解决呢？
+
+​		答案就是：动态字符串（simple dynamic string）SDS
+
+​				那么SDS能帮助我们解决什么问题呢？，如下 : 
+
+```properties
+			1: SDS在字符串发生扩容的时候直接使用空闲的空间进行扩容，不需要重新分配数组对象，从而解决扩容问题
+			2: 在SDS的内部定义了字符串的长度，使用时可以直接获取,将时间复杂度从O(n)变成了O(1)提高了长度查询效率
+			3: SDS的空间预分配是惰性释放内存的，从而减少分配内存的次数
+			4: SDS中存储了字符串的长度信息，我们可以直接根据起始位置，找到长度，获取数据，从而避免了二进制所导致问题
+```
+
+​		下面是SDS所存储的数据（老版本SDS >= 3.0）：
+
+```c
+struct sdshr{
+  int len;  // 用于记录已使用数组长度，存储的字符串数据在buffer数组中的长度
+  int free; // 用于记录数组剩余空间，用于追加时扩容是否需要扩容buffer
+  char buf[];// 用于创建内存空间，以及存储的数据字符串buff数组
+}
+```
+
+​		但其实这个buffer数组也是采用的\0进行存储的，那么为什么还要加上这个\0呢，答案就是为了兼容某些C的类库，所以还是需要\0进行结尾。
+
+​		SDS空间分配策略：
+
+- ​		**预留空间**
+
+```java
+		// 预留空间，是如何预留的呢？
+					我们举例示范，例如 我们新建了一个字符串"redis",
+          
+					现在Buffer的长度是20
+          char buf[20] = {'r','e','d','i','s','\0',.....空};
+
+          那么此时的SDS如下
+					struct sdshr{
+            int len = 5;
+            int free = 14;
+            char buf[] = {'r','e','d','i','s','\0',.....空};
+          }
+
+					我们现在需要给他追加5.0.3这个字符串
+          append("5.0.3");
+					如果是采用来的字符串数组那么,则是
+          char str[] = {'r','e','d','i','s','\0'};
+					我们还需要将两个字符串的长度进行计算，然后创建一个新的字符串数组，再把值给添加进去
+					而使用SDS我们就可以直接根据len找到数组的位置然后进行插入，也不需要创建新的数组对象
+            															len
+          																 |
+            															 v
+          char buf[] = {'r','e','d','i','s','\0',.....空};
+```
+
+- ​		**惰性空间释放**
+
+```java
+		// 惰性空间释放，是如何惰性空间释放的呢？
+					还是以上面的示例
+          
+          我们将redis修改为key
+          那么这个时候
+          struct sdshr{
+            int len = 3;
+            int free = 16;
+            char buf[] = {'k','e','y','\0',.....空};
+          }
+
+					我们可以看到buffer数组的长度还是没有变，我们下一次再插入一个redis5.0.3的时候是不会再创建内存空间的。
+          这个时候我们数组长度还是20，那么再次修改的话我们的buffer数组不需要重新创建内存空间了。
+          		缺点：
+            			如果字符串占用较小的话只会修改free，占用内存空间，不立即释放
+            			但是Redis作为一个内存缓存中间件来说的话，只要性能高，是可以牺牲一部分内存的
+```
+
+​		新版本的SDS,在SDS >= 4.0的版本源码如下：[点击进入](https://github.com/redis/redis/blob/unstable/src/sds.h)
+
+```c
+/* 注意： sdshdr5 从未使用过， 我们只是直接访问标志字节.
+ * 但是，这里记录类型 5 SDS 字符串的布局. */
+struct __attribute__ ((__packed__)) sdshdr5 {
+    unsigned char flags; /*3 lsb 的类型，和 5 msb 的字符串长度 */
+    char buf[];
+};
+struct __attribute__ ((__packed__)) sdshdr8 {
+    uint8_t len; /* 已经使用的长度 */
+    uint8_t alloc; /* 排除掉Header以及null之后的可分配空间 */
+    unsigned char flags; /* 3 lsb类型，5个未使用位 */
+    char buf[];
+};
+struct __attribute__ ((__packed__)) sdshdr16 {
+    uint16_t len; /* used */
+    uint16_t alloc; /* excluding the header and null terminator */
+    unsigned char flags; /* 3 lsb of type, 5 unused bits */
+    char buf[];
+};
+struct __attribute__ ((__packed__)) sdshdr32 {
+    uint32_t len; /* used */
+    uint32_t alloc; /* excluding the header and null terminator */
+    unsigned char flags; /* 3 lsb of type, 5 unused bits */
+    char buf[];
+};
+struct __attribute__ ((__packed__)) sdshdr64 {
+    uint64_t len; /* used */
+    uint64_t alloc; /* excluding the header and null terminator */
+    unsigned char flags; /* 3 lsb of type, 5 unused bits */
+    char buf[];
+};
+```
+

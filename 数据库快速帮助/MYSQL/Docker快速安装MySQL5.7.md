@@ -1,8 +1,7 @@
 # 创建挂载目录
 
 ```sh
-mkdir -p /docker/mysql/conf
-mkdir -p /docker/mysql/data
+mkdir -p /docker/mysql/{conf,data}
 ```
 
 # 编写配置文件
@@ -11,7 +10,7 @@ mkdir -p /docker/mysql/data
 touch /docker/mysql/conf/my.cnf
 ```
 
-配置文件中添加
+​		配置文件中添加
 
 ```sh
 echo "[mysqld]
