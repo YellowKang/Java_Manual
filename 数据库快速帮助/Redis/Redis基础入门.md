@@ -549,7 +549,7 @@ typedef struct dict {
     dictType *type; /* 字典类型数组 */
     void *privdata; /* 私有数据 */
     dictht ht[2]; /* 字典Hash表数组 */
-    long rehashidx; /* 如果 rehashidx == -1，表示没有进行Rehash*/
+    long rehashidx; /* 如果 rehashidx == -1，表示没有进行Rehash,如果为正数表示有ReHash操作 */
     unsigned long iterators; /* 当前正在运行的迭代器数 */
 } dict;
 ```
@@ -589,15 +589,274 @@ typedef struct dictEntry {
 } dictEntry;
 ```
 
-### Redis字典扩容（ReHash）
+### Redis字典扩容以及Hash冲突处理（ReHash）
 
-​		我们知道上方的dict，有两个Hash表，那么为什么我们要放两个Hash表呢？
+​		我们知道上方的dict，有两个Hash表 ，那么为什么我们要放两个Hash表呢？
 
 ​		答案就是我们Redis的Hash表在进行扩容的时候需要用到的，那么下面我们来看一下源码中的解释吧。
 
 ​		int dictRehash(dict *d, int n);
 
 ​		源码位置：https://github.com/redis/redis/blob/5.0/src/dict.c
+
+​		首先我们肯定需要知道我们是在哪一步进行扩容的，肯定是在我们发生Add操作的时候我们定位到Add的方法：
+
+```c
+/* 添加一个元素到目标哈希表 */
+int dictAdd(dict *d, void *key, void *val)
+{
+  	// 向字典中添加key
+    dictEntry *entry = dictAddRaw(d,key,NULL);
+
+    if (!entry) return DICT_ERR;
+  	// 然后设置节点的值
+    dictSetVal(d, entry, val);
+    return DICT_OK;
+}
+```
+
+​		然后我们定位到dictAddRaw，这一步使用链表解决Hash冲突
+
+```c
+/* 低级添加或查找:
+ * 此函数添加了元素，但不是设置值而是将dictEntry结构返回给用户，这将确保按需填写值字段.
+ *
+ * 此函数也直接公开给要调用的用户API主要是为了在哈希值内部存储非指针，例如:
+ * entry = dictAddRaw(dict,mykey,NULL);
+ * if (entry != NULL) dictSetSignedIntegerVal(entry,1000);
+ * 
+ * 返回值:
+ *
+ * 如果键已经存在，则返回NULL，如果不存在，则使用现有条目填充“ * existing”.
+ * 如果添加了键，则哈希条目将返回以由调用方进行操作。
+ */
+dictEntry *dictAddRaw(dict *d, void *key, dictEntry **existing)
+{
+    long index;
+    dictEntry *entry;
+    dictht *ht;
+		// 判断是否正在ReHash，如果需要则调用_dictRehashStep（后续ReHash中的步骤），每次ReHash一条数据，直到完成整个ReHash
+    if (dictIsRehashing(d)) _dictRehashStep(d);
+
+    /* 获取新元素的索引,根据Key计算索引，并且判断是否需要进行扩容ReHash(！！！重点)（第一次ReHash调用） */
+    if ((index = _dictKeyIndex(d, key, dictHashKey(d,key), existing)) == -1)
+        return NULL;
+
+  	/* 解决Hash冲突，以及ReHash时效率问题 */
+    /* 分配内存并存储新条目。假设在数据库系统中更有可能更频繁地访问最近添加的条目，则将元素插入顶部 */
+  	// 判断是否需要ReHash，如果是那么当前的HashTable为字典下的第二个，如果不需要扩容则使用原来的的
+    ht = dictIsRehashing(d) ? &d->ht[1] : &d->ht[0];
+    // 创建元素,分配内存
+    entry = zmalloc(sizeof(*entry));
+  	// 进行元素链表操作，元素的下一个节点指向Hash表中的相应索引，如果以前这个下标有元素则链到当前元素后面
+    entry->next = ht->table[index];
+  	// Hash表节点索引设置为自己，替换原来的元素
+    ht->table[index] = entry;
+    ht->used++;
+
+    /* 设置这个Hash元素的Key. */
+    dictSetKey(d, entry, key);
+    return entry;
+}
+```
+
+​		看完了Hash冲突的解决方式我们再来看一下扩容，首先我们看一下dictIsRehashing，是如何判断需要进行ReHash的
+
+```c
+ // 如果字典的rehashidx不是-1，那就表示需要进行Hash扩容
+ dictIsRehashing(d) ((d)->rehashidx != -1)
+```
+
+​		那么在什么地方修改了rehashidx呢，就是在我们计算Index的时候
+
+```c
+/* 返回可用插槽填充的索引,根据“Key”的哈希计算，如果Key已经存在，则返回-1
+ * 请注意，如果我们正在重新哈希表，索引总是在第二个（新）哈希表的上下文中返回，也就是ht[1] */
+static long _dictKeyIndex(dict *d, const void *key, uint64_t hash, dictEntry **existing)
+{
+    unsigned long idx, table;
+    dictEntry *he;
+    if (existing) *existing = NULL;
+
+    /* 如果需要，扩容哈希表，如果失败返回-1（ReHash扩容机制） */
+    if (_dictExpandIfNeeded(d) == DICT_ERR)
+        return -1;
+  	/* 从两个Hash表进行查询，可能这个Key放入了第二个哈希表 */
+    for (table = 0; table <= 1; table++) {
+  			/* 根据数组长度 - 1 然后取模计算卡槽 */
+        idx = hash & d->ht[table].sizemask;
+        /* 根据Hash表获取元素，并且判断这个Key有没有在Hash表里面，如果存在返回-1 */
+        he = d->ht[table].table[idx];
+        while(he) {
+            if (key==he->key || dictCompareKeys(d, key, he->key)) {
+                if (existing) *existing = he;
+                return -1;
+            }
+            he = he->next;
+        }
+        // 如果不在ReHash，直接返回第一个Hash表的index卡槽，如果是ReHash那么就把idx放入第二个Hash表
+        if (!dictIsRehashing(d)) break;
+    }
+    return idx;
+}
+```
+
+​		此处开始判断是否需要进行扩容
+
+```c
+/* 如果需要，扩容Hash表 */
+static int _dictExpandIfNeeded(dict *d)
+{
+    /* 如果已经在ReHash中了，直接返回 */
+    if (dictIsRehashing(d)) return DICT_OK;
+
+    /* 如果哈希表为空，将其展开到初始大小。初始大小4 */
+    if (d->ht[0].size == 0) return dictExpand(d, DICT_HT_INITIAL_SIZE);
+
+    /* 如果我们的已经使用的元素个数和Hash表数组长度达到 1：1 比率，那么就要进行扩容了 （全局设置）或者我们应该避免它， 但之间的比率元素/存储桶超过"安全"阈值，我们调整大小加倍存储桶的数量 */
+  	/* 简单来说就是我们使用的元素等于数组的长度那么我们就扩容Hash表，容量扩容一倍 */
+    if (d->ht[0].used >= d->ht[0].size &&
+        (dict_can_resize ||
+         d->ht[0].used/d->ht[0].size > dict_force_resize_ratio))
+    {
+        return dictExpand(d, d->ht[0].used*2);
+    }
+    return DICT_OK;
+}
+```
+
+​		将第二张Hash表重新初始化，后续ReHash中的元素都会放入第二张Hash表
+
+```c
+/* 扩容或者创建Hash表 */
+int dictExpand(dict *d, unsigned long size)
+{
+    /* 如果正在ReHash，或者使用数量大于原size * 2，返回-1 */
+    if (dictIsRehashing(d) || d->ht[0].used > size)
+        return DICT_ERR;
+
+    dictht n; /* 新的哈希表 */
+    unsigned long realsize = _dictNextPower(size);
+
+    /* 重新大小重为相同的表大小没有用处，返回-1 */
+    if (realsize == d->ht[0].size) return DICT_ERR;
+
+    /* 分配新的哈希表并初始化所有指向 NULL 的指针 */
+    n.size = realsize;
+    n.sizemask = realsize-1;
+  	/* 分配内存扩容空间 */
+    n.table = zcalloc(realsize*sizeof(dictEntry*));
+    n.used = 0;
+
+    /* 这是第一次初始化吗？如果是这样，它不是真正的重述，我们只是设置第一个哈希表，以便它可以接受键。 */
+    if (d->ht[0].table == NULL) {
+        d->ht[0] = n;
+        return DICT_OK;
+    }
+
+    /* 准备第二个哈希表以进行增量重哈希，将第二个临时存放的Hash表重新初始化，开始ReHash操作 */
+    d->ht[1] = n;
+    d->rehashidx = 0;
+    return DICT_OK;
+}
+```
+
+### ReHash过程
+
+​		ReHash过程是指我们将状态设置为了ReHash，并且将新增的元素写入到了第二张Hash表，这个时候我们就需要将第二张Hash表和第一张Hash表
+
+```c
+/* 字典ReHash操作，每次第一个参数表示字典，第二个参数表示每次ReHash的数量，例如100扩容至两百，如果没有Hash冲突，我们需要传入100才能完成ReHash */
+int dictRehash(dict *d, int n) {
+    int empty_visits = n*10; /* 可访问的最大空桶数 */
+  	/* 不在ReHash过程直接返回 */
+    if (!dictIsRehashing(d)) return 0;
+		/* ReHash 第二张表时会先 */
+    while(n-- && d->ht[0].used != 0) {
+        dictEntry *de, *nextde;
+
+        /* 请注意，rehashidx不会溢出，因为我们确信还有更多元素，因为ht [0] .used！= 0*/
+        assert(d->ht[0].size > (unsigned long)d->rehashidx);
+      	// 如果卡槽是空的那么从ReHashIndex开始自增，因为需要遍历，rehashidx从开始被默认置为0，如果需要将原来的Hash表完成ReHash，就需要从0遍历完整张Hash表
+        while(d->ht[0].table[d->rehashidx] == NULL) {
+            d->rehashidx++;
+          	// 如果查找了n * 10个卡槽还是为空的话那么我们返回1，不执行操作
+            if (--empty_visits == 0) return 1;
+        }
+      	// 获取原来的ht[0]的相应卡槽的Hash表
+        de = d->ht[0].table[d->rehashidx];
+        /* 然后将卡槽中的Key Value 都放入 ht[1] 表示将数据从ht[0] 移动到 ht[1]*/
+        while(de) {
+            uint64_t h;
+
+            nextde = de->next;
+            /* 获取新哈希表中的索引 */
+            h = dictHashKey(d, de->key) & d->ht[1].sizemask;
+            de->next = d->ht[1].table[h];
+            d->ht[1].table[h] = de;
+            d->ht[0].used--;
+            d->ht[1].used++;
+            de = nextde;
+        }
+      	// 如果为空那么继续+1，知道ht[0]的表变成空的
+        d->ht[0].table[d->rehashidx] = NULL;
+        d->rehashidx++;
+    }
+
+  	// 完成ReHash，表示将ht[0]所有数据已经移动到ht[1]，然后将ht[1] 赋值给ht[0]，然后清空ht[1]，一次ReHash操作完成
+    /* 检查我们是否已经重新ReHash了第一张Hash表.. */
+    if (d->ht[0].used == 0) {
+        zfree(d->ht[0].table);
+        d->ht[0] = d->ht[1];
+        _dictReset(&d->ht[1]);
+        d->rehashidx = -1;
+        return 0;
+    }
+
+    /* 返回数据，这一步通常由于ReHash没有执行完，只ReHash了一部分（未完成ReHash） */
+  	// 返回1表示给定时任务循环调度，while条件，表示没有ReHash完成
+    return 1;
+}
+```
+
+​		并且有任务调度ReHash
+
+​		在Server中https://github.com/redis/redis/blob/5.0/src/server.c
+
+```c
+/* 数据库定时任务 */
+void databasesCron(void) {
+/* Rehash */
+        if (server.activerehashing) {
+            for (j = 0; j < dbs_per_call; j++) {
+              	// 数据库ReHash
+                int work_done = incrementallyRehash(rehash_db);
+                if (work_done) {
+                    break;
+                } else {
+                    /* If this db didn't need rehash, we'll try the next one. */
+                    rehash_db++;
+                    rehash_db %= server.dbnum;
+                }
+            }
+        }
+
+
+// 每个数据库每次1毫秒ReHash一个元素
+int incrementallyRehash(int dbid) {
+    /* Keys dictionary */
+    if (dictIsRehashing(server.db[dbid].dict)) {
+        dictRehashMilliseconds(server.db[dbid].dict,1);
+        return 1; /* 已经使用了毫秒作为循环周期。... */
+    }
+    /* Expires */
+    if (dictIsRehashing(server.db[dbid].expires)) {
+        dictRehashMilliseconds(server.db[dbid].expires,1);
+        return 1; /* 已经使用了毫秒作为循环周期。... */
+    }
+    return 0;
+}
+```
 
 
 
