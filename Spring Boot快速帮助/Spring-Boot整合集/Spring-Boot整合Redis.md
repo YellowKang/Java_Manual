@@ -866,6 +866,14 @@ transportMode: "NIO"
         Long rank = redisTemplate.opsForZSet().rank("bigkang", "b");
 ```
 
+## Bit操作
+
+```
+
+```
+
+
+
 # 通用进阶
 
 ## RedisTemplate序列化问题
@@ -953,6 +961,90 @@ public class RedisConfig extends CachingConfigurerSupport {
         }else if(redisConnectionFactory instanceof RedissonConnectionFactory){
             System.out.println("Redisson连接工厂");
         }
+    }
+```
+
+## 不使用SpringBoot整合
+
+​		有时候我们不需要跟SpringBoot进行整合，直接通过工具类或者其他方式进行整合，那么我们采用如下
+
+​		引入依赖
+
+```xml
+			<!-- SpringData依赖 -->
+			<dependency>
+        <groupId>org.springframework.data</groupId>
+        <artifactId>spring-data-redis</artifactId>
+        <version>2.2.10.RELEASE</version>
+        <scope>compile</scope>
+        <exclusions>
+          <exclusion>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <groupId>org.slf4j</groupId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+			<!-- lettuce连接池 -->
+      <dependency>
+        <groupId>io.lettuce</groupId>
+        <artifactId>lettuce-core</artifactId>
+        <version>5.2.2.RELEASE</version>
+        <scope>compile</scope>
+      </dependency>
+			<!-- 连接池配置 -->
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-pool2</artifactId>
+				<version>2.7.0</version>
+			</dependency>
+```
+
+​		初始化连接
+
+```java
+    public static void main(String[] args) {
+        // Redis单节点配置文件，集群RedisClusterConfiguration，等等可以查找实现RedisConfiguration的接口
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        // 配置Redis单机版本，数据库，地址，端口，以及密码
+        redisStandaloneConfiguration.setDatabase(0);
+        redisStandaloneConfiguration.setHostName("124.71.9.101");
+        redisStandaloneConfiguration.setPort(16371);
+        redisStandaloneConfiguration.setPassword("bigkang");
+        // 连接池配置
+        GenericObjectPoolConfig genericObjectPoolConfig =
+                new GenericObjectPoolConfig();
+        genericObjectPoolConfig.setMaxIdle(8);
+        genericObjectPoolConfig.setMinIdle(2);
+        genericObjectPoolConfig.setMaxTotal(8);
+        genericObjectPoolConfig.setMaxWaitMillis(2000);
+        // Lettuce连接池配置
+        LettucePoolingClientConfiguration build = LettucePoolingClientConfiguration.builder().poolConfig(genericObjectPoolConfig).build();
+        // 创建Redis连接工厂
+        LettuceConnectionFactory redisConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration,build);
+        // 初始化连接
+        redisConnectionFactory.afterPropertiesSet();
+        RedisTemplate redisTemplate = new RedisTemplate();
+        redisTemplate.setConnectionFactory(redisConnectionFactory);
+        // 使用Jackson2JsonRedisSerialize 替换默认序列化
+        Jackson2JsonRedisSerializer jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer(Object.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        // 指定要序列化的域，field,get和set,以及修饰符范围，ANY是都有包括private和public
+        objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+        // 指定序列化输入的类型，类必须是非final修饰的，final修饰的类，比如String,Integer等会跑出异常
+        objectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
+        jackson2JsonRedisSerializer.setObjectMapper(objectMapper);
+        // 设置value的序列化规则和 key的序列化规则
+        redisTemplate.setKeySerializer(new StringRedisSerializer());
+        redisTemplate.setValueSerializer(jackson2JsonRedisSerializer);
+        // 设置Hash的Key以及Value的序列化
+        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
+        redisTemplate.setHashValueSerializer(jackson2JsonRedisSerializer);
+        // 重新初始化
+        redisTemplate.afterPropertiesSet();
+
+        System.out.println(redisTemplate.keys("*"));
+        // 关闭连接
+        redisConnectionFactory.getConnection().close();
     }
 ```
 

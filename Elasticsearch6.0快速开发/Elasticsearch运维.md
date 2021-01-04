@@ -142,8 +142,13 @@ POST _reindex
 
 ​		6.7分片
 
-```
-
+```properties
+# 设置yuqing_2020_9_4索引副本集
+curl -XPUT 'http://localhost:19200/yuqing_2020_9_4/_settings' -d '{
+    "index": {
+       "number_of_replicas": "1"
+    }
+}'
 ```
 
 ​		ES2.3版本分片
@@ -152,8 +157,36 @@ POST _reindex
 # 设置yuqing_2020_9_4索引副本集
 curl -XPUT 'http://localhost:19200/yuqing_2020_9_4/_settings' -d '{
     "index": {
-       "number_of_replicas": "1"
+       "number_of_replicas": "0"
     }
+}'
+
+
+# 处理已分片的数据
+curl -XPOST 'http://192.168.1.15:29200/_cluster/reroute' -d '{
+    "commands": [
+        {
+            "move": {
+             "index" : "yuqing_2020_12_2", "shard" : 4,
+             "from_node" : "es-sever06-data-node1", "to_node" : "es-sever08-data-node1"
+            }
+        }
+    ]
+}'
+
+
+# 处理未分片的数据
+curl -XPOST 'http://192.168.1.15:29200/_cluster/reroute' -d '{
+    "commands": [
+        {
+            "allocate": {
+                "index": "yuqing_2020_12_2",
+                "shard": 3,
+                "node": "es-sever08-data-node1",
+                "allow_primary": "true"
+            }
+        }
+    ]
 }'
 
 

@@ -369,6 +369,233 @@ zrank <key> <value>
 zrank bigkang B			
 ```
 
+# Bit操作
+
+## 设置（Bit）
+
+​		首先我们需要了解什么是Bit，其实所有的Bit操作都是在操作字符串类型，我们设置了bit以后可以发现他的类型其实是一个String
+
+```sh
+# 设置Bit语法 setbit ${Key名称} ${Bit位} ${Bit位的值 只能是 0 或者 1}
+setbit newbit 1 1
+```
+
+​		然后我们来获取这个bit的类型
+
+```sh
+# 获取Key的类型
+type newbit
+
+# 我们发现返回了
+"string"
+```
+
+​		那么我们就会发现其实存储的数据是一个字符串，那么字符串和bit有什么关系呢，我们知道Redis中的字符串底层采用的SDS，实际上它存储的一个char数组，那么这个char数组，那么C语言中一个char等于1个byte，一个byte等于8个bit，我们可以知道一个char能够存储8个bit，那么Redis的String能够存储512MB，那么我们再来看一下最大能够存储多少个bit位:
+
+​		最大存储数量
+
+​			512 * 1024 * 1024 * 8     =    42 9496 7296  （大约43亿）
+
+​			MB       KB      Byte    BIit
+
+​		我们就能够存储大约43亿bit，每个bit的值只能是0 或者 1
+
+​		我们上访的操作 setbit newbit 1 1 就是将bit位为1，也就是第二个bit设置为1，bit为数组
+
+​		大概的流程图如下：
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1609391798951.png)
+
+​		这样我们就可以知道bit位在 0 - 7的属于第一个字节，8 - 15属于第二个字节，那么我们现在来测试一下吧
+
+```sh
+# 删除原来的Key
+del bitstr
+# 新增一个bit位0的值为1
+setbit bitstr 0 1
+# 查看长度由于存入了第一个char，那么长度为1
+strlen bitstr
+
+# 再设置bit位为7的数据
+setbit bitstr 7 1
+# 查看长度由于存入了第一个char，那么长度还是为1
+strlen bitstr
+
+
+# 我们这次设置的话我们设置一下8，那么这个时候长度就会变成2了
+setbit bitstr 8 1
+# 查看长度由于存入了第二个char，那么长度就会扩容为2了
+strlen bitstr 
+```
+
+​		例如我们想要获取某个bit位的值，我们使用getbit
+
+```sh
+# 获取第一个bit位的数据
+getbit bitstr 0
+```
+
+## 统计（BitCount）
+
+​		BitCount可以统计我们的Bit数组中的值为1的数据，例如我想要统计bit位的值的结果有多少。（！注意是根据一个char，也就是一个byte=8bit进行统计，每个值表示相应的8个bit）
+
+​		如下
+
+```sh
+# 统计整个字节数组数据Bit位为1的数量
+bitcount bitstr
+```
+
+​		或者根据范围进行统计
+
+```sh
+# 注意此范围不是统计bit范围，而是统计char中的bit，一个char = 8bit
+# 表示统计第一个char也就是 0 - 8  到  0 - 8，那么就是1 到 1，第一个char，对应bit位 0 - 7
+# 表示统计char[0] - char[0],bit位 0 - 7
+bitcount bitstr 0 0
+# 返回结果为2
+
+# 表示统计char[0] - char[1],bit位 0 - 15
+bitcount bitstr 0 1
+# 返回结果为3		
+```
+
+## 函数（BitOp）
+
+​		Bit主要用来帮助我们对不同Bit进行操作，和Set中的并集，并归等类似。
+
+​		现在我们来初始化两个bit数据
+
+```sh
+# 初始化第一个bit，设置 0 和 4
+setbit bit1 0 1
+setbit bit1 4 1
+
+# 初始化第二个bit，设置 3 和 4
+setbit bit2 3 1
+setbit bit2 4 1
+```
+
+​		目前两个Bit中的结构如下
+
+```sh
+#Bit位		0		1		2		3		4		5		6		7
+	bit1	 1	 0	 0	 0	 1	 0	 0	 0
+	bit2   0 	 0	 0	 1	 1	 0	 0	 0
+```
+
+​		那么我们知道既然是二进制，那么肯定是有运算的，例如与，或等等
+
+​		Redis提供了如下几种
+
+- ​				AND
+
+- ​				OR
+
+- ​				NOT
+
+- ​				XOR
+
+  语法如下：
+
+```sh
+bitop ${操作} ${新的Key} 。。。。（其他bit位）
+
+# 返回结果为新的Bit的字节位数量，例如bit 1 -20，那么对应 char[0] - char[2],返回的数据为字符串长度，也就是strlen
+```
+
+​		AND
+
+```sh
+# 使用AND，将bit1 bit2 进行AND，然后将结果返回到newbit
+bitop and newbit bit1 bit2
+
+# and的操作如下
+#Bit位		0		1		2		3		4		5		6		7
+	bit1	 1	 0	 0	 0	 1	 0	 0	 0
+				
+	bit2   0 	 0	 0	 1	 1	 0	 0	 0
+				
+	newbit 0 	 0	 0	 0	 1	 0	 0	 0
+	# 与操作，必须1 与 1 = 1，否则都为0		
+  # 返回结果只有bit位为4的为1，所以使用bit统计出来则为1
+```
+
+​		OR
+
+```sh
+# 使用OR，将bit1 bit2 进行OR，然后将结果返回到newbit
+bitop or newbit bit1 bit2
+
+# or的操作如下
+#Bit位		0		1		2		3		4		5		6		7
+	bit1	 1	 0	 0	 0	 1	 0	 0	 0
+				
+	bit2   0 	 0	 0	 1	 1	 0	 0	 0
+				
+	newbit 1 	 0	 0	 1	 1	 0	 0	 0
+	# 或操作，可以 1 或 0 , 0 或 1，只要有一个1，则返回1	
+  # 返回结果有bit位为0，3，4的为1，所以使用bit统计出来则为3
+```
+
+​		NOT
+
+```sh
+# 使用NOT，将bit1进行NOT操作，然后将结果返回到newbit
+bitop not newbit bit1
+
+# NOT的操作如下
+#Bit位		0		1		2		3		4		5		6		7
+	bit1	 1	 0	 0	 0	 1	 0	 0	 0
+				
+	newbit 0 	 1	 1	 1	 0	 1	 1	 1
+	# 取反操作，0变成1，1变成0
+  # 统计返回结果则为6
+```
+
+​		XOR
+
+```sh
+# 使用XOR，将bit1,bit2进行XOR操作，然后将结果返回到newbit
+bitop xor newbit bit1 bit2
+
+# NOT的操作如下
+#Bit位		0		1		2		3		4		5		6		7
+	bit1	 1	 0	 0	 0	 1	 0	 0	 0
+				
+	bit2   0 	 0	 0	 1	 1	 0	 0	 0
+				
+	newbit 1 	 0	 0	 1	 0	 0	 0	 0
+	# XOR操作  必须包含 0 和 1
+  # 统计返回结果则为6
+```
+
+​		Bit操作可以帮助我们存储大量的数据，以及状态，我们可以在多个场景下使用,例如用户的连续登录，以及活跃用户统计。
+
+​		例如如下操作，我们的Key采用   login-年-月-日  ，bit位 使用用户ID，状态为1
+
+```sh
+# 我们设置用户登录，1号有4个用户登录
+setbit login-2020-12-1 19 1
+setbit login-2020-12-1 20 1
+setbit login-2020-12-1 21 1
+setbit login-2020-12-1 22 1
+
+# 2号有两个用户登录
+setbit login-2020-12-2 19 1
+setbit login-2020-12-2 21 1
+
+
+# 功能操作
+# 统计出最近两天登录过的用户
+bitop or login-2020-12{1-2} login-2020-12-1 login-2020-12-2
+
+# 统计最近的连续登录两天的用户
+bitop and login-2020-12{1-2} login-2020-12-1 login-2020-12-2
+```
+
+
+
 # Key的定义的注意点
 
 ​		1、不要过长	
@@ -559,7 +786,7 @@ typedef struct dict {
 ```c
 // 字典Hash表类型数据定义
 typedef struct dictht {
-    dictEntry **table; /* Hash表，存放一个又一个的字典元素 */
+    dictEntry **table; /* Hash表，存放一个又一个的字典元素,实际上是一个数组 */
     unsigned long size; /* 哈希表大小，即哈希表数组大小 */
     unsigned long sizemask; /* 哈希表大小掩码，总是等于size-1，主要用于计算索引 */
     unsigned long used; /* 已使用节点数，即已使用键值对数 */
@@ -842,7 +1069,7 @@ void databasesCron(void) {
         }
 
 
-// 每个数据库每次1毫秒ReHash一个元素
+// 每个数据库每次执行1毫秒的ReHash
 int incrementallyRehash(int dbid) {
     /* Keys dictionary */
     if (dictIsRehashing(server.db[dbid].dict)) {
@@ -856,9 +1083,23 @@ int incrementallyRehash(int dbid) {
     }
     return 0;
 }
+  
+/* Rehash在ms+"delta"毫秒。delta值较大,小于0，大多数情况下小于1。精确上界取决于dictRehash(d,100)的运行时间 */
+int dictRehashMilliseconds(dict *d, int ms) {
+    if (d->iterators > 0) return 0;
+		// 记录开始同步
+    long long start = timeInMilliseconds();
+  	// 记录ReHash的数量
+    int rehashes = 0;
+		// 每次ReHash100条数据
+    while(dictRehash(d,100)) {
+        rehashes += 100;
+      	// 如果执行到指定时间  例如 一毫秒，当前时间 - 开始时间 > 1毫秒，则直接Break
+        if (timeInMilliseconds()-start > ms) break;
+    }
+    return rehashes;
+}
 ```
-
-
 
 ## SDS动态字符串
 
@@ -1002,4 +1243,72 @@ struct __attribute__ ((__packed__)) sdshdr64 {
     char buf[];
 };
 ```
+
+## RedisObject
+
+​		我们知道了字典的值实际上是一个虚类型
+
+```c
+    union {
+       	// 值指针
+        void *val;
+      	// 64位正整数
+        uint64_t u64;
+      	// 64位int
+        int64_t s64;
+      	// 浮点数
+        double d;
+    } v;
+```
+
+​		那么除了Numer外，其他的类型的值是怎么存储的呢？
+
+​		我们在Server中有一个redisObject，也就是Redis对象
+
+​		源码地址：https://github.com/redis/redis/blob/unstable/src/server.h
+
+```c
+typedef struct redisObject {
+  	// Redis对象类型，占4个字节
+    unsigned type:4;
+  	// 编码，占用4个字节
+    unsigned encoding:4;
+  	// 用于内存淘汰的lru时间
+    unsigned lru:LRU_BITS; /* LRU时间(相对于全局lru_clock)或LFU数据(最低有效8位频率和最有效的16位访问时间)。*/
+  	// 引用计数（类似于Java的GC中引用计数，记录引用数）
+    int refcount;
+  	// 此处就是Redis对象的值实际所指向的内存空间的数据，是一个指针
+    void *ptr;
+} robj;
+```
+
+## Redis5大数据类型底层
+
+### String
+
+​		String数据类型底层存储的编码类型有3种
+
+​				embstr
+
+​				int
+
+​				raw
+
+```
+IOS-8859-1：1字节
+
+GBK：2字节
+
+UTF-8：3字节
+```
+
+
+
+### Hash
+
+### List
+
+### Set
+
+### ZSet
 
