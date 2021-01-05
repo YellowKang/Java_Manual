@@ -52,7 +52,7 @@ Linux
 
 ```
 --山东
-elasticdump --input=http://192.168.1.14:20269/yuqing_2019_2*/ --output=sd_month2.json  --searchBody  '{"query":{"bool":{"filter":[{"range":{"pubTime":{"gte":1548950400000,"lt": 1551369600000}}},{"match_phrase":{"content":"山东"}}]}}}' &
+elasticdump --input=http://192.168.1.14:20269/yuqing_2019_2*/ --output=sd_month2.json  --limit=10000 --searchBody  '{"query":{"bool":{"filter":[{"range":{"pubTime":{"gte":1548950400000,"lt": 1551369600000}}},{"match_phrase":{"content":"山东"}}]}}}' &
 --河北   
 elasticdump --input=http://192.168.1.14:20269/yuqing_2019_6*/ --output=hb_month617.json  --searchBody  '{"query":{"bool":{"filter":[{"range":{"pubTime":{"gte":1559318400000,"lt": 1561910400000}}},{"match_phrase":{"content":"河北"}}]}}}' &
 --新疆
