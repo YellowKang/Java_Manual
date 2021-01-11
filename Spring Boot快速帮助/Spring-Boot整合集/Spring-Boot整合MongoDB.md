@@ -843,3 +843,22 @@ public class MongoConfig {
         </dependency>
 ```
 
+# 连接断开问题
+
+​		设置maxConnectionIdleTime
+
+```java
+@Configuration
+public class MongoDbSettings {
+
+    @Bean
+    public MongoClientOptions mongoOptions() {
+        return MongoClientOptions
+            .builder()
+            .maxConnectionIdleTime(60000)
+            .build();
+    }
+
+}
+```
+

@@ -650,6 +650,63 @@ public class GenDatabaseKey {
     }
 ```
 
+## 实体枚举
+
+​		有时候我们实体中有枚举类型，我们怎么将枚举类型给存储到数据库里面呢？
+
+​		例如：
+
+```java
+    private SysUserStatus status;
+```
+
+​		我们枚举为：
+
+```java
+public enum SysUserStatus {
+
+    /**
+     * 冻结
+     */
+    FREEZE("冻结"),
+    /**
+     * 正常
+     */
+    NORMAL("正常"),
+    /**
+     * 封禁
+     */
+    BAN("封禁"),
+    /**
+     * 待审批
+     */
+    APPROVE("待审批");
+
+    /**
+     * 状态名
+     */
+    private String name;
+
+    SysUserStatus(String name) {
+        this.name = name;
+    }
+}
+```
+
+​		我们添加实体中的注解即可
+
+```java
+    // 存储枚举的索引，按0，1，2，3，4顺序排列
+		@Enumerated(EnumType.ORDINAL)
+    private SysUserStatus status;
+
+    // 存储枚举的字符串信息，按”FREEZE“，”NORMAL“，”BAN“，”APPROVE“
+ 		@Enumerated(EnumType.STRING)
+    private SysUserStatus status;
+```
+
+
+
 # 配置方面
 
 ## XML配置

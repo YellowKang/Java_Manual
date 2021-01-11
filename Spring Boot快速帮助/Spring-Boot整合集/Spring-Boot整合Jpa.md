@@ -1,3 +1,15 @@
+# 官方网址
+
+​		官网地址：[点击进入](https://docs.spring.io/spring-data/jpa/docs/)
+
+​		找到docs版本，拼接/reference/html/#reference
+
+```
+https://docs.spring.io/spring-data/jpa/docs/2.2.10.RELEASE/reference/html/#reference
+```
+
+
+
 # 首先我们先引入依赖
 
 ```xml
@@ -109,7 +121,31 @@ public interface LabelDao extends JpaRepository<Label,String> {
 
 ```
 
-剩下的就是业务层接口的编写了
+​		Dao层可以拓展JpaSpecificationExecutor
+
+```java
+public interface LabelDao extends JpaRepository<Label,String> , JpaSpecificationExecutor<Label>{
+
+}
+```
+
+​		以及拓展QuerydslPredicateExecutor**<**T>
+
+```java
+public interface LabelDao extends JpaRepository<Label,String> ,QuerydslPredicateExecutor<Label>{
+
+}
+```
+
+​		还有CrudRepository<T,PK>
+
+```java
+public interface LabelDao extends JpaRepository<Label,String> ,CrudRepository<Label,String>{
+
+}
+```
+
+​		剩下的就是业务层接口的编写了
 
 ```java
 package club.ClubKang.www.base.service;
@@ -205,17 +241,17 @@ public class BaseController {
 
 ## Jpa自带接口条件查询
 
-在Jpa中的复杂查询分为很多种，那么我们先来用jpa封装好的吧
+​		在Jpa中的复杂查询分为很多种，那么我们先来用jpa封装好的吧
 
-我们常常在分页查询中会用到各种条件，但是Jpa其实是给我们封装好了一部分的多条件查询的
+​		我们常常在分页查询中会用到各种条件，但是Jpa其实是给我们封装好了一部分的多条件查询的
 
-例如Jpa的findAll，他有个参数，如下图所示
+​		例如Jpa的findAll，他有个参数，如下图所示
 
 ![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566791041411.png)
 
-这个参数就是我们在查询的时候可以用来动态查询封装一些条件的，那么这个参数是如何创建的呢，如下所示
+​		这个参数就是我们在查询的时候可以用来动态查询封装一些条件的，那么这个参数是如何创建的呢，如下所示
 
-我们这里以lambda表达式来编写这个条件
+​		我们这里以lambda表达式来编写这个条件
 
 ```java
         Specification<T> specification = (root,query,buider) -> {
@@ -231,7 +267,7 @@ public class BaseController {
         };
 ```
 
-然后再调用我们的方法即可，查询出想要的数据，这里的T为实体类
+​		然后再调用我们的方法即可，查询出想要的数据，这里的T为实体类
 
 ```java
 List<T> all = baseService.findAll(specification);
@@ -241,13 +277,110 @@ List<T> all = baseService.findAll(specification);
 
 ### 使用sql
 
-首先我们需要注入EntityManager，然后使用EntityManager查询
+​		首先我们需要注入EntityManager，然后使用EntityManager查询
 
 ```sql
         Query query = baseMg.createNativeQuery("select * from t_test_jpa");
 ```
 
 ### 使用代码
+
+## Dao查询定义
+
+### @NamedQuery注解
+
+​		实体类，自定义Dao层接口
+
+```java
+@Entity
+@NamedQuery(name = "User.findByEmailAddress",
+  query = "select u from User u where u.emailAddress = ?1")
+public class User {
+
+}
+```
+
+​		Dao层直接编写接口即可
+
+```java
+public interface UserDao extends JpaRepository<User, Long> {
+
+  User findByEmailAddress(String emailAddress);
+  
+}
+```
+
+### @Query注解
+
+​		我们直接使用Query注解+实体类
+
+```java
+public interface UserDao extends JpaRepository<User, Long> {
+
+		@Query("select u from User u where u.emailAddress = ?1")
+    User findByEmailAddress(String emailAddress);
+  
+}
+```
+
+​		或者使用NativeQuery,设置nativeQuery = true
+
+```java
+public interface UserDao extends JpaRepository<User, Long> {
+
+  @Query(value = "SELECT * FROM USERS WHERE EMAIL_ADDRESS = ?1", nativeQuery = true)
+  User findByEmailAddress(String emailAddress);
+}
+```
+
+​		并且也有分页Query+Native
+
+```java
+public interface UserDao extends JpaRepository<User, Long> {
+
+  @Query(value = "SELECT * FROM USERS WHERE LASTNAME = ?1",
+    countQuery = "SELECT count(*) FROM USERS WHERE LASTNAME = ?1",
+    nativeQuery = true)
+  Page<User> findByLastname(String lastname, Pageable pageable);
+}
+```
+
+​		以及排序
+
+```java
+public interface UserDao extends JpaRepository<User, Long> {
+
+  @Query("select u from User u where u.lastname like ?1%")
+  List<User> findByAndSort(String lastname, Sort sort);
+
+  @Query("select u.id, LENGTH(u.firstname) as fn_len from User u where u.lastname like ?1%")
+  List<Object[]> findByAsArrayAndSort(String lastname, Sort sort);
+}
+
+1、 repo.findByAndSort("lannister", new Sort("firstname")); Sort指向域模型中属性的有效表达式。      
+2、 repo.findByAndSort("stark", new Sort("LENGTH(firstname)")); 无效的Sort包含函数调用。Thows异常。     
+3、 repo.findByAndSort("targaryen", JpaSort.unsafe("LENGTH(firstname)")); 有效，Sort包含显式不安全 Order。
+4、 repo.findByAsArrayAndSort("bolton", new Sort("fn_len")); Sort指向别名函数的有效表达式。
+```
+
+​		或者我们使用参数名的方式拼接SQL
+
+```java
+public interface UserDao extends JpaRepository<User, Long> {
+
+  @Query("select u from User u where u.firstname = :firstname or u.lastname = :lastname")
+  User findByLastnameOrFirstname(@Param("lastname") String lastname,
+                                 @Param("firstname") String firstname);
+}
+```
+
+​		修改查询
+
+```java
+    @Modifying
+    @Query("update User u set u.firstname = ?1 where u.lastname = ?2")
+    int setFixedFirstnameFor(String firstname, String lastname);
+```
 
 # Jpa关系映射
 
@@ -401,7 +534,7 @@ indexes											//该属性值为@Index注解数组，用于为该连接表定
 
 ### @OneToMany
 
-一对多的话我们就只能将关系放在Info端进行维护了，示例如下。User类代码如下
+​		一对多的话我们就只能将关系放在Info端进行维护了，示例如下。User类代码如下
 
 ```
     @OneToMany(cascade = CascadeType.ALL,mappedBy = "user")
@@ -409,7 +542,7 @@ indexes											//该属性值为@Index注解数组，用于为该连接表定
     private List<UserInfo> userInfo;
 ```
 
-Info类代码如下
+​		Info类代码如下
 
 ```
 @ManyToOne(cascade = {CascadeType.MERGE, CascadeType.REFRESH})
@@ -418,15 +551,23 @@ Info类代码如下
 private User user;
 ```
 
-我们在User端放弃维护关系，将关系都保存在Info中
+​		我们在User端放弃维护关系，将关系都保存在Info中
 
 ### @ManyToMany
+
+​		多对多需要新建关联表进行关联
+
+```
+    @ManyToMany(cascade = CascadeType.ALL)
+    @JsonManagedReference
+    private List<UserInfo> userInfo;
+```
 
 
 
 ### 级联查询优化
 
-我们在级联查询的时候，我们发现他在查询的时候竟然是分开两次进行查询的那么我们肯定需要优化一下，让他只执行一次sql，首先我们在实体类上加上注解NamedEntityGraph，然后name属性设置一个名字，再设置级联的属性节点，这里用的是属性名字，我们写上UserInfo。
+​		我们在级联查询的时候，我们发现他在查询的时候竟然是分开两次进行查询的那么我们肯定需要优化一下，让他只执行一次sql，首先我们在实体类上加上注解NamedEntityGraph，然后name属性设置一个名字，再设置级联的属性节点，这里用的是属性名字，我们写上UserInfo。
 
 ```java
 @NamedEntityGraph(name = "User.BYINFO",attributeNodes = {@NamedAttributeNode("userInfo")})
@@ -439,19 +580,75 @@ public class User extends BaseJpaEntity {
 }
 ```
 
-然后我们再去Dao层方法上加上注解加上，在Dao层的方法上加上EntityGraph注解即可，再次查询发现sql变成了一条。
+​		然后我们再去Dao层方法上加上注解加上，在Dao层的方法上加上EntityGraph注解即可，再次查询发现sql变成了一条。
+
+​		FETCH 和 LOAD的区别
+
+​				FETCH
 
 ```
+使用javax.persistence.fetchgraph属性指定实体图时，将由实体图的属性节点指定的属性视为FetchType.EAGER，将未指定的属性视为FetchType.LAZY
+		默认	EntityGraphType type() default EntityGraphType.FETCH;
+```
+
+​				LOAD
+
+```
+使用javax.persistence.loadgraph属性指定实体图时，将由实体图的属性节点指定的属性视为FetchType.EAGER，将根据未指定的属性或指定的默认FetchType处理未指定的属性。
+```
+
+```java
     @Override
     @EntityGraph(value = "User.BYINFO", type = EntityGraph.EntityGraphType.FETCH)
     Optional<User> findById(Long var1);
 ```
 
+​		或者直接使用@EntityGraph指定属性
+
+```java
+@Repository
+public interface GroupRepository extends CrudRepository<GroupInfo, String> {
+
+  @EntityGraph(attributePaths = { "members" })
+  GroupInfo getByGroupName(String name);
+
+}
+```
+
+​		以及动态返回类型
+
+```java
+import org.springframework.beans.factory.annotation.Value;
+ 
+/**
+ * 仅查询User的userName和email,还有借助@Value注解做聚合展示 得到Information().
+ * 可以使用get
+ */
+public interface UserProjection {
+    @Value("#{target.userName + ' ' + target.email}")
+    String getInformation();
+ 
+    String getUserName();
+ 
+    String getEmail();
+}
+```
+
+​		使用如下
+
+```java
+    //TODO PROJECTION投影
+    @Query("select u.userName as userName ,u.email as email from User u")
+    Collection<UserProjection> findAllNameAndEmail();
+```
+
+
+
 ### 级联反向查询
 
-通常我们通过用户关联多个部门，那么我们又如何根据这个部门查询多个用户呢。
+​		通常我们通过用户关联多个部门，那么我们又如何根据这个部门查询多个用户呢。
 
-这是User中的多个Group的多对多的关系映射。
+​		这是User中的多个Group的多对多的关系映射。
 
 ```
    	@ManyToMany(fetch = FetchType.EAGER)
@@ -460,7 +657,7 @@ public class User extends BaseJpaEntity {
     private Set<Group> groups;
 ```
 
-那么我们怎么根据这个Group来进行查询呢，我们使用findByGroupIs
+​		那么我们怎么根据这个Group来进行查询呢，我们使用findByGroupIs
 
 ```
     List<User> findByGroupsIs(Group var1);
@@ -489,3 +686,91 @@ public class User extends BaseJpaEntity {
 		Join<Object, RoleInfo> join = roleJoin.join("roleInfo", JoinType.LEFT);
 ```
 
+# Jpa树状查询
+
+​		我们针对很多时候需要用到树状菜单的查询，那么我们我们怎么样进行树状查询呢，我们只需要将实体类进行自关联即可。
+
+```java
+/**
+ * @Author BigKang
+ * @Date 2021/1/8 4:51 下午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize 系统部门
+ */
+@Getter
+@Setter
+@Entity
+@Table(name = "t_sys_dept")
+@ApiModel(description = "系统部门")
+@org.hibernate.annotations.Table(appliesTo = "t_sys_dept", comment = "系统部门")
+public class SysDept extends BaseJpaEntity {
+
+    @Id
+    @ApiModelProperty(value = "部门ID")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(columnDefinition = "bigint(20) COMMENT '部门ID'")
+    private Long id;
+
+    @ApiModelProperty(value = "部门名称")
+    @Column(columnDefinition = "varchar(20) COMMENT '部门名称'")
+    private String name;
+
+    /**
+     * parent节点，表示当前节点的父节点，根节点的父节点为空
+     * parent_id为自联表中的属性名
+     * 隐藏掉children属性，导致递归问题Json无限递归
+     */
+    @ManyToOne(fetch=FetchType.EAGER)
+    @JsonIgnoreProperties(value={"children"})
+    @JoinColumn(name = "parent_id", columnDefinition = "bigint(20) COMMENT '父ID'")
+    private SysDept parent;
+
+    /**
+     * children节点，表示当前节点的子节点，没有子节点children表示空
+     * 如果子节点中不需要显示Parent节点则加入如下注解即可
+     * @JsonIgnoreProperties(value={"children"})
+     */
+    @OneToMany(fetch=FetchType.EAGER,mappedBy = "parent")
+    @JsonManagedReference
+    private List<SysDept> children = new ArrayList<>();
+
+}
+```
+
+​		主要关联中我们需要查询3个关键的属性
+
+```java
+
+   	/**
+   	 * 部门ID指定级联ID
+   	 */
+    private Long id;
+    
+    /**
+     * parent指定父节点进行自关联
+     */
+    private SysDept parent;
+
+		/**
+		 * children子节点，存储当前节点的子节点信息
+		 */
+    private List<SysDept> children = new ArrayList<>();
+```
+
+​		然后查询相应ID即可级联关联出数据
+
+​		查询根节点方法如下
+
+```java
+    public List<SysDept> getRoot() {
+        Specification<SysDept> specification = ((root, query, builder) -> {
+            List<Predicate> predicateList = new ArrayList<>();
+            predicateList.add(builder.isNull(root.get("parent")));
+            return builder.and(predicateList.toArray(new Predicate[predicateList.size()]));
+        });
+        List<SysDept> list = findAll(specification);
+        return list;
+    }
+```
+
+​		但是会出现一个问题那就是n+1次查询，我们进行上使用方的级联查询方式进行优化即可。

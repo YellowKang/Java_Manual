@@ -129,6 +129,26 @@ service crond restart
 systemctl enable crond.service
 ```
 
+# SH脚本一键重启
+
+```sh
+# /bin/bash
+echo "查询到进程"
+ps -ef | grep monitor_all_ip | grep -v grep
+ps -ef | grep getip_5_kuaidaili | grep -v grep
+sleep 2
+echo "关闭进程getip_5_kuaidaili"
+ps -ef | grep getip_5_kuaidaili | grep -v grep | awk '{print "kill -9 " $2}'|sh
+echo "关闭进程monitor_all_ip"
+ps -ef | grep monitor_all_ip | grep -v grep | awk '{print "kill -9 " $2}'|sh
+sleep 2
+echo "重启进程"
+nohup /usr/bin/python2.7 /home/xcl/spider/proxies/getip_5_kuaidaili.py > /home/xcl/spider/proxies/getip_5_kuaidaili.log 2>&1 &
+nohup /usr/bin/python2.7 /home/xcl/spider/proxies/monitor_all_ip.py > /home/xcl/spider/proxies/monitor_all_ip 2>&1 &
+```
+
+
+
 # 搜索文件
 
 ```shell
