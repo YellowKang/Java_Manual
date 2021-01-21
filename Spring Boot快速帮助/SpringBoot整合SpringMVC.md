@@ -171,6 +171,8 @@ public class BootMvcApplication {
 
 ​			关于过滤器使用Order排序无效的解决方案，参考此篇博客：https://www.cnblogs.com/ixixi/p/11685269.html
 
+
+
 # 拦截器
 
 ​			拦截器并不属于MVC属于Spring，为了方便所以放在一起写在这里。
@@ -325,7 +327,116 @@ public class CustomExceptionHandler {
 }
 ```
 
+​		注意千万不能配置SpringBoot默认的资源映射器，可以自定义，但不能使用/**，以及默认路径否则会引起一系列的问题
 
+```
+			registry.addResourceHandler("")
+                .addResourceLocations("");
+```
+
+
+
+# 参数解析器
+
+​		例如我们
+
+```java
+/**
+ * @Author BigKang
+ * @Date 2021/1/14 4:34 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize 当前TokenUser方法参数解析器
+ */
+@Configuration
+public class CurrentTokenUserMethodArgumentResolver implements HandlerMethodArgumentResolver {
+
+    private final TokenUtils tokenUtils;
+
+    @Autowired
+    public CurrentTokenUserMethodArgumentResolver(TokenUtils tokenUtils) {
+        this.tokenUtils = tokenUtils;
+    }
+
+    /**
+     * 参数解析器支持条件，返回true表示解析，返回false不解析
+     * @param parameter
+     * @return
+     */
+    @Override
+    public boolean supportsParameter(MethodParameter parameter) {
+        return parameter.getParameterType().isAssignableFrom(TokenUserVo.class)
+                && parameter.hasParameterAnnotation(CurrentTokenUser.class);
+    }
+
+    /**
+     * 获取Token并且解析到参数上，然后返回
+     * @param parameter
+     * @param mavContainer
+     * @param webRequest
+     * @param binderFactory
+     * @return
+     * @throws Exception
+     */
+    @Override
+    public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
+        HttpServletRequest request = webRequest.getNativeRequest(HttpServletRequest.class);
+        String token = tokenUtils.getRequestToken(request);
+        TokenUserVo tokenUser = tokenUtils.getTokenUser(token);
+        return tokenUser;
+    }
+}
+```
+
+# 整合全局异常处理
+
+​		新建CustomExceptionHandler，放入能被扫描到的地方，配置异常以及404
+
+```java
+**
+ * @Author BigKang
+ * @Date 2020/1/7 3:11 PM
+ * @Summarize 全局异常捕获
+ */
+@Component
+@RestControllerAdvice
+@Slf4j
+public class CustomExceptionHandler {
+
+    /**
+     * 捕获全局异常并且返回信息
+     * @param request
+     * @param response
+     * @param e
+     * @return
+     */
+    @ExceptionHandler(value =Exception.class)
+    @ResponseBody
+    public ResultVo exceptionHandler(HttpServletRequest request, HttpServletResponse response, Exception e){
+        for (StackTraceElement element : e.getStackTrace()) {
+            if(element.getClassName().equals("org.springframework.web.method.support.InvocableHandlerMethod")){
+                break;
+            }
+            log.error("异常类：{},异常方法：{},异常行数：{}",element.getClassName(),element.getMethodName(),element.getLineNumber());
+        }
+        log.error("异常类型：{}，异常信息：{}",e.getClass().getName(),e.getMessage());
+        log.error("异常请求 {} ：{}",request.getMethod(),request.getRequestURI());
+        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        return ResultVo.error(e.getMessage());
+    }
+  
+    /**
+     * 404配置相应
+     * @return
+     */
+    @ExceptionHandler(value = NoHandlerFoundException.class)
+    @ResponseBody
+    public ResultVo noHandlerFound(HttpServletResponse response){
+        response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+        return ResultVo.result(HttpServletResponse.SC_NOT_FOUND, Message.NOHANDLER);
+    }
+
+}
+```
 
 # 重定向至其他页面
 

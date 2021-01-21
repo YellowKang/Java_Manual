@@ -660,49 +660,204 @@ public class GenDatabaseKey {
     private SysUserStatus status;
 ```
 
-​		我们枚举为：
+​		我们枚举为，直接继承IEnum,定义存储的泛型，然后重写getValue接即可，返回的Value属性就是我们存储到数据库中的值，并且在状态中设置JsonValue，返回给前端：
 
 ```java
-public enum SysUserStatus {
 
-    /**
-     * 冻结
-     */
-    FREEZE("冻结"),
-    /**
-     * 正常
-     */
-    NORMAL("正常"),
-    /**
-     * 封禁
-     */
-    BAN("封禁"),
-    /**
-     * 待审批
-     */
-    APPROVE("待审批");
+import com.baomidou.mybatisplus.annotation.EnumValue;
+import com.baomidou.mybatisplus.core.enums.IEnum;
+import com.fasterxml.jackson.annotation.JsonValue;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
-    /**
-     * 状态名
-     */
-    private String name;
+/**
+ * @Author BigKang
+ * @Date 2021/1/8 2:33 下午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize 系统用户状态
+ */
+@Getter
+@AllArgsConstructor
+public enum SysUserStatus  implements IEnum<Integer> {
 
-    SysUserStatus(String name) {
-        this.name = name;
+    FREEZE(0,"冻结"),
+    NORMAL(1,"正常"),
+    BAN(2,"封禁"),
+    APPROVE(3,"待审批");
+
+    @EnumValue
+    private final Integer code;
+
+    @JsonValue
+    private final String status;
+
+    @Override
+    public Integer getValue() {
+        return this.code;
     }
 }
 ```
 
-​		我们添加实体中的注解即可
+​		然后我们配置配置文件即可，枚举包路径，使用;隔开
+
+```properties
+mybatis-plus:
+  type-enums-package: com.topcom.mp.security.enums
+```
+
+## 自定义返回值类型
+
+```xml
+    <resultMap type="com.topcom.mp.security.vo.DeptTreeVo" id="DeptTreeVo">
+        <id column="id" property="id"/>
+        <!-- 定义普通列封装规则 -->
+        <result column="name" property="name"/>
+        <result column="parent_id" property="parentId"/>
+    </resultMap>
+
+    <select id="getDeptTreeList" resultMap="DeptTreeVo">
+        select id,name,parent_id from t_sys_dept
+    </select>
+```
+
+## 树结构查询
+
+### 循环查询方式
+
+### 封装树方式
+
+​		封装树表示我们先将数据查询出List，然后封装为树状数据。
+
+​		首先我们需要封装实体类，需要Id，父Id以及排序字段，和子节点。
 
 ```java
-    // 存储枚举的索引，按0，1，2，3，4顺序排列
-		@Enumerated(EnumType.ORDINAL)
-    private SysUserStatus status;
 
-    // 存储枚举的字符串信息，按”FREEZE“，”NORMAL“，”BAN“，”APPROVE“
- 		@Enumerated(EnumType.STRING)
-    private SysUserStatus status;
+/**
+ * @Author BigKang
+ * @Date 2021/1/14 2:30 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize MP通用树实体
+ */
+@Getter
+@Setter
+public class BaseMpTreeEntity<T,PK> extends BaseMpEntity {
+
+    @TableId(type = IdType.AUTO)
+    @ApiModelProperty(value = "ID")
+    protected PK id;
+
+    @ApiModelProperty(value = "父节点Id")
+    protected PK parentId;
+
+    @ApiModelProperty(value = "排序")
+    protected Integer sorted;
+
+    @ApiModelProperty(value = "子节点")
+    @TableField(exist = false)
+    protected List<T> children = new ArrayList<>();
+
+}
+```
+
+​		然后实体类集成
+
+```java
+@Getter
+@Setter
+@ApiModel("系统部门")
+@TableName("t_sys_dept")
+public class SysDept extends BaseMpTreeEntity<SysDept,Long> {
+
+    @ApiModelProperty(value = "部门名称")
+    private String name;
+
+}
+```
+
+​		然后调用查询
+
+```java
+    @Override
+    public List<SysDept> getDeptTree() {
+        QueryWrapper<SysDept> queryWrapper = new QueryWrapper<>();
+        queryWrapper.orderByDesc("sorted");
+        List<SysDept> sysDepts = baseDao.selectList(queryWrapper);
+        // 调用Tree工具类
+        List<SysDept> sysDeptsTree = TreeVoUtil.convertTreeVo2(sysDepts, null);
+        return sysDeptsTree;
+    }
+```
+
+​		工具类如下
+
+```java
+import com.topcom.base.mp.BaseMpTreeEntity;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @Author BigKang
+ * @Date 2021/1/14 11:42 上午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize 树Vo工具类
+ */
+public class TreeVoUtil {
+
+    /**
+     * @param list 继承了原来的树实体的对象集合
+     * @param parentId 父ID，表示从哪个节点获取树，空为根节点
+     * @param <T> 对象泛型
+     * @param <PK> 主键泛型
+     * @return
+     */
+    public static <T extends BaseMpTreeEntity<T, PK>, PK> List<T> convertTree(List<T> list, PK parentId) {
+        List<T> trees = new ArrayList<>();
+        for (T item : list) {
+            // 获取到根节点
+            if (parentId == null) {
+                if (item.getParentId() == null) {
+                    trees.add(item);
+                }
+            }
+            // 获取指定节点
+            else if (parentId.equals(item.getParentId())) {
+                trees.add(item);
+            }
+            for (T it : list) {
+                if (it.getParentId() != null && it.getParentId().equals(item.getId())) {
+                    if (item.getChildren() == null) {
+                        item.setChildren(new ArrayList<T>());
+                    }
+                    boolean isPut = true;
+                    for (T childItem : item.getChildren()) {
+                        if (it.getId().equals(childItem.getId())) {
+                            isPut = false;
+                        }
+                    }
+                    if (isPut) {
+                        item.getChildren().add(it);
+                    }
+
+                }
+            }
+        }
+        return trees;
+    }
+}
+```
+
+## 骚操作之mybatis-dynamic-sql
+
+​		我们可以引入mybatis-dynamic-sql，直接使用Java代码从而放弃掉Xml
+
+```
+      	<!-- https://mvnrepository.com/artifact/org.mybatis.dynamic-sql/mybatis-dynamic-sql -->
+        <dependency>
+            <groupId>org.mybatis.dynamic-sql</groupId>
+            <artifactId>mybatis-dynamic-sql</artifactId>
+            <version>1.2.1</version>
+        </dependency>
 ```
 
 

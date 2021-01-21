@@ -474,7 +474,33 @@ spring.servlet.multipart.location=/Users/bigkang/Documents/test/image
     
 ```
 
+# 新建文件并且创建文件夹
 
+```java
+       
+				File target = new File("/User/bigkang/Document/test/2021/test.txt");
+				// 首先判断文件夹是否存在
+        File parentFile = target.getParentFile();
+        if (parentFile.exists()) {
+            if (parentFile.isFile()) {
+                parentFile.delete();
+                parentFile.mkdirs();
+            }
+        } else {
+            parentFile.mkdirs();
+        }
+
+        // 文件不存在则创建
+        if (target != null) {
+            if (!target.exists()) {
+                try {
+                    target.createNewFile();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+```
 
 # 检查文件是否存在
 

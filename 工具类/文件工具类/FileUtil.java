@@ -1,5 +1,4 @@
-package com.topcom.emergency.utils;
-
+package com.topcom.commons.utils;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -90,7 +89,18 @@ public class FileUtil {
      * @return
      */
     public static boolean copyFile(InputStream source, File target, Boolean append) throws IOException {
-        // 不存在则创建
+        // 首先判断文件夹是否存在
+        File parentFile = target.getParentFile();
+        if (parentFile.exists()) {
+            if (parentFile.isFile()) {
+                parentFile.delete();
+                parentFile.mkdirs();
+            }
+        } else {
+            parentFile.mkdirs();
+        }
+
+        // 文件不存在则创建
         if (target != null) {
             if (!target.exists()) {
                 try {
