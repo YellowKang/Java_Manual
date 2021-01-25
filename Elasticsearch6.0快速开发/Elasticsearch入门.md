@@ -209,266 +209,6 @@
 
 
 
-## Mapping(映射)
-
-### 新建Mapping
-
-​		我们索引已经建立好了，现在我们需要向里面新建Mapping，使用以下方式，假设我们的索引为myindex，类型为books，现在我们对name，以及发布时间publish_date不进行索引
-
-```json
-PUT /myindex/_mapping/books
-{
-    "properties": {
-        "title": {
-            "type": "text"
-        },
-        "name": {
-            "type": "text",
-            "index": false
-        },
-        "publish_date": {
-            "type": "date",
-            "index": false
-        },
-        "price": {
-            "type": "double"
-        }
-    }
-}
-```
-
-### 新建索引+Mapping
-
-​		新建一个Mapping，设置分片3片副本0个，然后类型是books，然后配置它的字段title，类型为text，我们可以在创建的时候就设置mapping，index表示我们是否进行索引
-
-```json
-PUT /myindex
-{
-    "settings": {
-        "number_of_shards": 3,
-        "number_of_replicas": 0
-    },
-    "mappings": {
-        "books": {
-            "properties": {
-                "title": {
-                    "type": "text"
-                },
-                "name": {
-                    "type": "text",
-                    "index": false
-                },
-                "publish_date": {
-                    "type": "date",
-                    "index": false
-                },
-                "price": {
-                    "type": "double"
-                }
-            }
-        }
-    }
-}
-```
-
-### 查看Mapping
-
-​		如何查看mapping的属性设置呢？我们直接使用Get方式+_mapping即可查询模板映射
-
-```
-GET /索引名/_mapping
-```
-
-### Mapping属性定制
-
-#### 定制类型
-
-定制dynamic，定制自己的字段，这个mapping类型为integer，它的dynamic为true
-
-```properties
-"number":{
-		"type":"integer",
-		"dynamic":true
-}
-```
-
-```properties
-"dynamic":true					遇到陌生字段，就进行dynamic mapping
-"dynamic":false					遇到陌生字段，就忽略
-"dynamic":strict				遇到陌生字段，就报错
-```
-
-这个属性可以直接加在类型上"dynamic": "strict",例如，那么这个类型就是不可变的了，如果我们新建了mapping中没有的字段那么就会报错
-
-```properties
-PUT /myindex/_mapping/books
-{
-    "dynamic": "strict",
-    "properties": {
-        "number": {
-            "type": "integer"
-        }
-    }
-}
-```
-
-
-
-#### 属性配置
-
-​		//  是否在_source之外存储一份，例如用于stored_fields属性查询出来，相当于我们将这数据额外存储了一份
-
-```properties
-"title":{
-	"type":"text",
-	"store":false     
-}
-```
-
-​		// 分词索引，不分词是：false,设置成false，字段将不会被索引
-
-```properties
-"title":{
-	"type":"text",
-	"index": true   
-}
-```
-
-​		// 指定分词器,默认分词器为standard analyzer
-
-```properties
-"title":{
-	"type":"text",
-	"analyzer":"ik_max_word"
-}
-
-可以设置两个属性
-ik_max_word				最细粒度拆分		例如：我今天在北京{我，今天，北京，在，我今天，等等}
-ik_smart				最粗粒度拆分		例如：我今天在北京{我，今天，在北京，我今天在北京}
-```
-
-​		// 字段级别的分数加权，默认值是1.0
-
-```properties
-"title":{
-	"type":"text",
-	"boost":1.23
-}
-```
-
-​		// 对not_analyzed字段，默认都是开启，分词字段不能使用，对排序和聚合能提升较大性能，节约内存
-
-```properties
-"title":{
-	"type":"text",
-	"doc_values":false
-}
-```
-
-​		// 针对分词字段，参与排序或聚合时能提高性能，不分词字段统一建议使用doc_value
-
-```properties
-"title":{
-	"type":"text",
-	"fielddata":{"format":"disabled"}
-}
-```
-
-​		// 可以对一个字段提供多种索引模式，同一个字段的值，一个分词，一个不分词
-
-```properties
-"title":{
-	"type":"text",	
-	"fields":{
-		"raw":{
-			"type":"string",
-			"index":"not_analyzed"
-		}
-	} 
-}
-```
-
-​		// 超过100个字符的文本，将会被忽略，不被索引
-
-```properties
-"title":{
-	"type":"text",
-	"ignore_above":100
-}
-```
-
-​		// 设置是否此字段包含在_all字段中，默认是true，除非index设置成no选项
-
-```properties
-"title":{
-	"type":"text",
-	"include_in_all":ture
-}
-```
-
-​		// 4个可选参数docs（索引文档号） ,freqs（文档号+词频），positions（文档号+词频+位置，通常用来距离查询），offsets（文档号+词频+位置+偏移量，通常被使用在高亮字段）分词字段默认是position，其他的默认是docs
-
-```properties
-"title":{
-	"type":"text",
-	"index_options":"docs"
-}
-```
-
-​		// 分词字段默认配置，不分词字段：默认{"enable":false}，存储长度因子和索引时boost，建议对需要参与评分字段使用 ，会额外增加内存消耗量
-
-```properties
-"title":{
-	"type":"text",
-	"norms":{"enable":true,"loading":"lazy"}
-}
-```
-
-​		// 设置一些缺失字段的初始化值，只有string可以使用，分词字段的null值也会被分词
-
-```properties
-"title":{
-	"type":"text",
-	"null_value":"NULL"
-}
-```
-
-​		// 影响距离查询或近似查询，可以设置在多值字段的数据上火分词字段上，查询时可指定slop间隔，默认值是100
-
-```properties
-"title":{
-	"type":"text",
-	"position_increament_gap":0
-}
-```
-
-​		// 设置搜索时的分词器，默认跟ananlyzer是一致的，比如index时用standard+ngram，搜索时用standard用来完成自动提示功能
-
-```properties
-"title":{
-	"type":"text",
-	"search_analyzer":"ik"
-}
-```
-
-​		// 默认是TF/IDF算法，指定一个字段评分策略，仅仅对字符串型和分词类型有效
-
-```properties
-"title":{
-	"type":"text",
-	"similarity":"BM25"
-}
-```
-
-​		// 默认不存储向量信息，支持参数yes（term存储），with_positions（term+位置）,with_offsets（term+偏移量），with_positions_offsets(term+位置+偏移量) 对快速高亮fast vector highlighter能提升性能，但开启又会加大索引体积，不适合大数据量用
-
-```properties
-"title":{
-	"type":"text",
-	"term_vector":"no"
-}
-```
-
 ## Index（索引）
 
 ### 索引创建
@@ -754,6 +494,624 @@ curl -XPOST "http://168.7.1.67:9200/_cluster/reroute' -d  '{
 	}]
 }'
 
+```
+
+
+
+## Mapping(映射)
+
+### 新建Mapping
+
+​		我们索引已经建立好了，现在我们需要向里面新建Mapping，使用以下方式，假设我们的索引为myindex，类型为books，现在我们对name，以及发布时间publish_date不进行索引
+
+```json
+PUT /myindex/_mapping/books
+{
+    "properties": {
+        "title": {
+            "type": "text"
+        },
+        "name": {
+            "type": "text",
+            "index": false
+        },
+        "publish_date": {
+            "type": "date",
+            "index": false
+        },
+        "price": {
+            "type": "double"
+        }
+    }
+}
+```
+
+### 新建索引+Mapping
+
+​		新建一个Mapping，设置分片3片副本0个，然后类型是books，然后配置它的字段title，类型为text，我们可以在创建的时候就设置mapping，index表示我们是否进行索引
+
+```json
+PUT /myindex
+{
+    "settings": {
+        "number_of_shards": 3,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "books": {
+            "properties": {
+                "title": {
+                    "type": "text"
+                },
+                "name": {
+                    "type": "text",
+                    "index": false
+                },
+                "publish_date": {
+                    "type": "date",
+                    "index": false
+                },
+                "price": {
+                    "type": "double"
+                }
+            }
+        }
+    }
+}
+```
+
+### 查看Mapping
+
+​		如何查看mapping的属性设置呢？我们直接使用Get方式+_mapping即可查询模板映射
+
+```
+GET /索引名/_mapping
+```
+
+### Mapping属性定制
+
+#### 定制类型
+
+定制dynamic，定制自己的字段，这个mapping类型为integer，它的dynamic为true
+
+```properties
+"number":{
+		"type":"integer",
+		"dynamic":true
+}
+```
+
+```properties
+"dynamic":true					遇到陌生字段，就进行dynamic mapping
+"dynamic":false					遇到陌生字段，就忽略
+"dynamic":strict				遇到陌生字段，就报错
+```
+
+这个属性可以直接加在类型上"dynamic": "strict",例如，那么这个类型就是不可变的了，如果我们新建了mapping中没有的字段那么就会报错
+
+```properties
+PUT /myindex/_mapping/books
+{
+    "dynamic": "strict",
+    "properties": {
+        "number": {
+            "type": "integer"
+        }
+    }
+}
+```
+
+
+
+#### 属性配置
+
+​		//  是否在_source之外存储一份，例如用于stored_fields属性查询出来，相当于我们将这数据额外存储了一份
+
+```properties
+"title":{
+	"type":"text",
+	"store":false     
+}
+```
+
+​		// 分词索引，不分词是：false,设置成false，字段将不会被索引
+
+```properties
+"title":{
+	"type":"text",
+	"index": true   
+}
+```
+
+​		// 指定分词器,默认分词器为standard analyzer
+
+```properties
+"title":{
+	"type":"text",
+	"analyzer":"ik_max_word"
+}
+
+可以设置两个属性
+ik_max_word				最细粒度拆分		例如：我今天在北京{我，今天，北京，在，我今天，等等}
+ik_smart				最粗粒度拆分		例如：我今天在北京{我，今天，在北京，我今天在北京}
+```
+
+​		// 字段级别的分数加权，默认值是1.0
+
+```properties
+"title":{
+	"type":"text",
+	"boost":1.23
+}
+```
+
+​		// 对not_analyzed字段，默认都是开启，分词字段不能使用，对排序和聚合能提升较大性能，节约内存
+
+```properties
+"title":{
+	"type":"text",
+	"doc_values":false
+}
+```
+
+​		// 针对分词字段，参与排序或聚合时能提高性能，不分词字段统一建议使用doc_value
+
+```properties
+"title":{
+	"type":"text",
+	"fielddata":{"format":"disabled"}
+}
+```
+
+​		// 可以对一个字段提供多种索引模式，同一个字段的值，一个分词，一个不分词
+
+```properties
+"title":{
+	"type":"text",	
+	"fields":{
+		"raw":{
+			"type":"string",
+			"index":"not_analyzed"
+		}
+	} 
+}
+```
+
+​		// 超过100个字符的文本，将会被忽略，不被索引
+
+```properties
+"title":{
+	"type":"text",
+	"ignore_above":100
+}
+```
+
+​		// 设置是否此字段包含在_all字段中，默认是true，除非index设置成no选项
+
+```properties
+"title":{
+	"type":"text",
+	"include_in_all":ture
+}
+```
+
+​		// 4个可选参数docs（索引文档号） ,freqs（文档号+词频），positions（文档号+词频+位置，通常用来距离查询），offsets（文档号+词频+位置+偏移量，通常被使用在高亮字段）分词字段默认是position，其他的默认是docs
+
+```properties
+"title":{
+	"type":"text",
+	"index_options":"docs"
+}
+```
+
+​		// 分词字段默认配置，不分词字段：默认{"enable":false}，存储长度因子和索引时boost，建议对需要参与评分字段使用 ，会额外增加内存消耗量
+
+```properties
+"title":{
+	"type":"text",
+	"norms":{"enable":true,"loading":"lazy"}
+}
+```
+
+​		// 设置一些缺失字段的初始化值，只有string可以使用，分词字段的null值也会被分词
+
+```properties
+"title":{
+	"type":"text",
+	"null_value":"NULL"
+}
+```
+
+​		// 影响距离查询或近似查询，可以设置在多值字段的数据上火分词字段上，查询时可指定slop间隔，默认值是100
+
+```properties
+"title":{
+	"type":"text",
+	"position_increament_gap":0
+}
+```
+
+​		// 设置搜索时的分词器，默认跟ananlyzer是一致的，比如index时用standard+ngram，搜索时用standard用来完成自动提示功能
+
+```properties
+"title":{
+	"type":"text",
+	"search_analyzer":"ik"
+}
+```
+
+​		// 默认是TF/IDF算法，指定一个字段评分策略，仅仅对字符串型和分词类型有效
+
+```properties
+"title":{
+	"type":"text",
+	"similarity":"BM25"
+}
+```
+
+​		// 默认不存储向量信息，支持参数yes（term存储），with_positions（term+位置）,with_offsets（term+偏移量），with_positions_offsets(term+位置+偏移量) 对快速高亮fast vector highlighter能提升性能，但开启又会加大索引体积，不适合大数据量用
+
+```properties
+"title":{
+	"type":"text",
+	"term_vector":"no"
+}
+```
+
+#### Mapping类型
+
+##### text（文本类型）
+
+​		用于索引全文值的字段，例如电子邮件的正文或产品的描述。这些字段是`analyzed`，也就是说，它们通过[分析器](https://www.elastic.co/guide/en/elasticsearch/reference/6.7/analysis.html)传递，以便 在被索引之前将字符串转换为单个术语的列表。通过分析过程，Elasticsearch可以*在* 每个全文本字段中搜索单个单词。文本字段不用于排序，很少用于聚合（尽管 [重要的文本聚合](https://www.elastic.co/guide/en/elasticsearch/reference/6.7/search-aggregations-bucket-significanttext-aggregation.html) 是一个明显的例外）。
+
+```properties
+# 将title设置为文本并且指定分词器
+{
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "title": {
+          "type":"text",
+          "analyzer":"ik_max_word"
+        }
+      }
+    }
+  }
+
+```
+
+
+
+##### numeric（数值类型）
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.7/number.html)
+
+​		支持以下数字类型：
+
+```
+long
+integer
+short
+byte
+double
+float
+half_float
+scaled_float
+```
+
+##### keyword（关键词类型）
+
+​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.7/keyword.html)
+
+```properties
+# 它们通常用于过滤（找到我的所有博客文章，其中 status为published），排序，和聚合。关键字字段只能按其确切值进行搜索。
+# 简单的来说就是不分词
+
+# Mapping
+{"mappings":{"_doc":{"properties":{"tags":{"type":"keyword"}}}}}
+
+```
+
+##### date（时间类型）
+
+```properties
+# JSON没有日期数据类型，因此Elasticsearch中的日期可以是包含格式化日期的字符串，例如"2015-01-01"或"2015/01/01 12:10:30"，从纪元以来 代表毫秒的长整数，代表秒后的整数。在内部，日期会转换为UTC（如果指定了时区），并存储为一个整数，表示自纪元以来的毫秒数。
+# 日期格式可以自定义，但是如果未format指定，则使用默认格式
+
+"type":“strict_date_optional_time || epoch_millis”
+		1、{"date": "2015-01-01" }
+		2、{"date": "2015-01-01T12:10:30Z" }
+		3、{"date": 1420070400001 }
+# 以及自定义
+PUT test
+{
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "date": {
+          "type":   "date",
+          "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis"
+        }
+      }
+    }
+  }
+}
+```
+
+##### boolean（布尔类型）
+
+```properties
+# 布尔字段接受JSON，true和false值（true，false），但也可以接受解释为true或false的字符串（"true","false"）
+"bool_field": {
+	"type": "boolean"
+}
+```
+
+##### object（对象类型）
+
+```properties
+
+# 数据格式
+PUT my_index/_doc/1
+{ 
+  "region": "US",
+  "manager": { 
+    "age":     30,
+    "name": { 
+      "first": "John",
+      "last":  "Smith"
+    }
+  }
+}
+
+# mapping类型
+PUT my_index
+{
+  "mappings": {
+    "_doc": { 
+      "properties": {
+        "region": {
+          "type": "keyword"
+        },
+        "manager": { 
+          "properties": {
+            "age":  { "type": "integer" },
+            "name": { 
+              "properties": {
+                "first": { "type": "text" },
+                "last":  { "type": "text" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+
+
+##### nested（对象数组类型）
+
+```properties
+# 该`nested`类型是object数据类型的专用版本，它允许以可以彼此独立地查询对象的方式对对象数组进行索引。
+# 内部object字段数组无法按预期方式工作。Lucene没有内部对象的概念，因此Elasticsearch将对象层次结构简化为字段名称和值的简单列表。
+
+# user是一个对象数组
+PUT my_index/_doc/1
+{
+  "group" : "fans",
+  "user" : [ 
+    {
+      "first" : "John",
+      "last" :  "Smith"
+    },
+    {
+      "first" : "Alice",
+      "last" :  "White"
+    }
+  ]
+}
+```
+
+
+
+##### ip（IP地址）
+
+```properties
+# 一个ip字段可以索引/存储任一的IPv4或 IPv6的地址。
+"ip_field": {
+	"type": "ip"
+}
+
+# 新增
+PUT {"ip_field": "192.168.1.1"}
+
+# 查询
+GET {"query":{"term":{"ip_field":"192.168.0.0/16"}}}
+# 或者ipv6
+GET {"query":{"term":{"ip_field":"2001:db8::/48"}}}
+```
+
+
+
+##### geo_point（点地理位置）
+
+```properties
+# 类型的字段geo_point接受纬度-经度对，可以使用：在边界框内，中心点一定距离内或多边形内找到地理点，
+PUT test
+{
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "location": {
+          "type": "geo_point"
+        }
+      }
+    }
+  }
+}
+
+# 存储方式可以为：
+# 对象
+1、"location": { "lat": 41.12,"lon": -71.34}
+# 字符串
+2、"location": "41.12,-71.34" 
+# geohash
+3、"location": "drm3btev3e86"
+# 数组
+4、"location": [ -71.34, 41.12 ]
+```
+
+##### geo_shape（形状地理位置）
+
+```properties
+# 的geo_shape数据类型方便的索引和与任意的地理搜索为矩形和多边形的形状，例如。当正在索引的数据或正在执行的查询包含的形状不仅是点时，都应使用它。
+# 建立索引
+PUT test
+{
+    "mappings": {
+        "doc": {
+            "properties": {
+                "location": {
+                    "type": "geo_shape"
+                }
+            }
+        }
+    }
+}
+
+# 存储数据
+```
+
+​		查询geo_shape官方文档地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.7/query-dsl-geo-shape-query.html)
+
+##### binary（二进制）
+
+```properties
+# 该binary类型接受二进制值作为 Base64编码的字符串。该字段默认情况下不存储，并且不可搜索，不能包含换行符
+PUT test
+{
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "file": {
+          "type": "binary"
+        }
+      }
+    }
+  }
+}
+
+```
+
+##### range（范围）
+
+```properties
+# integer_range
+	一个带符号的32位整数范围，最小值为-2的31次方，最大值为2的31次方-1。
+# float_range
+	一系列单精度32位IEEE 754浮点值。
+# long_range
+	一系列带符号的64位整数，最小值为-2的63次方，最大值为2的63次方-1。
+# double_range
+	一系列双精度64位IEEE 754浮点值。
+# date_range
+	自系统时代以来经过的一系列日期值，表示为无符号的64位整数毫秒。
+# ip_range
+	支持IPv4或 IPv6（或混合）地址的一系列ip值。
+	
+PUT range_index
+{
+  "settings": {
+    "number_of_shards": 2
+  },
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "int_ran": {
+          "type": "integer_range"
+        },
+        "time_ran": {
+          "type": "date_range", 
+          "format": "yyyy-MM-dd HH:mm:ss||yyyy-MM-dd||epoch_millis"
+        },
+        "ip_ran": {
+          "type": "ip_range"
+        }
+      }
+    }
+  }
+}
+
+
+# 搜索，返回所有包含或者范围在12的数据
+GET range_index/_search
+{
+  "query" : {
+    "term" : {
+      "int_ran" : {
+        "value": 12
+      }
+    }
+  }
+}
+# 添加一个Ip范围
+PUT range_index/_doc/2
+{
+  "ip_whitelist" : "192.168.0.0/16"
+}
+```
+
+##### array（数组）
+
+```properties
+# 不需要建立索引类型直接使用即可，但是不能使用混合类型，并且强调后续数据类型相同
+PUT test/_doc/1
+{
+  "string_list": ["one","two"],
+	"integer_list": [1 , 2],
+	"integer2_list": [1 , [2 , 3]],
+	"object_list": [{"name":"big1","age":18},{"name":"big2","age":19}]
+}
+
+# string_list 字符串的List，只能为List
+# integer_list 纯数字的list
+# integer2_list 使用数组嵌套数组的纯数字，将转变为[1,2,3]
+# object_list 对象的List
+```
+
+##### alias（引用类型）
+
+```properties
+# 引用类型，可以引用其他属性的引用,并且搜索的时候可以采用引用进行搜索，但是日常并不推荐使用，有一些Api不支持如_source
+PUT test
+{
+  "mappings": {
+    "_doc": {
+      "properties": {
+        "age": {
+          "type": "long"
+        },
+        "field_as_age": {
+          "type": "alias",
+          "path": "distance" 
+        }
+      }
+    }
+  }
+}
+```
+
+​		
+
+
+
+```
+
+keyword
+date
 ```
 
 

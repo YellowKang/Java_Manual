@@ -210,15 +210,15 @@ id		name  	type		email
 
 ### BTree和B+Tree的区别是什么？
 
-
+​		
 
 ### MySQL采用的哪种结构存储索引？
 
-
+​		MySQL采用B+树存储索引
 
 ### B+Tree和Bree哪个更加适合做索引？为什么？
 
-
+​		B+Tree更适合做索引
 
 ### 你们生产用的是哪种事务隔离级别，为什么？
 

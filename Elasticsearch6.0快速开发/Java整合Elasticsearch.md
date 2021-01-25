@@ -674,7 +674,7 @@ commons-logging：commons-logging
         .setNodesSniffer(nodesSniffer).build();
 ```
 
-## 高级rest方式
+## 高级rest方式（推荐使用）
 
 ### 简介
 
@@ -886,6 +886,108 @@ client.close();
         // 获取version
         long version = response.getVersion();
 ```
+
+#### Search API
+
+​		Search API官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/client/java-rest/6.7/_search_apis.html)
+
+​		查询
+
+```java
+        SearchRequest searchRequest = new SearchRequest();
+        // 设置搜索类型
+        searchRequest.searchType(SearchType.DEFAULT);
+        // 设置type，默认为空数组
+        searchRequest.types(new String[0]);
+        // 设置阈值，如果搜索请求扩展的分片数量超过阈值，则该阈值将强制执行预过滤器往返以基于查询重写来预过滤搜索分片。
+        // 例如，如果一个分片基于其重写方法无法匹配任何文档，则此筛选器往返行程可以显着限制分片的数量。如果日期过滤器必须匹配，但分片范围和查询是不相交的。默认值为{@code 128}
+        searchRequest.setPreFilterShardSize(128);
+        // 设置应同时执行的分片请求数。此值应用作保护机制，以减少每个高级搜索请求触发的分片请求的数量。
+        // 可以使用此数字限制到达整个群集的搜索，以减少群集负载。默认值随群集中节点数的增加而增加，但最多为{@code 256}。设置最大并发分片请求，默认0
+        searchRequest.setMaxConcurrentShardRequests(20);
+        // 设置应在协调节点上立即减少的分片结果数。如果请求中的分片数量可能很大，则此值应用作保护机制以减少每个搜索请求的内存开销。
+        searchRequest.setBatchedReduceSize(512);
+        // 控制如何处理不可用的具体索引(关闭或丢失)，如何将通配符表达式扩展为实际索引(所有、关闭或打开索引)，以及如何处理解析为没有索引的通配符表达式。
+        // 默认要求存在每个指定的索引，仅将通配符扩展为开放索引，允许从通配符表达式解析任何索引(不返回错误)，通过抛出错误禁止使用封闭索引，并忽略被限制的索引。
+        searchRequest.indicesOptions(IndicesOptions.strictExpandOpenAndForbidClosedIgnoreThrottled());
+        // 设置查询的索引，默认空数组,*为通配符查询所有
+        searchRequest.indices("*");
+        // 设置执行搜索的首选项。默认值是随机分片
+        // 可以再如下地址查看支持的选项https://www.elastic.co/guide/en/elasticsearch/reference/6.7/search-request-preference.html
+        searchRequest.preference("_local");
+        // 查询资源资源构建器
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        // 起始位置
+        searchSourceBuilder.from(0);
+        // 查询的条数
+        searchSourceBuilder.size(10);
+        // 设置是否进行分析
+        searchSourceBuilder.explain(false);
+        // 设置排序
+        // searchSourceBuilder.sort(SortBuilders.fieldSort("age").order(SortOrder.ASC));
+
+        // 设置Query对象，为查询所有，查询条件
+        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+        // 设置Search的查询源
+        searchRequest.source(searchSourceBuilder);
+        try {
+            SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+            for (SearchHit hit : search.getHits().getHits()) {
+                System.out.println(String.format("index: %s \t data: %s", hit.getIndex(), hit.getSourceAsMap().toString()));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+​		滚动查询
+
+```java
+
+        // 创建Search请求，以及Search资源构建器
+        SearchRequest searchRequest = new SearchRequest();
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        // 设置Query对象，为查询所有，查询条件，每次查询2条
+        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+        searchSourceBuilder.size(2);
+        searchRequest.source(searchSourceBuilder);
+        // 设置滚动查询的超时时间为1分钟
+        searchRequest.scroll(TimeValue.timeValueMinutes(1L));
+        try {
+            // 第一次查询
+            SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+            // 滚动查询Id
+            String scrollId = search.getScrollId();
+            Integer count = 1;
+            System.out.println(String.format("第%s次查询：", count));
+            ++count;
+            for (SearchHit hit : search.getHits().getHits()) {
+                System.out.println(String.format("index: %s \t data: %s", hit.getIndex(), hit.getSourceAsMap().toString()));
+            }
+
+            while (true) {
+                if (scrollId != null && scrollId.trim().length() > 0) {
+                    System.out.println(String.format("第%s次查询：", count));
+                    SearchScrollRequest scrollRequest = new SearchScrollRequest(scrollId);
+                    scrollRequest.scroll(TimeValue.timeValueSeconds(30));
+                    SearchResponse response = restHighLevelClient.scroll(scrollRequest, RequestOptions.DEFAULT);
+                    // 如果查询不到跳出循环
+                    if (response.getHits().getHits().length == 0) {
+                        break;
+                    }
+                    for (SearchHit hit : response.getHits().getHits()) {
+                        System.out.println(String.format("index: %s \t data: %s", hit.getIndex(), hit.getSourceAsMap().toString()));
+                    }
+                    ++count;
+                    scrollId =response.getScrollId();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+
 
 #### Exists API
 
