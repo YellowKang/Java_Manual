@@ -614,13 +614,42 @@ String settingPath() default "";							// 指定mapping文件的路径，默认�
 
 ## 查询
 
+​		Es查询相应类的List
+
+```java
+        NativeSearchQuery nativeSearchQuery = new NativeSearchQuery(QueryBuilders.matchAllQuery());
+        List<Demo> demos = elasticsearchRestTemplate.queryForList(nativeSearchQuery, Demo.class);
+```
+
+​		根据不同的索引，以及类型，查询数据（不使用实体类中的索引，只映射结果集）
 
 
+
+```java
+        NativeSearchQuery nativeSearchQuery = new NativeSearchQuery(QueryBuilders.matchAllQuery());
+				nativeSearchQuery.addIndices("test");
+    		nativeSearchQuery.addTypes("test");
+        List<Demo> demos = elasticsearchRestTemplate.queryForList(nativeSearchQuery, Demo.class);
+```
 ## 删除
 
 
 
 ## 修改
+
+
+
+# 不整合SpringBoot
+
+​		单独使用SpringData
+
+```java
+        RestClientBuilder builder = RestClient.builder(
+                new HttpHost("139.9.7.11", 9200, "http"));
+        RestHighLevelClient restHighLevelClient = new RestHighLevelClient(builder);
+        ElasticsearchRestTemplate elasticsearchRestTemplate = new ElasticsearchRestTemplate(restHighLevelClient);
+
+```
 
 
 
@@ -716,4 +745,3 @@ public class TestFlux {
 
 }
 ```
-

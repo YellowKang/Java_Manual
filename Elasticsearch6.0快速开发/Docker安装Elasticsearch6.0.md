@@ -692,12 +692,10 @@ POST /test_pinyin/test/_search
 # 进入容器内部编辑
 docker exec -it  elasticsearch bash
 
-# 安装IK分词器拼音插件(Github官网)
+# 安装Ingest-Attachment文件插件(Github官网)
 elasticsearch-plugin install https://artifacts.elastic.co/downloads/elasticsearch-plugins/ingest-attachment/ingest-attachment-6.7.0.zip
 
 
-# 安装IK分词器插件(第三方加速)
-elasticsearch-plugin install https://github.91chifun.workers.dev//https://github.com/medcl/elasticsearch-analysis-pinyin/releases/download/v6.7.0/elasticsearch-analysis-pinyin-6.7.0.zip
 ```
 
 #### 离线安装
@@ -715,7 +713,153 @@ docker restart elasticsearch
 
 #### 测试
 
+​		首先我们需要节点中
 
+
+
+```properties
+# 首选需要建立ingest管道建立一个attachment管道,然后我们对filebase64这个字段进行处理
+curl -X PUT "http://192.168.1.11:9200/_ingest/pipeline/attachment" -d '{
+      "description": "文件摄取管道",
+    "processors": [
+        {
+            "attachment": {
+                "field": "filebase64",
+                "properties": [
+                  "content",
+                  "title",
+                  "content_type"
+                ],
+                "indexed_chars": -1,
+                "ignore_missing": true
+            }
+        },
+        {
+            "remove": {
+                "field": "filebase64"
+            }
+        }
+    ]
+}'
+
+# 我们需要建立一个管道为attachment，然后对里面的文件进行处理
+# 我们会将data字段进行解析，处理成attachment对象，以及三个属性
+		attachment.content
+		attachment.title
+		attachment.content_type
+# 然后我们来建立Mapping映射,并且我们需要进行文档搜索，使用分词器
+PUT /demo/_mapping/demo
+{
+    "properties": {
+        "attachment": {
+            "properties": {
+                "content": {
+                    "type": "text",
+                    "analyzer": "ik_max_word",
+                    "search_analyzer": "ik_max_word"
+                },
+                "content_type": {
+                    "type": "text",
+                    "analyzer": "ik_max_word",
+                    "search_analyzer": "ik_max_word"
+                },
+                "title": {
+                    "type": "text",
+                    "analyzer": "ik_max_word",
+                    "search_analyzer": "ik_max_word"
+                }
+            }
+        }
+    }
+}
+
+
+# 然后我们添加一条数据进行测试即可
+curl -X PUT "http://192.168.1.11:9200/demo/pipeline/attachment" -d '{
+    "description": "文件摄取管道",
+    "processors": [
+        {
+            "attachment": {
+                "field": "filebase64",
+                "properties": [
+                  "content",
+                  "title",
+                  "content_type"
+                ],
+                "indexed_chars": -1,
+                "ignore_missing": true
+            }
+        },
+        {
+            "remove": {
+                "field": "filebase64"
+            }
+        }
+    ]
+}'
+
+
+# 然后我们上传一个文档的Base64，filebase64字段的值为Base64的文件编码，然后指定处理管道为添加的attachment
+PUT /demo/demo/2?pipeline=attachment
+{
+  "filebase64":"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"
+}
+```
+
+​		文档内容如下
+
+<img src="https://blog-kang.oss-cn-beijing.aliyuncs.com/1611656732931.png" style="zoom:50%;" />
+
+```properties
+# 然后我们再来查看这个2
+GET /demo/demo/2
+# 会查看到如下内容
+# 返回结果集
+{
+  "_index" : "demo",
+  "_type" : "demo",
+  "_id" : "2",
+  "_version" : 2,
+  "_seq_no" : 1,
+  "_primary_term" : 1,
+  "found" : true,
+  "_source" : {
+    "attachment" : {
+      "date" : "2016-11-19T08:45:00Z",
+      "content_type" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "author" : "peng liu",
+      "language" : "lt",
+      "content" : "测试内容，搜索关键字   文档  四川 达州 BigKang",
+      "content_length" : 31
+    }
+  }
+}
+
+# 然后我们再来进行文档搜索即可，就可以发现能够进行文档搜索了
+POST /demo/_search
+{
+  "query": {
+    "match": {
+      "attachment.content": "四川"
+    }
+  }
+}
+```
+
+​		将文件转Base64方法如下
+
+```java
+        File file = new File("/Users/bigkang/Documents/项目文档/测试文档.docx");
+        FileInputStream inputFile = new FileInputStream(file);
+        byte[] buffer = new byte[(int) file.length()];
+        inputFile.read(buffer);
+        inputFile.close();
+        String encode = new BASE64Encoder().encode(buffer);
+        System.out.println(encode);
+        System.out.println(encode.length());
+```
+
+​		通常我们还会将文件上传到文件服务器上，搜索完毕后我们需要存储文件的上传路径然后查询出来，根据路径下载文件，这就是Es搜索Word文档，然后进行下载的业务流程，并且也可以结合拼音插件，进行文档的拼音搜索。
 
 ### SQL插件
 

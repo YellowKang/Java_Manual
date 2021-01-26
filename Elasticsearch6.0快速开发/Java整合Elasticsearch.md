@@ -722,7 +722,42 @@ client.close();
 
 ### 添加
 
-#### 索引API
+#### 创建索引API
+
+```java
+        // 创建索引
+        CreateIndexRequest createIndexRequest = new CreateIndexRequest("test_create");
+        // 设置主分片和副本集
+        createIndexRequest.settings(Settings.builder()
+                .put("index.number_of_shards", 3)
+                .put("index.number_of_replicas", 0)
+        );
+        // 指定Mapping
+        createIndexRequest.mapping(
+                "{\n" +
+                        "  \"properties\": {\n" +
+                        "    \"name\": {\n" +
+                        "      \"type\": \"text\"\n" +
+                        "    }\n" +
+                        "  }\n" +
+                        "}",
+                XContentType.JSON);
+        // 设置别名
+        Alias alias = new Alias("testA");
+        createIndexRequest.alias(alias);
+
+        try {
+            // 创建索引
+            CreateIndexResponse createIndexResponse = restHighLevelClient.indices().create(createIndexRequest, RequestOptions.DEFAULT);
+            System.out.println(createIndexResponse.index());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+
+
+#### 索引数据API
 
 ​		 Index API 官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/client/java-rest/6.7/java-rest-high-document-index.html)
 
@@ -987,6 +1022,100 @@ client.close();
         }
 ```
 
+​		批量查询
+
+```java
+
+        MultiSearchRequest multiSearchRequest = new MultiSearchRequest();
+        // 创建第一个查询
+        SearchRequest searchRequest1 = new SearchRequest();
+        SearchSourceBuilder searchSourceBuilder1 = new SearchSourceBuilder();
+        searchSourceBuilder1.from(0);
+        searchSourceBuilder1.size(2);
+        searchSourceBuilder1.query(QueryBuilders.matchAllQuery());
+        searchRequest1.source(searchSourceBuilder1);
+        // 创建第二个查询
+        SearchRequest searchRequest2 = new SearchRequest();
+        SearchSourceBuilder searchSourceBuilder2 = new SearchSourceBuilder();
+        searchSourceBuilder2.from(2);
+        searchSourceBuilder2.size(2);
+        searchSourceBuilder2.query(QueryBuilders.matchAllQuery());
+        searchRequest2.source(searchSourceBuilder2);
+
+        // 将两个查询封装为一个multiSearchRequest
+        multiSearchRequest.add(searchRequest1);
+        multiSearchRequest.add(searchRequest2);
+
+        try {
+            MultiSearchResponse mSearchResponse = restHighLevelClient.msearch(multiSearchRequest, RequestOptions.DEFAULT);
+            Integer count = 1;
+            for (MultiSearchResponse.Item item : mSearchResponse.getResponses()) {
+                SearchResponse response = item.getResponse();
+                System.out.println(String.format("第%s次查询：",count));
+                for (SearchHit hit : response.getHits().getHits()) {
+                    System.out.println(hit.getSourceAsMap());
+                }
+                ++count;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+​		模板搜索
+
+```java
+
+        // 创建模板查询
+        SearchTemplateRequest request = new SearchTemplateRequest();
+        // 查询所有索引
+        request.setRequest(new SearchRequest("*"));
+        request.setScriptType(ScriptType.INLINE);
+        // 设置脚本查询所有，并且将size指定为动态
+        request.setScript(
+                "{" +
+                        "  \"query\": { \"match_all\" : { } }," +
+                        "  \"size\" : \"{{size}}\"" +
+                        "}");
+
+        // 指定脚本查询参数
+        Map<String, Object> scriptParams = new HashMap<>();
+        scriptParams.put("size", 2);
+        request.setScriptParams(scriptParams);
+
+        try {
+            SearchTemplateResponse templateResponse = restHighLevelClient.searchTemplate(request, RequestOptions.DEFAULT);
+            SearchResponse response = templateResponse.getResponse();
+            for (SearchHit hit : response.getHits().getHits()) {
+                System.out.println(hit.getSourceAsMap());
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+
+
+#### Count API
+
+```java
+        // 查询所有索引数量
+        CountRequest countRequest = new CountRequest("*");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+        countRequest.source(searchSourceBuilder);
+        try {
+            CountResponse count = restHighLevelClient.count(countRequest, RequestOptions.DEFAULT);
+            System.out.println(count.getCount());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+
+
+
+
 
 
 #### Exists API
@@ -1032,7 +1161,29 @@ client.close();
         }
 ```
 
+#### Es信息查询
 
+​		查询Es的集群名称，节点名称，以及版本和UUID
+
+```java
+        try {
+            MainResponse response = restHighLevelClient.info(RequestOptions.DEFAULT);
+            String clusterName = response.getClusterName().value();
+            String nodeName = response.getNodeName();
+            String version = response.getVersion().toString();
+            String clusterUuid = response.getClusterUuid();
+
+            System.out.println(String.format("集群名称:%s,节点名称:%s,Es版本:%s,集群UUID:%s",clusterName,nodeName,version,clusterUuid));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+​		测试集群是否能够连接
+
+```java
+        boolean response = restHighLevelClient.ping(RequestOptions.DEFAULT);
+```
 
 ### 删除
 
@@ -1125,6 +1276,26 @@ client.close();
         System.out.println(bulkByScrollResponse);
 
 ```
+
+#### 删除索引
+
+```java
+        // 删除请求，删除test_create索引
+        DeleteIndexRequest deleteIndexRequest = new DeleteIndexRequest("test_create");
+        // 设置请求超时时间2分钟
+        deleteIndexRequest.timeout(TimeValue.timeValueMinutes(2));
+        // 设置Master节点超时时间，2分钟
+        deleteIndexRequest.masterNodeTimeout(TimeValue.timeValueMinutes(1));
+        // 设置IndicesOptions控制如何解决不可用的索引以及如何扩展通配符表达式
+        deleteIndexRequest.indicesOptions(IndicesOptions.lenientExpandOpen());
+        try {
+             restHighLevelClient.indices().delete(deleteIndexRequest, RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+
 
 ### 修改
 
