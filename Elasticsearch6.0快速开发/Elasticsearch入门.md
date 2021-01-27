@@ -2184,10 +2184,6 @@ GET /index1/doc1/_search
 
 ### 常用聚合
 
-#### 通用属性
-
-
-
 #### 类型统计
 
 ​		在我们平时所使用的情况下，我们经常会对一些类型进行统计，例如按时间进行格式化统计，或者根据类型，统计每个类型的数量等等，下面我们先来使用统计吧。
@@ -2201,27 +2197,73 @@ POST /index1/_search?size=0
      // 查询条件
   },
   "aggs": {
-    "avg_corrected_grade": {
+    "atype类型统计": {
       "terms": {
         "field": "atype"
       }
     }
   }
 }
-```
 
-​		报错解决方案：修改模板中的atype字段属性fielddata为true，但是结果会进行分词之后的统计，所以还是会出现问题的
-
-```properties
+# 报错解决方案：修改模板中的atype字段属性fielddata为true，但是结果会进行分词之后的统计，所以还是会出现问题的
 PUT /index1/doc1/_mapping
 {
   "properties": {
     "atype":{
-      "type": "text",
+    	# 需要聚合的类型建议修改为Keyword
+      "type": "text",  
       "fielddata": true
     }
   }
 }
+
+# 或者修改为atype.keyword,将atype标记为Keyword进行统计
+POST /index1/_search?size=0
+{
+  "query": {
+     // 查询条件
+  },
+  "aggs": {
+    "atype类型统计": {
+      "terms": {
+        "field": "atype.keyword"
+      }
+    }
+  }
+}
+# 加入size即可分页统计top10，默认倒排,可以修改为正排
+      "terms": {
+        "field": "atype.keyword",
+        "size":10,
+        "order": {
+          "_term": "asc"
+        }
+      }
+
+# 统计后的返回结果如下
+{
+	.......,
+  "aggregations" : {
+    "atype类型统计" : {
+			.......,
+      "buckets" : [
+        {
+          "key" : "WEIBO",
+          "doc_count" : 12
+        },
+        {
+          "key" : "NEWS",
+          "doc_count" : 9
+        },
+        {
+          "key" : "APP",
+          "doc_count" : 3
+        }
+      ]
+    }
+  }
+}
+
 ```
 
 ​		那么我们这里有3个类型我们可以不可统计这个类型的数量呢，答案是可以的，我们使用cardinality即可统计type的类型有多少个，例如我们统计的数据里面有 atype =一，atype=二，atype=三的，那么上面的方式统计就是一到三分别有多少个，cardinality则是统计这个atype一共有多少个，也就是3个
@@ -2230,16 +2272,24 @@ PUT /index1/doc1/_mapping
 POST /index1/_search?size=0
 {
   "aggs": {
-    "type": {
+    "类型数量": {
       "cardinality": {
         "field": "type"
       }
     }
   }
 }
+
+# 返回结果如下
+{
+  .......,
+  "aggregations" : {
+    "类型数量" : {
+      "value" : 3
+    }
+  }
+}
 ```
-
-
 
 #### 平均值
 
@@ -2271,13 +2321,119 @@ POST /index1/_search?size=0
 
 #### 时间聚合
 
-​		我们有时候需要根据时间来进行聚合，格式化成不同类型的时间
+​		**时间间隔**
 
+```properties
+# 我们有时候需要根据时间来进行聚合，格式化成不同类型的时间,并且有时候需要对时间间隔进行统计,如下就是按照小时执行
+GET /demo/_search
+{
+  "aggs": {
+    "时间聚合":{
+      "date_histogram": {
+        "field": "createTime",
+        "interval": "hour",
+        "format": "yyyy-MM-dd HH",
+        "time_zone": "+08:00"
+      }
+    }
+  }, 
+  "size": 0
+}
+
+
+
+# 如下对字段的描述
+# date_histogram 聚合类型
+		field:	进行聚合的字段
+		interval: 间隔 
+			year: 年（1y），按照每年进行分析
+			quarter: 季度（1q），将一年拆分为4个季度进行分析
+			month: 月(1q),按月份进行统计
+			week: 周(1w)
+			day: 日(1d)
+			hour: 小时(1h)
+			minute: 分钟(1m)
+			second: 秒(1s)
+			# 时间间隔还可以根据统计的类型自动的将中间空余的时间间隔补全，mysql group是无法完成的
+			# 并且我们可以动态指定2小时为间隔，"interval": "2h",获取按周年月日等动态的间隔
+		format: 时间的格式化表达式 (yyyy-MM-dd HH:mm:ss) 年月日时分秒
+		time_zone: 为时区我们可以给时间按小时加减"+08:00"，也可以指定Time_zone“Asia/Shanghai”
+
+			# 设置keyed标志以true将唯一的字符串键与每个存储桶相关联，并将范围作为哈希而不是数组返回,就会返回对象，key为格式化的时间，而不是buck桶数组
+      "date_histogram": {
+        	"keyed": true
+      }
 ```
 
+#### 多重聚合
+
+​		多重聚合出现在某种业务场景下，例如我们需要统计某个类型，每天的数量，那么首先我们需要先聚合类型，然后再根据时间聚合出来，方式如下。
+
+```properties
+GET /demo/_search
+{
+    "aggs": {
+        "类型聚合": {
+            "terms": {
+                "field": "type"
+            },
+            "aggs": {
+                "时间聚合": {
+                    "date_histogram": {
+                        "field": "createTime",
+                        "interval": "hour",
+                        "format": "yyyy-MM-dd HH",
+                        "time_zone": "+08:00"
+                    }
+                }
+            }
+        }
+    },
+    "size": 0
+}
 ```
 
+#### 聚合排序
 
+​		例如我们统计某一个类型的数量，然后查询某个类型年龄最小的树，然后根据年龄来排序类型 
+
+```properties
+POST /demo/_search
+{
+    "aggs": {
+        "类型数量": {
+            "terms": {
+                "field": "type",
+                "order": {
+                    "_term": "asc"
+                }
+            },
+            "aggs": {
+                "最小年龄": {
+                    "min": {
+                        "field": "age"
+                    }
+                },
+                "最小年龄_sort": {
+                    "bucket_sort": {
+                        "sort": [
+                            {
+                            		# 根据”最小年龄“桶进行正序排序
+                                "最小年龄": {
+                                    "order": "asc"
+                                }
+                            }
+                        ],
+                        # 排序后去前2个
+                        "size": 2
+                    }
+                }
+            }
+        }
+    },
+    "size": 0
+}
+```
 
 
 

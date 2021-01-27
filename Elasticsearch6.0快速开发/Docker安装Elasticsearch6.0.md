@@ -715,12 +715,12 @@ docker restart elasticsearch
 
 ​		首先我们需要节点中
 
-
-
 ```properties
 # 首选需要建立ingest管道建立一个attachment管道,然后我们对filebase64这个字段进行处理
-curl -X PUT "http://192.168.1.11:9200/_ingest/pipeline/attachment" -d '{
-      "description": "文件摄取管道",
+
+# 然后我们添加一条数据进行测试即可
+curl -X PUT "http://192.168.1.11:9200/demo/pipeline/attachment" -d '{
+    "description": "文件摄取管道",
     "processors": [
         {
             "attachment": {
@@ -728,7 +728,9 @@ curl -X PUT "http://192.168.1.11:9200/_ingest/pipeline/attachment" -d '{
                 "properties": [
                   "content",
                   "title",
-                  "content_type"
+                  "content_type",
+                  "content_length",
+                  "author"
                 ],
                 "indexed_chars": -1,
                 "ignore_missing": true
@@ -772,32 +774,6 @@ PUT /demo/_mapping/demo
         }
     }
 }
-
-
-# 然后我们添加一条数据进行测试即可
-curl -X PUT "http://192.168.1.11:9200/demo/pipeline/attachment" -d '{
-    "description": "文件摄取管道",
-    "processors": [
-        {
-            "attachment": {
-                "field": "filebase64",
-                "properties": [
-                  "content",
-                  "title",
-                  "content_type"
-                ],
-                "indexed_chars": -1,
-                "ignore_missing": true
-            }
-        },
-        {
-            "remove": {
-                "field": "filebase64"
-            }
-        }
-    ]
-}'
-
 
 # 然后我们上传一个文档的Base64，filebase64字段的值为Base64的文件编码，然后指定处理管道为添加的attachment
 PUT /demo/demo/2?pipeline=attachment
@@ -860,6 +836,47 @@ POST /demo/_search
 ```
 
 ​		通常我们还会将文件上传到文件服务器上，搜索完毕后我们需要存储文件的上传路径然后查询出来，根据路径下载文件，这就是Es搜索Word文档，然后进行下载的业务流程，并且也可以结合拼音插件，进行文档的拼音搜索。
+
+​		如果文本内容过长，我们则可以在建立mapping时隐藏掉该字段,但是不推荐使用
+
+```properties
+# 但是不推荐使用
+PUT /demo/_mapping/demo
+{
+  "_source": {
+    "excludes":["attachment.content"]
+  }, 
+    "properties": {
+        "attachment": {
+            "properties": {
+                "filebase64":{
+                   	"type": "keyword"
+                },
+                "content": {
+                    "type": "text",
+                    "analyzer": "ik_max_word",
+                    "search_analyzer": "ik_max_word"
+                },
+                "content_type": {
+                    "type": "text",
+                    "analyzer": "ik_max_word",
+                    "search_analyzer": "ik_max_word"
+                },
+                "title": {
+                    "type": "text",
+                    "analyzer": "ik_max_word",
+                    "search_analyzer": "ik_max_word"
+                }
+            }
+        }
+    }
+}
+
+# 推荐保存，然后在查询中进行过滤，否则重新索引的时候无法重新索引导致数据丢失,可以排除掉content
+GET /demo/demo/2?_source_exclude=attachment.content
+```
+
+
 
 ### SQL插件
 

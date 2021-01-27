@@ -1,3 +1,5 @@
+
+
 # 引入依赖
 
 ```xml
@@ -631,11 +633,150 @@ String settingPath() default "";							// 指定mapping文件的路径，默认�
     		nativeSearchQuery.addTypes("test");
         List<Demo> demos = elasticsearchRestTemplate.queryForList(nativeSearchQuery, Demo.class);
 ```
+### QueryString
+
+```java
+        // 构建查询请求
+        SearchRequest searchRequest  = new SearchRequest("demo");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.fetchSource(Strings.EMPTY_ARRAY,new String[]{"attachment.content"});
+        searchSourceBuilder.query(QueryBuilders
+                .queryStringQuery("(测试)OR(河南OR开发手册)NOT(文件)")
+                .field("fileName", 1.7F));
+        searchSourceBuilder.size(10);
+        searchRequest.source(searchSourceBuilder);
+        try {
+            // 获取查询结果
+            SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+
+            // 创建默认对象转换
+            DefaultResultMapper defaultResultMapper = new DefaultResultMapper();
+            // 创建分页对象
+            PageRequest pageRequest = PageRequest.of(1, 10);
+            Page<Demo> demos = defaultResultMapper.mapResults(search, Demo.class, pageRequest);
+            System.out.println(demos.getContent());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+
+
 ## 删除
 
 
 
 ## 修改
+
+# 使用Rest连接对象转换使用SpringData
+
+​		有时候我们经常会使用原生的查询去查询Es，查询出来以后我们又想将它转为SpringData的对象那么我们可以使用如下方式。
+
+```
+
+```
+
+
+
+# 整合文件搜索
+
+​		前期准备以及插件安装参考ingest-attachment插件：[点进入](https://github.com/YellowKang/Java_Manual/blob/master/Elasticsearch6.0%E5%BF%AB%E9%80%9F%E5%BC%80%E5%8F%91/Docker%E5%AE%89%E8%A3%85Elasticsearch6.0.md)
+
+​		假设我们已经建立好了索引，并且创建了管道处理attachment，下面是我们的代码示例
+
+​		Attachment实体信息
+
+```java
+public class Attachment {
+
+    private String content;
+
+    private Long content_length;
+
+    private String content_type;
+
+    private String author;
+}
+```
+
+​		Es实体
+
+```java
+@Data
+@Document(indexName = "demo",type = "demo",shards = 3,replicas = 0)
+public class Demo extends BaseEsEntity {
+    @Id
+    protected String id;
+
+    @Field(type = FieldType.Text,analyzer = "ik_max_word",searchAnalyzer = "ik_max_word")
+    private String fileName;
+
+    private String filebase64;
+
+    private Attachment attachment;
+}
+```
+
+​		然后我们编写一个控制器，注意此处我采用Rest高级连接其他情况请采用相应的连接
+
+```java
+
+    @Autowired
+    private  ElasticsearchOperations elasticsearchOperations;
+
+		@PostMapping("saveFile")
+    public void saveFile(Demo demo, MultipartFile multipartFile){
+        // 从elasticsearchOperations中获取ElasticsearchRestTemplate然后拿到RestHighLevelClient
+        RestHighLevelClient client = ((ElasticsearchRestTemplate) elasticsearchOperations).getClient();
+        // 拿到实体类上的注解
+        Document document = AnnotationUtils.getAnnotation(Demo.class, Document.class);
+        IndexRequest indexRequest = new IndexRequest(document.indexName(),document.type());
+        // 获取文件字节转base64
+        try {
+            String base64 = Base64.getEncoder().encodeToString(multipartFile.getBytes());
+            demo.setFilebase64(base64);
+            // 设置管道
+            indexRequest.setPipeline("attachment");
+            // 将demo转为Json
+            ObjectMapper mapper=new ObjectMapper();
+            String json = mapper.writeValueAsString(demo);
+            indexRequest.source(json,XContentType.JSON);
+            IndexResponse index = client.index(indexRequest, RequestOptions.DEFAULT);
+            if (index.getIndex().equals(document.indexName())) {
+                System.out.println("索引成功");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+```
+
+​		然后使用测试swagger上传
+
+<img src="https://blog-kang.oss-cn-beijing.aliyuncs.com/1611718724726.png" style="zoom:50%;" />
+
+​		然后调用，此处即可上传成功，然后我们来进行查询即可。
+
+```java
+    @GetMapping("searchFile")
+    public Page<Demo> searchFile(String keyword){
+        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery();
+        // 查询文档内容或者文件名称的关键词
+        queryBuilder.must(QueryBuilders.multiMatchQuery(keyword,"attachment.content","fileName"));
+        NativeSearchQuery nativeSearchQuery = new NativeSearchQuery(queryBuilder);
+        Page<Demo> demos = elasticsearchOperations.queryForPage(nativeSearchQuery, Demo.class);
+        return demos;
+    }
+```
+
+​		并且需要注释事项注意Servlet文件大小限制导致无法上传
+
+```properties
+spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+```
 
 
 
@@ -656,6 +797,32 @@ String settingPath() default "";							// 指定mapping文件的路径，默认�
 # 条件构造器
 
 ​		在我们很多的时候，单纯的使用spring data的接口开发无法满足我们的需求，所以我们需要进行一些复杂的实现
+
+​		核心使用DefaultResultMapper
+
+```java
+
+        // 构建查询请求
+        SearchRequest searchRequest  = new SearchRequest("demo");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.fetchSource(Strings.EMPTY_ARRAY,new String[]{"attachment.content"});
+        searchSourceBuilder.query(QueryBuilders.multiMatchQuery("均线操盘","attachment.content","fileName"));
+        searchSourceBuilder.size(10);
+        searchRequest.source(searchSourceBuilder);
+        try {
+            // 获取查询结果
+            SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+
+            // 创建默认对象转换
+            DefaultResultMapper defaultResultMapper = new DefaultResultMapper();
+            // 创建分页对象
+            PageRequest pageRequest = PageRequest.of(1, 10);
+            Page<Demo> demos = defaultResultMapper.mapResults(search, Demo.class, pageRequest);
+            System.out.println(demos.getContent());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
 
 
 
