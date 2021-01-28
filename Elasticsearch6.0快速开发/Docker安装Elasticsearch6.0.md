@@ -369,8 +369,6 @@ ls
 
 #### 离线安装
 
-
-
 ```shell
 # 下载
 wget https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.7.0/elasticsearch-analysis-ik-6.7.0.zip
@@ -464,7 +462,134 @@ GET _analyze
 
 ```
 
+#### 动态词库配置
 
+​		**注意**：在线安装的词典会在Es的config目录下，而离线安装的话则是在plugins下，默认Elasticsearch会优先从config目录下读取
+
+​		我们需要在ik建立文件config/IKAnalyzer.cfg.xml（可能也已经有了）
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+        <comment>IK Analyzer 扩展配置</comment>
+        <!--用户可以在这里配置自己的扩展字典 -->
+        <entry key="ext_dict">custom/mydict.dic</entry>
+         <!--用户可以在这里配置自己的扩展停止词字典-->
+        <entry key="ext_stopwords">custom/topword.dic</entry>
+        <!--用户可以在这里配置远程扩展字典 -->
+        <!--<entry key="remote_ext_dict">location</entry> -->
+        <!--用户可以在这里配置远程扩展停止词字典-->
+        <!--<entry key="remote_ext_stopwords">http://xxx.com/xxx.dic</entry>-->
+</properties>
+```
+
+​		然后在custom目录下新建词典和停用词
+
+```
+mkdir custom && cd custom
+```
+
+​		词典
+
+```
+BigKang
+牛皮
+黄康牛皮
+```
+
+​		停用词
+
+```
+杀人
+放火
+杀人放火
+```
+
+​		未使用词典前分词结果
+
+```properties
+GET _analyze
+{
+  "analyzer":"ik_max_word",
+  "text":"BigKang牛皮杀人放火"
+}
+{
+  "tokens" : [
+    {
+      "token" : "bigkang",
+      "start_offset" : 0,
+      "end_offset" : 7,
+      "type" : "ENGLISH",
+      "position" : 0
+    },
+    {
+      "token" : "牛皮",
+      "start_offset" : 7,
+      "end_offset" : 9,
+      "type" : "CN_WORD",
+      "position" : 1
+    },
+    {
+      "token" : "杀人放火",
+      "start_offset" : 9,
+      "end_offset" : 13,
+      "type" : "CN_WORD",
+      "position" : 2
+    },
+    {
+      "token" : "杀人",
+      "start_offset" : 9,
+      "end_offset" : 11,
+      "type" : "CN_WORD",
+      "position" : 3
+    },
+    {
+      "token" : "放火",
+      "start_offset" : 11,
+      "end_offset" : 13,
+      "type" : "CN_WORD",
+      "position" : 4
+    }
+  ]
+}
+```
+
+​		建立词典后重启Es,然后我们再来查询
+
+```properties
+GET _analyze
+{
+  "analyzer":"ik_max_word",
+  "text":"BigKang牛皮杀人放火"
+}
+# 返回结果为
+{
+  "tokens" : [
+    {
+      "token" : "bigkang",
+      "start_offset" : 0,
+      "end_offset" : 7,
+      "type" : "ENGLISH",
+      "position" : 0
+    },
+    {
+      "token" : "牛皮",
+      "start_offset" : 7,
+      "end_offset" : 9,
+      "type" : "CN_WORD",
+      "position" : 1
+    }
+  ]
+}
+
+```
+
+​		后面将在SpringBoot中整合远程词典的动态添加删除修改
+
+```
+
+```
 
 
 

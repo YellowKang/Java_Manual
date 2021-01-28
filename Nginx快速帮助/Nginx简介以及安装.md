@@ -23,7 +23,7 @@ mkdir -p /docker/nginx/{conf,logs}
 ​		首先创建父文件，用于引入以及配置
 
 ```sh
-vim /docker/nginx.conf
+vim /docker/nginx/nginx.conf
 ```
 
 ```nginx
@@ -54,7 +54,6 @@ http {
 添加权限,创建引入的配置目录，我们修改时直接修改conf.d下即可
 
 ```sh
-touch  /docker/nginx/nginx.conf
 touch  /docker/nginx/conf/nginx.conf
 chmod 777 /docker/nginx/
 ```
@@ -82,7 +81,7 @@ docker run -d \
 --name nginx-server \
 -v /docker/nginx/nginx.conf:/etc/nginx/nginx.conf \
 -v /docker/nginx/conf/:/etc/nginx/conf.d/ \
--v /docker/nginx/logs:/var/log/nginx nginx
+-v /docker/nginx/logs:/var/log/nginx nginx:1.16
 ```
 
 

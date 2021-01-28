@@ -662,21 +662,378 @@ String settingPath() default "";							// 指定mapping文件的路径，默认�
 
 
 
+## 聚合
+
+### 类型聚合
+
+```java
+        // 构建查询请求，查询demo这个索引
+        SearchRequest searchRequest  = new SearchRequest("demo");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        // 统计类型，并且统计前10个，按照数量进行正排（从小到大）,true为asc，false为desc
+        searchSourceBuilder.aggregation(AggregationBuilders.terms("类型统计").size(10).field("type").order(BucketOrder.count(true)));
+        // 设置Search条数为空不需要查询数据只聚合
+        searchSourceBuilder.size(0);
+        searchRequest.source(searchSourceBuilder);
+        try {
+            // 获取查询结果
+            SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+            // 获取类型统计的Terms
+            Terms terms = search.getAggregations().get("类型统计");
+            for (Terms.Bucket bucket : terms.getBuckets()) {
+                System.out.println(String.format("类型: %s,数量: %s",bucket.getKeyAsString(),bucket.getDocCount()));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+### 时间聚合
+
+```java
+        // 构建查询请求，查询demo这个索引
+        SearchRequest searchRequest  = new SearchRequest("demo");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        // 时间聚合，根据pubTime聚合时间间隔，格式化到天，然后时间间隔为1天，然后根据Key的时间进行正排（从小到大）,并且指定时区
+        searchSourceBuilder.aggregation(AggregationBuilders
+                .dateHistogram("时间聚合")
+                .field("pubTime")
+                .format("yyyy-MM-dd HH:mm:ss")
+                .timeZone(DateTimeZone.forID("Asia/Shanghai"))
+                .dateHistogramInterval(DateHistogramInterval.days(1)
+                )
+        .order(BucketOrder.key(true)));
+        // 设置Search条数为空不需要查询数据只聚合
+        searchSourceBuilder.size(0);
+        searchRequest.source(searchSourceBuilder);
+        try {
+            // 获取查询结果
+            SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+            // 获取时间间隔聚合的Histogram
+            Histogram histogram = search.getAggregations().get("时间聚合");
+            for (Histogram.Bucket bucket : histogram.getBuckets()) {
+                System.out.println(String.format("时间: %s,数量: %s",bucket.getKeyAsString(),bucket.getDocCount()));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+### 多重桶聚合
+
+​		我们根据类型进行聚合，然后根据类型再将每个类型的时间进行聚合，方式如下
+
+```java
+        // 构建查询请求，查询demo这个索引
+        SearchRequest searchRequest  = new SearchRequest("demo");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+
+        // 统计类型聚合，并且统计前10个，按照数量进行正排（从小到大）,true为asc，false为desc
+        TermsAggregationBuilder termsAgg = AggregationBuilders
+                .terms("类型聚合")
+                .size(10)
+                .field("type")
+                .order(BucketOrder.count(true));
+
+        // 时间聚合，根据pubTime聚合时间间隔，格式化到月，然后时间间隔为1月，然后根据Key的时间进行正排（从小到大）,并且指定时区
+        DateHistogramAggregationBuilder dateHistogram = AggregationBuilders
+                .dateHistogram("时间聚合")
+                .field("pubTime")
+                .format("yyyy-MM")
+                .timeZone(DateTimeZone.forID("Asia/Shanghai"))
+                .dateHistogramInterval(new DateHistogramInterval("1M"))
+                .order(BucketOrder.key(true));
+
+        // 类型聚合后的桶在进行时间聚合
+        searchSourceBuilder.aggregation(termsAgg.subAggregation(dateHistogram));
+        // 设置Search条数为空不需要查询数据只聚合
+        searchSourceBuilder.size(0);
+        searchRequest.source(searchSourceBuilder);
+        try {
+            // 获取查询结果
+            SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+            // 首先第一层获取类型聚合
+            Terms terms = search.getAggregations().get("类型聚合");
+            // 遍历类型的桶
+            for (Terms.Bucket termsBucket : terms.getBuckets()) {
+                System.out.println(String.format("类型: %s,数量: %s",termsBucket.getKeyAsString(),termsBucket.getDocCount()));
+                // 从桶中获取时间聚合
+                Histogram histogram = termsBucket.getAggregations().get("时间聚合");
+                // 再从时间聚合中遍历桶
+                for (Histogram.Bucket histogramBucket : histogram.getBuckets()) {
+                    System.out.println(String.format("类型: %s,时间: %s,数量: %s",termsBucket.getKeyAsString(),histogramBucket.getKeyAsString(),histogramBucket.getDocCount()));
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+```
+
+
+
 ## 删除
 
 
 
 ## 修改
 
+# 整合动态Ik词典
+
+​		**自定义字典控制器**
+
+```java
+package com.topcom.test.es.controller;
+
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.*;
+
+import javax.annotation.PostConstruct;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+/**
+ * @Author BigKang
+ * @Date 2021/1/28 1:58 下午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize 字典控制器
+ */
+@RestController
+public class DictController {
+
+    /**
+     * 最后修改时间
+     */
+    private Date lastModified = new Date();
+
+    /**
+     * 停用词最后修改时间
+     */
+    private Date stopLastModified = new Date();
+
+    /**
+     * 分词词典表
+     */
+    private List<String> dictTable = new ArrayList<>();
+
+    /**
+     * 停用词词典表
+     */
+    private List<String> stopDictTable = new ArrayList<>();
+
+
+    /**
+     * 初始化自定字典，也可以从数据库读取然后进行加载
+     */
+    @PostConstruct
+    public void init() {
+        dictTable.add("aaa");
+        //dictTable.add("盖伦大宝剑");
+
+        stopDictTable.add("枪支");
+        stopDictTable.add("仿真枪");
+    }
+
+    /**
+     * 添加词典
+     * @param dict 词典
+     * @param stop 是否停用词
+     * @return
+     */
+    @PostMapping("addDict")
+    public boolean addDict(String dict,Boolean stop) {
+        // 判断是否存在，如果不存在则添加
+        if (dict != null && dict.trim().length() > 0) {
+            // 如果不是停用词则添加到词典
+            if(stop == null || !stop && !dictTable.contains(dict)){
+                dictTable.add(dict);
+                lastModified = new Date();
+                return true;
+            }else if(stop && !stopDictTable.contains(dict)){
+                stopDictTable.add(dict);
+                stopLastModified = new Date();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 删除词典
+     * @param dict 词典
+     * @param stop 是否停用词
+     * @return
+     */
+    @DeleteMapping("delDict")
+    public boolean delDict(String dict,Boolean stop) {
+        // 判断是否存在，如果不存在则添加
+        if (dict != null && dict.trim().length() > 0) {
+            // 如果不是停用词则添加到词典
+            if(stop == null || !stop && dictTable.contains(dict)){
+                dictTable.remove(dict);
+                lastModified = new Date();
+                return true;
+            }else if(stop && stopDictTable.contains(dict)){
+                stopDictTable.remove(dict);
+                stopLastModified = new Date();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 获取字典
+     * @param httpServletResponse
+     */
+    @GetMapping("getCustomDict")
+    public void getCustomDict(HttpServletResponse httpServletResponse) throws IOException {
+        getDict(null,httpServletResponse);
+        httpServletResponse.flushBuffer();
+    }
+
+    /**
+     * 获取停用字典
+     * @param httpServletResponse
+     */
+    @GetMapping("getCustomStopDict")
+    public void getCustomStopDict(HttpServletResponse httpServletResponse) throws IOException {
+        getDict(true,httpServletResponse);
+        httpServletResponse.flushBuffer();
+    }
+
+    /**
+     * 获取字典
+     * @param stop
+     * @param httpServletResponse
+     */
+    public void getDict(Boolean stop,HttpServletResponse httpServletResponse) {
+        Long time = null;
+        String eTag = null;
+        List<String> dictTable = null;
+        if(stop == null || !stop){
+            time = lastModified.getTime();
+            dictTable = this.dictTable;
+            eTag = String.valueOf(this.dictTable.hashCode()) + "-" +String.valueOf(this.dictTable.size());
+        }else {
+            time = stopLastModified.getTime();
+            dictTable = this.stopDictTable;
+            eTag = String.valueOf(this.stopDictTable.hashCode()) + "-" +String.valueOf(this.stopDictTable.size());
+        }
+        httpServletResponse.setDateHeader("Last-Modified",time);
+        httpServletResponse.setHeader("ETag", eTag);
+        httpServletResponse.setContentType(MediaType.APPLICATION_OCTET_STREAM_VALUE);
+        try (OutputStream outputStream = httpServletResponse.getOutputStream();){
+            StringBuilder str = new StringBuilder();
+            for (String dict : dictTable) {
+                str.append(dict);
+                str.append("\n");
+            }
+            outputStream.write(str.toString().getBytes("utf-8"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+}
+```
+
+​		部署完毕后我们需要去配置一下这个地址
+
+```
+（分词词典）
+添加词典：“APP地址”/addDict?dict=核心&stop=true
+删除词典：“APP地址”/delDict?dict=禁止&stop=false
+获取词典：“APP地址”/getCustomDict
+获取停用词典：“APP地址”/getCustomStopDict
+
+
+dict 参数表示词典的词
+stop 表示是否停用词，停用词为True，空表示核心词典
+```
+
+​		修改IK配置
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+				.......
+  			添加如下
+  
+        <!--用户可以在这里配置远程扩展字典 -->
+        <entry key="remote_ext_dict">http://124.71.9.101:8080/getCustomDict</entry>
+        <!--用户可以在这里配置远程扩展停止词字典-->
+        <entry key="remote_ext_stopwords">http://124.71.9.101:8080/getCustomStopDict</entry>
+</properties>
+```
+
+​		重启Es查看日志即可,看到加载词典即可
+
+```verilog
+[2021-01-28T09:48:40,407][INFO ][o.w.a.d.Monitor          ] [elasticsearch] try load config from /usr/share/elasticsearch/config/analysis-ik/IKAnalyzer.cfg.xml
+[2021-01-28T09:48:40,522][INFO ][o.w.a.d.Monitor          ] [elasticsearch] [Dict Loading] /usr/share/elasticsearch/config/analysis-ik/custom/mydict.dic
+[2021-01-28T09:48:40,523][INFO ][o.w.a.d.Monitor          ] [elasticsearch] [Dict Loading] http://124.71.9.101:8080/getCustomDict
+[2021-01-28T09:48:40,531][INFO ][o.w.a.d.Monitor          ] [elasticsearch] aaa
+[2021-01-28T09:48:40,532][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 黄康
+[2021-01-28T09:48:40,532][INFO ][o.w.a.d.Monitor          ] [elasticsearch] [Dict Loading] http://124.71.9.101:8080/getCustomStopDict
+[2021-01-28T09:48:40,541][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 枪支
+[2021-01-28T09:48:40,542][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 仿真枪
+[2021-01-28T09:48:40,542][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 重新加载词典完毕...
+```
+
+​		我们新增一个停用词测试即可发现Es会刷新词典，1分钟左右间隔扫描一次没有修改则不会刷新词典
+
+```verilog
+[2021-01-28T09:59:40,238][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 重新加载词典...
+[2021-01-28T09:59:40,238][INFO ][o.w.a.d.Monitor          ] [elasticsearch] try load config from /usr/share/elasticsearch/config/analysis-ik/IKAnalyzer.cfg.xml
+[2021-01-28T09:59:40,341][INFO ][o.w.a.d.Monitor          ] [elasticsearch] [Dict Loading] /usr/share/elasticsearch/config/analysis-ik/custom/mydict.dic
+[2021-01-28T09:59:40,342][INFO ][o.w.a.d.Monitor          ] [elasticsearch] [Dict Loading] http://124.71.9.101:8080/getCustomDict
+[2021-01-28T09:59:40,353][INFO ][o.w.a.d.Monitor          ] [elasticsearch] aaa
+[2021-01-28T09:59:40,353][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 黄康
+[2021-01-28T09:59:40,353][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 盖伦大宝剑
+[2021-01-28T09:59:40,354][INFO ][o.w.a.d.Monitor          ] [elasticsearch] [Dict Loading] http://124.71.9.101:8080/getCustomStopDict
+[2021-01-28T09:59:40,363][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 枪支
+[2021-01-28T09:59:40,363][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 仿真枪
+[2021-01-28T09:59:40,363][INFO ][o.w.a.d.Monitor          ] [elasticsearch] 重新加载词典完毕...
+```
+
+
+
 # 使用Rest连接对象转换使用SpringData
 
 ​		有时候我们经常会使用原生的查询去查询Es，查询出来以后我们又想将它转为SpringData的对象那么我们可以使用如下方式。
 
+​		在我们很多的时候，单纯的使用spring data的接口开发无法满足我们的需求，所以我们需要进行一些复杂的实现
+
+​		核心使用DefaultResultMapper
+
+```java
+        // 构建查询请求
+        SearchRequest searchRequest  = new SearchRequest("demo");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.fetchSource(Strings.EMPTY_ARRAY,new String[]{"attachment.content"});
+        searchSourceBuilder.query(QueryBuilders.multiMatchQuery("均线操盘","attachment.content","fileName"));
+        searchSourceBuilder.size(10);
+        searchRequest.source(searchSourceBuilder);
+        try {
+            // 获取查询结果
+            SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
+
+            // 创建默认对象转换
+            DefaultResultMapper defaultResultMapper = new DefaultResultMapper();
+            // 创建分页对象
+            PageRequest pageRequest = PageRequest.of(1, 10);
+            Page<Demo> demos = defaultResultMapper.mapResults(search, Demo.class, pageRequest);
+            System.out.println(demos.getContent());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 ```
-
-```
-
-
 
 # 整合文件搜索
 
@@ -790,38 +1147,6 @@ spring:
         RestHighLevelClient restHighLevelClient = new RestHighLevelClient(builder);
         ElasticsearchRestTemplate elasticsearchRestTemplate = new ElasticsearchRestTemplate(restHighLevelClient);
 
-```
-
-
-
-# 条件构造器
-
-​		在我们很多的时候，单纯的使用spring data的接口开发无法满足我们的需求，所以我们需要进行一些复杂的实现
-
-​		核心使用DefaultResultMapper
-
-```java
-
-        // 构建查询请求
-        SearchRequest searchRequest  = new SearchRequest("demo");
-        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-        searchSourceBuilder.fetchSource(Strings.EMPTY_ARRAY,new String[]{"attachment.content"});
-        searchSourceBuilder.query(QueryBuilders.multiMatchQuery("均线操盘","attachment.content","fileName"));
-        searchSourceBuilder.size(10);
-        searchRequest.source(searchSourceBuilder);
-        try {
-            // 获取查询结果
-            SearchResponse search = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
-
-            // 创建默认对象转换
-            DefaultResultMapper defaultResultMapper = new DefaultResultMapper();
-            // 创建分页对象
-            PageRequest pageRequest = PageRequest.of(1, 10);
-            Page<Demo> demos = defaultResultMapper.mapResults(search, Demo.class, pageRequest);
-            System.out.println(demos.getContent());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
 ```
 
 
