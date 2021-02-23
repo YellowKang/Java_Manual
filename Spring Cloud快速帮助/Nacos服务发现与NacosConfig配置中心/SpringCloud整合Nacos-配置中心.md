@@ -25,36 +25,52 @@ server.port=8888
 
 
 
-# 注意！nacos已经毕业新版依赖为
+# 注意！nacos已经毕业（新版依赖）
 
-这里采用nacos服务端1.1.0   + Springboot 2.1.6 + Springcloud Greenwich.SR2
+​		新版本依赖如下
 
 ```xml
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.3.2.RELEASE</version>
+        <relativePath/>
+    </parent>
+    <properties>
+        <java.version>1.8</java.version>
+        <spring-cloud.version>Hoxton.SR8</spring-cloud.version>
+        <spring-cloud-alibaba.version>2.2.5.RELEASE</spring-cloud-alibaba.version>
+    </properties>
     <dependencies>
+        <!-- SpringWeb依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+        <!-- SpringBoot测试依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
 
-       <dependency>
+        <!-- Nacos配置中心 -->
+        <dependency>
             <groupId>com.alibaba.cloud</groupId>
-            <artifactId>spring-cloud-alibaba-nacos-config</artifactId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
 
     </dependencies>
 
     <dependencyManagement>
         <dependencies>
+            <!-- 定义SpringCloud版本依赖 -->
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
@@ -62,11 +78,12 @@ server.port=8888
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- https://mvnrepository.com/artifact/com.alibaba.cloud/spring-cloud-alibaba-dependencies -->
+
+            <!-- 定义SpringCloudAlibaba版本依赖 -->
             <dependency>
                 <groupId>com.alibaba.cloud</groupId>
                 <artifactId>spring-cloud-alibaba-dependencies</artifactId>
-                <version>2.1.0.RELEASE</version>
+                <version>${spring-cloud-alibaba.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -235,3 +252,73 @@ spring:
 ![](https://blog-kang.oss-cn-beijing.aliyuncs.com/UTOOLS1566813060405.png)
 
 这样就可以了
+
+# 配置文件概览
+
+
+
+```properties
+spring:
+  application:
+    name: TestCloud
+  cloud:
+    nacos:
+      server-addr: 124.71.9.101:8848
+      config:
+        # 配置文件DataID前缀，引用${spring.application.name}
+        prefix: ${spring.application.name}
+        # Server地址,默认引用${spring.cloud.nacos.server-addr}
+        server-addr: ${spring.cloud.nacos.server-addr}
+        # nacos的DataID后缀
+        file-extension: yml
+        # 刷新配置是否开启（默认开启）
+        refresh-enabled: true
+        # 扩展配置,List可以配置多个
+        extension-configs:
+          -
+            # 配置文件名（DataID）
+            dataId: TestCloud-dev.yaml
+            # 分组
+            group: DEFAULT_GROUP
+            # 是否刷新
+            refresh: true
+          -
+            dataId: TestCloud-dev2.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+        # 共享配置，List可以配置多个
+        shared-configs:
+          -
+            dataId: TestCloud-dev.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+          -
+            dataId: TestCloud-dev2.yaml
+            group: DEFAULT_GROUP
+            refresh: true
+```
+
+# 动态Properties
+
+​		编写配置类
+
+```java
+@Data
+@Component
+@ConfigurationProperties(prefix = "test")
+public class TestProperties {
+
+    private String name;
+
+    private Integer age;
+}
+```
+
+​		nacos写入如下yml，即可动态刷新
+
+```
+test:
+  name: bigkang212121
+  age: 15
+```
+

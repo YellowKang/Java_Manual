@@ -1,16 +1,20 @@
-# 下载镜像
+# 简单单机快速启动
+
+## 下载镜像
 
 ```java
 docker pull docker.io/mongo:latest
 ```
 
-# 运行容器	
+## 运行容器	
 
 ```java
 docker run --name mongo -p 27017:27017 -d docker.io/mongo:latest --auth
 ```
 
-## 生产环境运行
+# 生产环境运行
+
+## 不使用配置文件启动
 
 ```sh
 #首先创建文件夹用于挂载目录
@@ -28,7 +32,7 @@ docker.io/mongo:latest \
 --auth
 ```
 
-## 自定义配置文件运行
+## 自定义配置文件启动
 
 ```sh
 #首先创建文件夹用于挂载目录
@@ -72,34 +76,28 @@ exit
 
 # 给数据库创建用户
 
-首先创建数据库，如果有则选中如果没有则创建
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;首先创建数据库，如果有则选中如果没有则创建
 
-```sql
+```sh
 use admin
 ```
 
-输入admin数据库用户名密码然后创建用户
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;输入admin数据库用户名密码然后创建用户
 
-user为用户名，pwd为用户密码，role为角色，db为数据库
-
-
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;user为用户名，pwd为用户密码，role为角色，db为数据库
 
 ```sql
 use nlp
 db.createUser({user:"nlp",pwd:"nlp",roles:[{role:'dbOwner',db:'nlp'}]})
 ```
 
-然后需要认证登录
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;然后需要认证登录
 
 ```sql
-use test
-db.auth('kang','kang')
+use nlp
+db.auth('nlp','nlp')
 
 db.createUser({user:"kang1",pwd:"bigkang",roles:[{role:'readWriteAnyDatabase',db:'test'}]})
-
-db.createUser({user:"minexhb1",pwd:"minexhb123",roles:[{role:'dbOwner',db:'minexhb-db'}]})
-
-db.createUser({user:"minexhb",pwd:"minexhb123",roles:[{role:'dbOwner',db:'minexhb-db'}]})
 ```
 
 ## 角色权限
@@ -130,15 +128,15 @@ root：只在admin数据库中可用。超级账号，超级权限
 
 # 认证方式修改（一般不修改，仅限制3.6以下！！！！否则启动失败并且需要修复数据库）
 
-3.0以后mongo默认都是5的认证方式，我们可以修改
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3.0以后mongo默认都是5的认证方式，我们可以修改
 
-查看认证方式
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;查看认证方式
 
 ```
 db.system.version.findOne({"_id":"authSchema"})
 ```
 
-修改认证方式
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;修改认证方式
 
 ```
 db.system.version.update({'_id':'authSchema'},{$set:{'currentVersion':3}})
@@ -185,6 +183,20 @@ mongodb 集群搭建的方式有三种：
 3. 分片（Sharding）模式。
 
 > 其中，第一种方式基本没什么意义，官方也不推荐这种方式搭建。另外两种分别就是副本集和分片的方式。今天介绍副本集的方式搭建mongodb高可用集群
+
+## 简介以及概述
+
+​		首先我们先来了解一下Mongo集群的概念，Mongo集群有3个主要组件
+
+​				ConfigServer：在集群中扮演存储整个集群的配置信息，负责配置存储，如果需要高可用的ConfigServer那么需要3个节点。
+
+​				Shard：分片，存储真实的数据，每一个Shard分片都负责存储集群中的数据，例如一个集群有3个分片，然后我们定义分片规则为哈希，那么整个集群的数据就会（分割）到3个分片中的某一个分片，那么分片是特别重要的，如果集群中的一个分片全部崩溃了那么集群将不可用，所以我们要保证集群的高可用，那么我们需要一个分片配置3个节点，2个副本集一个仲裁节点，仲裁节点类似于Redis的哨兵模式，如果发现主节点挂了那么让另一个副本集进行数据存储。
+
+​				Mongos：Mongos我们可以理解为整个集群的入口，类似于Kafka的Broker代理，也就是客户端，我们通过客户端连接集群进行查询。
+
+​		下面是MongoDB的官方集群架构图，我们看到Mongos是一个路由，他们的信息都存储在ConfigServer中，我们通过Mongos进行添加，然后根据条件将数据进行分片到分片的副本集中
+
+![](https://docs.mongodb.com/manual/_images/sharded-cluster-production-architecture.bakedsvg.svg)
 
 ​	
 
@@ -449,23 +461,9 @@ for (i = 1; i <= 1000; i=i+1){db.order.insert({'price': 1})}
 
 ## Mongo分片集群高可用+权限（推荐）
 
-### 简介以及概述
-
-​		首先我们先来了解一下Mongo集群的概念，Mongo集群有3个主要组件
-
-​				ConfigServer：在集群中扮演存储整个集群的配置信息，负责配置存储，如果需要高可用的ConfigServer那么需要3个节点。
-
-​				Shard：分片，存储真实的数据，每一个Shard分片都负责存储集群中的数据，例如一个集群有3个分片，然后我们定义分片规则为哈希，那么整个集群的数据就会（分割）成3份分布在不同的分片中，那么分片是特别重要的，如果集群中的一个分片全部崩溃了那么集群将不可用，所以我们要保证集群的高可用，那么我们需要一个分片配置3个节点，2个副本集一个仲裁节点，仲裁节点类似于Redis的哨兵模式，如果发现主节点挂了那么让另一个副本集进行数据存储。
-
-​				Mongos：Mongos我们可以理解为整个集群的入口，类似于Kafka的Broker代理，也就是客户端，我们通过客户端连接集群进行查询。
-
-​		下面是MongoDB的官方集群架构图，我们看到Mongos是一个路由，他们的信息都存储在ConfigServer中，我们通过Mongos进行添加，然后根据条件将数据进行分片到分片的副本集中
-
-![](https://docs.mongodb.com/manual/_images/sharded-cluster-production-architecture.bakedsvg.svg)
 
 
-
-那么我们先来总结一下我们搭建一个集群需要多少个Mongo
+那么我们先来总结一下我们搭建一个高可用集群需要多少个Mongo
 
 mongos 				： 	3台
 
@@ -1568,3 +1566,45 @@ docker ps -a| grep mongo | grep -v grep| awk '{print "docker stop "$1}'|sh
 docker ps -a| grep mongo | grep -v grep| awk '{print "docker rm "$1}'|sh
 ```
 
+# Mongo配置文件详解
+
+​		配置文件过多官方网站地址：[点击进入](https://docs.mongodb.com/v4.0/reference/configuration-options/#security-options)
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;系统日志配置
+
+```properties
+systemLog:
+   verbosity: <int>
+   quiet: <boolean>
+   traceAllExceptions: <boolean>
+   syslogFacility: <string>
+   path: <string>
+   logAppend: <boolean>
+   logRotate: <string>
+   destination: <string>
+   timeStampFormat: <string>
+   component:
+      accessControl:
+         verbosity: <int>
+      command:
+         verbosity: <int>
+
+# systemLog.verbosity
+		日志级别int类型，范围为0-5,默认0
+# systemLog.quiet
+		日志停止退出，默认false，设置为true之后将禁用日志
+# systemLog.traceAllExceptions
+		打印详细信息以进行调试。用于与支持相关的故障排除的其他日志记录。默认false
+# systemLog.syslogFacility
+		将消息记录到syslog时使用的工具级别。操作系统的syslog实现必须支持您指定的值。要使用此选项，您必须设置systemLog.destination为syslog，默认值user
+# systemLog.path
+		mongod或mongos应将所有诊断日志信息发送到的日志文件的路径,而不是标准输出或主机的 syslog。MongoDB在指定路径创建日志文件。Linux软件包的初始化脚本不希望systemLog.path更改默认值。如果您使用Linux软件包并进行更改systemLog.path，则必须使用自己的初始化脚本并禁用内置脚本。
+# systemLog.logAppend
+		为true时将新条目追加到现有日志文件的末尾。如果为false，将备份现有日志并创建一个新文件，默认false。
+# systemLog.logRotate
+		默认为rename
+		rename: 重命名日志文件。
+		reopen: 按照典型的Linux / Unix日志轮换行为，关闭并重新打开日志文件。使用reopen使用的Linux / Unix logrotate的工具，以避免日志丢失时。如果指定reopen，则还必须设置systemLog.logAppend为true。
+# systemLog.destination
+		
+```

@@ -600,6 +600,92 @@ public class MongoPointUtil {
 
 ```
 
+​		再编写一个工具类用于生成查询条件
+
+```java
+
+import com.mongodb.BasicDBObject;
+import com.topcom.emergency.vo.MongoPoint;
+import org.springframework.data.mongodb.core.query.BasicQuery;
+import org.springframework.data.mongodb.core.query.Query;
+
+/**
+ * @Author BigKang
+ * @Date 2020/10/30 11:07 上午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize Mongo查询工具类
+ */
+public class MongoQueryUtil {
+
+    /**
+     * 赤道半径
+     */
+    private static double EARTH_RADIUS = 6378.137;
+
+    /**
+     * Mongo near 地理位置查询
+     *
+     * @param field      地理位置字段
+     * @param mongoPoint Mongo地图点
+     * @param radius     半径范围，默认米
+     * @return
+     */
+    public static Query near(String field, MongoPoint mongoPoint, Integer radius) {
+        BasicDBObject basicDBObject = new BasicDBObject();
+        basicDBObject.put(field,
+                new BasicDBObject(
+                        "$near", new BasicDBObject()
+                        .append("$geometry", new BasicDBObject()
+                                .append("type", "Point")
+                                .append("coordinates", mongoPoint.getCoordinates()))
+                        .append("$maxDistance", radius)));
+        Query query = new BasicQuery(basicDBObject);
+        return query;
+    }
+
+    private static double rad(double d) {
+        return d * Math.PI / 180.0;
+    }
+
+    public static double GetDistance(MongoPoint origin, MongoPoint destination) {
+        double lng1 = origin.getCoordinates()[0];
+        double lat1 = origin.getCoordinates()[1];
+        double lng2 = destination.getCoordinates()[0];
+        double lat2 = destination.getCoordinates()[1];
+        double EARTH_RADIUS = 6378137;
+        double radLat1 = rad(lat1);
+        double radLat2 = rad(lat2);
+        double a = radLat1 - radLat2;
+        double b = rad(lng1) - rad(lng2);
+        double s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a / 2), 2)
+                + Math.cos(radLat1) * Math.cos(radLat2) * Math.pow(Math.sin(b / 2), 2)));
+        s = s * EARTH_RADIUS;
+        s = Math.round(s * 10000) / 10000;
+        return s;
+    }
+
+    /**
+     * 计算两个经纬度之间的间距
+     *
+     * @param origin
+     * @param destination
+     * @return
+     */
+    public static double getDistance(MongoPoint origin, MongoPoint destination) {
+        double a = origin.getCoordinates()[1] - destination.getCoordinates()[1];
+        double b = origin.getCoordinates()[0] - destination.getCoordinates()[0];
+        double s = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin(a / 2), 2)
+                + Math.cos(origin.getCoordinates()[1]) * Math.cos(destination.getCoordinates()[1])
+                * Math.pow(Math.sin(b / 2), 2)));
+        s = s * EARTH_RADIUS;
+        // 保留两位小数
+        s = Math.round(s * 100d) / 100d;
+        s = s * 1000;
+        return s;
+    }
+}
+```
+
 ​		然后我们编写实体
 
 ```java

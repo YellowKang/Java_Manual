@@ -355,7 +355,6 @@ elasticsearch-plugin install https://github.com/medcl/elasticsearch-analysis-ik/
 
 # 或者加速下载（第三方加速）
 elasticsearch-plugin install https://github.91chifun.workers.dev//https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.7.0/elasticsearch-analysis-ik-6.7.0.zip
-
 ```
 
 等待下载完成然后cd，然后查看是否有ik分词器
@@ -629,6 +628,9 @@ wget install https://github.com/medcl/elasticsearch-analysis-pinyin/releases/dow
 mkdir ./pinyin
 unzip elasticsearch-analysis-pinyin-6.7.0.zip -d ./pinyin/
 
+# 复制到容器内
+docker cp pinyin elasticsearch:/usr/share/elasticsearch/plugins/
+
 # 重启es节点
 docker restart elasticsearch
 ```
@@ -636,10 +638,13 @@ docker restart elasticsearch
 #### 测试
 
 ```json
+# Curl方式
+curl -X POST -H "Content-Type:application/json" -d "{\"analyzer\":\"pinyin\",\"text\":\"刘德华\"}" http://139.9.70.155:10092/_analyze
+# Kibana方式
 GET _analyze
 {
   "text":"刘德华",
-  "analyzer":"pinyin_analyzer"
+  "analyzer":"pinyin"
 }
 ```
 
@@ -650,13 +655,6 @@ GET _analyze
   "tokens" : [
     {
       "token" : "liu",
-      "start_offset" : 0,
-      "end_offset" : 0,
-      "type" : "word",
-      "position" : 0
-    },
-    {
-      "token" : "liudehua",
       "start_offset" : 0,
       "end_offset" : 0,
       "type" : "word",
@@ -675,9 +673,17 @@ GET _analyze
       "end_offset" : 0,
       "type" : "word",
       "position" : 2
+    },
+    {
+      "token" : "ldh",
+      "start_offset" : 0,
+      "end_offset" : 0,
+      "type" : "word",
+      "position" : 2
     }
   ]
 }
+
 ```
 
 下面我们将拼音以及分词都结合起来进行搜索

@@ -186,58 +186,6 @@ docker run -p 8848:8848 \
 
 然后访问ip:8848/nacos/index.html
 
-## 集群
-
-配置文件参照上方，mysql可以搭建主从或者双主
-
-和单机版一样步骤，但是删除掉-e MODE=standalone,我这里由于测试内存不够，默认启动集群jvm为2g修改为512m，如果内存足够请删除第四行
-
-```sh
-docker run -p 8848:8848 \
---name nacos-node1 \
---privileged=true \
--v /docker/nacos/conf/application.properties:/home/nacos/conf/application.properties \
--v /docker/nacos/conf/docker-startup.sh:/home/nacos/bin/docker-startup.sh \
--d docker.io/nacos/nacos-server:1.0.0
-
-
-docker run -p 8849:8848 \
---name nacos-node2 \
---privileged=true \
--v /docker/nacos/conf/application.properties:/home/nacos/conf/application.properties \
--v /docker/nacos/conf/docker-startup.sh:/home/nacos/bin/docker-startup.sh \
--d docker.io/nacos/nacos-server:1.0.0
-
-
-docker run -p 8850:8848 \
---name nacos-node3 \
---privileged=true \
--v /docker/nacos/conf/application.properties:/home/nacos/conf/application.properties \
--v /docker/nacos/conf/docker-startup.sh:/home/nacos/bin/docker-startup.sh \
--d docker.io/nacos/nacos-server:1.0.0
-```
-
-但是启动之后我们还需要去容器中编辑它的配置文件《差评，每次启动配置文件就没了，不知道最新版有没有解决或者直接配置docker集群》
-
-```sh
-docker exec -it nacos-node1 bash
-cd conf
-vim cluster.conf
-
-这里设置新的集群地址
-例如,一行一个集群地址ip:端口，然后我们就能使用集群了
-
-39.108.158.30:8841
-39.108.158.30:8842
-39.108.158.30:8843
-```
-
-```
-注意事项：
-	1、如果没有添加集群地址则当前的服务不可用
-	2、修改后请将当前的容器提交为新的镜像，否则每次重启集群文件会被刷新掉
-```
-
 # K8s安装Nacos
 
 ​		官网地址：[点击进入](https://nacos.io/zh-cn/docs/use-nacos-with-kubernetes.html)
