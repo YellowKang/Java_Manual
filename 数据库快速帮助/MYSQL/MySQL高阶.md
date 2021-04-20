@@ -1249,13 +1249,11 @@ SELECT * FROM information_schema.INNODB_TRX;
 
 
 
-#### redo log
+#### undo log版本链
 
-​		redo log在操作的时候会将相应的隐式字段记录到redo log中，并且生成为版本链，数据结构类似如下，左侧为执行的语句：
+​		在操作的时候会将相应的隐式字段记录到undo log中，并且生成为版本链，数据结构类似如下，左侧为执行的语句：
 
 ![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1606382271757.png)
-
-​		
 
 #### ReadView
 

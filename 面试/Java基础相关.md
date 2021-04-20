@@ -167,17 +167,15 @@ public HashMap(Map<? extends K, ? extends V> m) {
 }  
 ```
 
-
-
 ### JDK8中对HashMap做了怎样的优化？
 
-   在JDK1.6，JDK1.7中，HashMap采用数组+链表实现 ，而JDK1.8中，HashMap采用数组+链表+红黑树实现，当链表长度超过阈值（8）时，将链表转换为红黑树，这样大大减少了查找时间。
+  		 在JDK1.6，JDK1.7中，HashMap采用数组+链表实现 ，而JDK1.8中，HashMap采用数组+链表+红黑树实现，当链表长度超过阈值（8）时，将链表转换为红黑树，这样大大减少了查找时间。
 
-​	核心重点：1.6,1.7   	数组+链表
+​			核心重点：1.6,1.7   	数组+链表
 
-​			   		1.8 	数组+链表       长度超过8      ----->	转换为红黑树
+​			   						1.8 	数组+链表       长度超过8      ----->	转换为红黑树
 
-
+​			HashMap链表从头插法修改为尾插法
 
 ### HaspMap是怎么进行扩容的？
 
@@ -197,59 +195,17 @@ static final int DEFAULT_INITIAL_CAPACITY = 1 << 4; // aka 16
 
 ​	为了能让 HashMap 存取高效，尽量较少碰撞，Hash 值的范围值-2147483648到2147483648，前后加起来大概40亿的映射空间。用之前还要先做对数组的长度取模运算，这个数组下标的计算方法是“ `(n - 1) & hash` ”。（n代表数组长度）。这也就解释了 HashMap 的长度为什么是2的幂次方。
 
-​	但是通过源码后发现，HashMap的最大长度是10亿左右，并且它的每次扩容是因为计算机底层都是采用二进制存储，在扩容计算时，我们直接进行位移操作即可快速计算，只要每次扩容不停地向左位移一位即可乘2也就是2的N次幂，我感觉更多是考虑到了计算机底层的计算而进行优化，并且它的初始化值是
+​	但是通过源码后发现，HashMap的最大长度是10亿左右，并且它的每次扩容是因为计算机底层都是采用二进制存储，在扩容计算时，我们直接进行位移操作即可快速计算，只要每次扩容不停地向左位移一位即可乘2也就是2的N次幂，我感觉更多是考虑到了计算机底层的计算而进行优化。
 
-### HashMap，HashTable，ConcurrentHashMap的区别？
+​	简单的来说我们使用取模和位运算的效果是一样的，但是位运算的效率更加高效。
 
-​	**HashTable**
 
-​	底层数组+链表实现，无论key还是value都不能为null，线程安全，实现线程安全的方式是在修改数据时锁住-整个HashTable，效率低，ConcurrentHashMap做了相关优化
-
-​	初始size为11，扩容：newsize = olesize*2+1
-
-​	计算index的方法：index = (hash & 0x7FFFFFFF) % tab.length
-
-**HashMap**
-
-底层数组+链表实现，可以存储null键和null值，线程不安全
-
-初始size为16，扩容：newsize = oldsize*2，size一定为2的n次幂
-
-扩容针对整个Map，每次扩容时，原来数组中的元素依次重新计算存放位置，并重新插入
-
-插入元素后才判断该不该扩容，有可能无效扩容（插入后如果扩容，如果没有再次插入，就会产生无效扩容）
-
-当Map中元素总数超过Entry数组的75%，触发扩容操作，为了减少链表长度，元素分配更均匀
-
-计算index方法：index = hash & (tab.length – 1)
-
-**ConcurrentHashMap**
-
-1.6时底层采用分段的数组+链表实现，线程安全
-
-通过把整个Map分为N个Segment，可以提供相同的线程安全，但是效率提升N倍，默认提升16倍。(读操作不加锁，由于HashEntry的value变量是 volatile的，也能保证读取到最新的值。)
-
-1.8版本时采用数组+链表+红黑树
-
-取消segments字段，直接采用`transient volatile HashEntry<K,V> table`保存数据，采用table数组元素作为锁，从而实现了对每一行数据进行加锁，进一步减少并发冲突的概率。 
-
-Hashtable的synchronized是针对整张Hash表的，即每次锁住整张表让线程独占，ConcurrentHashMap允许多个修改操作并发进行，其关键在于使用了锁分离技术有些方法需要跨段，比如size()和containsValue()，它们可能需要锁定整个表而而不仅仅是某个段，这需要按顺序锁定所有段，操作完毕后，又按顺序释放所有段的锁
-
-扩容：段内扩容（段内元素超过该段对应Entry数组长度的75%触发扩容，不会对整个Map进行扩容），插入前检测需不需要扩容，有效避免无效扩容
-
-### 极高并发下HashTable和ConcurrentHashMap哪个性能更好，为什么，如何实现的
-
-​	`ConcurrentHashMap` 的性能仍然保持上升趋势，而 `Hashtable` 的性能则随着争用锁的情况的出现而立即降了下来。 
-
-​	核心：
-
-​		Hashtable使用 ` synchronized` 作为锁，而在高并发情况下疯狂抢锁会损耗性能，ConcurrentHashMap使用锁桶（或段）。 ConcurrentHashMap将hash表分为16个桶（默认值），诸如get,put,remove等常用操作只锁当前需要用到的桶 ，所以他在高并发情况系会比HashTable快很多
 
 ### HashMap在高并发下如果没有处理线程安全会有怎样的安全隐患，具体表现是什么
 
 Hashmap在并发环境下，可能出现的问题：
 
-​	1、多线程put时可能会导致get无限循环，具体表现为CPU使用率100%；  
+​	1、多线程put时可能会导致get无限循环，具体表现为CPU使用率100%（JDK1.7及之前）；  
 
 ​			在HashMap每次put的时候都会检测，他的长度跟负载因子算出的阙值，如果在put的时候原来的Hash表放不下了，那么就会进行扩容， 扩容的长度为两倍，例如16的长度负载因子12，如果达到13那么就扩容到32，如果下次达到24那么就会再次扩容，他扩容的方式就是创建一个新的Hash表将原来的数据存储进去，这个过程就是一个数据的迁移过程，rehash ()的过程，多线程操作就有可能形成循环链表，如果使用get方法就会出现Infinite Loop的情况，在无限循环的过程中会造成cpu占满从而引起卡死，崩溃等等情况
 
@@ -257,13 +213,117 @@ Hashmap在并发环境下，可能出现的问题：
 
 ​			当多个线程同时执行addEntry(hash,key ,value,i)时，如果产生哈希碰撞，导致两个线程得到同样的bucketIndex去存储，就可能会发生元素覆盖丢失的情况 
 
-### HashMap检测到hash冲突后，将元素插入在链表的末尾还是开头
+### HashMap如何结局Hash冲突
+
+​		那么我们知道使用Hash就会无法避免一个问题，Hash冲突，那么HashMap是如何处理HashMap的呢？
+
+​		答案就是链表,HashMap存储数据的Hash表是一个数组，如下transient Node<K,V>[] table
+
+​		那么我们来看一下这个Node里面的属性
+
+```java
+static class Node<K,V> implements Map.Entry<K,V> {
+  	// hash
+    final int hash;
+  	// 键
+    final K key;
+  	// 值
+    V value;
+  	// netx指针
+    Node<K,V> next;
+ 		...... 
+}
+```
+
+​		这个next指针就是用来存储Hash冲突时冲突的数据的，在JDK1.7以及之前都是采用头插法，也就是最新进来的对象放在Hash表的头上，但是在1.8之后更换成了尾插法，也就是最新的数据会放在链表最后面。
+
+### 为什么HashMap链表要从头插更换为尾插
+
+​		在JDK1.7以及之前新来的值会取代原有的值，原有的值就顺推到链表中去，就像上面的例子一样，因为写这个代码的作者认为后来的值被查找的可能性更大一点，提升查找的效率。
+
+​		但是JDK1.8以后更换了尾插，为什么么切换为尾插呢？答案就是扩容时候引起的问题了。
+
+​		我们知道HashMap扩容会进行resize，那么resize之后我们原来Hash表中的数据的位置有可能发生改变，随着位置的改变以后，就可能会导致链表变成一个环形链表，如果这个时候去获取值的时候，不小心在这个Hash位进行查询，那么这个环形链表如果不存在这个Key，则会一直查询无限循环，所以在JDK1.8开始将采用尾插法，不改变原有链表的结构。
+
+​		所以将头插法改变成了尾插法
+
+### SynchronizedMap如何解决线程问题的？
+
+​		示例获取锁HashMap
+
+```java
+        Map<Object, Object> map = Collections.synchronizedMap(new HashMap<>(16));
+```
+
+​		查看内部源码，其实就是在我们的操作方法时加上了synchronized
+
+```java
+    private static class SynchronizedMap<K,V>
+        implements Map<K,V>, Serializable {
+        private static final long serialVersionUID = 1978198479659022715L;
+
+        private final Map<K,V> m;     	// 原始的Map
+        final Object      mutex;        // 锁对象
+
+        SynchronizedMap(Map<K,V> m) {
+            this.m = Objects.requireNonNull(m);
+            mutex = this;
+        }
+
+        SynchronizedMap(Map<K,V> m, Object mutex) {
+            this.m = m;
+            this.mutex = mutex;
+        }
+				....
+        public V put(K key, V value) {
+            synchronized (mutex) {return m.put(key, value);}
+        }
+    		......
+}
+```
+
+### Hashtable如何实现线程安全的？
+
+​		查看源码，HashTable操作时采用synchronized直接同步方法，所以线程安全，并且HashTable无法PUT空的键
+
+```java
+    public synchronized V put(K key, V value) {
+        // Make sure the value is not null
+        if (value == null) {
+            throw new NullPointerException();
+        }
+				......
+		}
+```
+
+### ConcurrentHashMap如何实现线程安全的？
+
+​		在JDK1.7的时候，采用Segment数组+HashEntry组成，而Segment继承了ReentrantLock，不会像 HashTable 那样不管是 put 还是 get 操作都需要做同步处理，理论上 ConcurrentHashMap 支持 CurrencyLevel (Segment 数组数量)的线程并发。每当一个线程占用锁访问一个 Segment 时，不会影响到其他的 Segment。就是说如果容量大小是16他的并发度就是16，可以同时允许16个线程操作16个Segment而且还是线程安全的。
+
+​		在JDK1.8以后则采用CAS + synchronized来保证多线程安全，跟HashMap很像，也把之前的HashEntry改成了Node，但是作用不变，把值和next采用了volatile去修饰，保证了可见性，并且也引入了红黑树，在链表大于一定值的时候会转换（默认是8）。
+
+```properties
+1、根据 key 计算出 hashcode 。
+2、判断是否需要进行初始化。
+3、即为当前 key 定位出的 Node，如果为空表示当前位置可以写入数据，利用 CAS 尝试写入，失败则自旋保证成功。
+4、如果当前位置的 hashcode == MOVED == -1,则需要进行扩容。
+5、如果都不满足，则利用 synchronized 锁写入数据。
+6、如果数量大于 TREEIFY_THRESHOLD 则要转换为红黑树。
+```
+
+​		查询数据的时候使用
+
+### 极高并发下HashTable和ConcurrentHashMap哪个性能更好，为什么，如何实现的
+
+​	`ConcurrentHashMap` 的性能仍然保持上升趋势，而 `Hashtable` 的性能则随着争用锁的情况的出现而立即降了下来。 
+
+​	核心：
+
+​		Hashtable使用 ` synchronized` 作为锁，而在高并发情况下疯狂抢锁会损耗性能，ConcurrentHashMap使用锁桶（或段）。 ConcurrentHashMap将hash表分为16个桶（默认值），诸如get,put,remove等常用操作只锁当前需要用到的桶 ，所以他在高并发情况系会比HashTable快很多。
 
 ## ArrayList
 
 ### ArrayList的初始化以及扩容的实现过程
-
-
 
 ​		ArrayList的初始化他的容器大小时0，因为ArrayList在初始化的时候不会进行容器的初始化
 
@@ -336,6 +396,76 @@ Hashmap在并发环境下，可能出现的问题：
 ​		CGLIB的类似于jdk的动态代理，但是不用提供接口
 
 ## JAVA库相关
+
+### 深拷贝和浅拷贝的区别？
+
+​		浅拷贝---能复制变量，如果对象内还有对象，则只能复制对象的地址
+
+​		深拷贝---能复制变量，也能复制当前对象的 内部对象
+
+​		执行如下代码即可理解
+
+```java
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+class Student implements Cloneable {
+    // 对象引用
+    private Student subj;
+    private String name;
+
+    public Student(String name){
+        this.name = name;
+    }
+
+    /**
+     * 浅拷贝
+     * @return
+     */
+    public Object shallowCopy() {
+        try {
+            return super.clone();
+        } catch (CloneNotSupportedException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 深拷贝
+     * @return
+     */
+    public Student deepCopy() {
+        return new Student(new Student(subj.getName()), name);
+    }
+}
+
+public class TestCopy {
+    public static void main(String[] args) {
+        // 原始对象
+        Student stud = new Student(new Student("Java"), "BigKang");
+        // 浅拷贝对象
+        Student shallowCopy = (Student) stud.shallowCopy();
+        // 深拷贝对象
+        Student deepCopy = stud.deepCopy();
+
+        System.out.println("原始对象: " + stud.getName() + " - " + stud.getSubj());
+        System.out.println("浅拷贝对象: " + shallowCopy.getName() + " - " + shallowCopy.getSubj());
+        System.out.println("深拷贝对象: " + deepCopy.getName() + " - " + deepCopy.getSubj());
+
+        // 修改值
+        stud.getSubj().setName("Python");
+        System.out.println("-----------修改后");
+        System.out.println("原始对象: " + stud.getName() + " - " + stud.getSubj());
+        System.out.println("浅拷贝对象: " + shallowCopy.getName() + " - " + shallowCopy.getSubj());
+        System.out.println("深拷贝对象: " + deepCopy.getName() + " - " + deepCopy.getSubj());
+    }
+}
+```
 
 ### Java序列化的方式。
 
@@ -468,3 +598,13 @@ false
 ​		我们就知道了这个前面127和128的两组对象为什么不等于了，其实我们从127进行取出的时候那么他会从缓存中直接取出，这个缓存是一个Integer对象数组，那么我们两次从127取出，就相当于把这个缓存中的内存地址，给到了两个变量进行引用，所以他们两个的内存地址其实是一个对象，所以使用==他们就会为true，但是我们使用128进行获取的时候超过了这个范围，那么就会重新new一个对象，导致初始化了两个内存空间，他们的内存地址不一致所以为false。
 
 ​		同样有缓存的包装类还有Long,Short,Byte,整形的基础包装类都会有一个缓存并且值都为-128到127
+
+## 讲讲ThreadLocal吧
+
+​		ThreadLocal的作用主要是做数据隔离，填充的数据只属于当前线程，变量的数据对别的线程而言是相对隔离的，在多线程环境下，如何防止自己的变量被其它线程篡改。
+
+​		Spring采用Threadlocal的方式，来保证单个线程中的数据库操作使用的是同一个数据库连接，同时，采用这种方式可以使业务层使用事务时不需要感知并管理connection对象，通过传播级别，巧妙地管理多个事务配置之间的切换，挂起和恢复。Spring框架里面就是用的ThreadLocal来实现这种隔离，主要是在`TransactionSynchronizationManager`这个类里面。
+
+​		简单的来说ThreadLocal可以帮助我们存储数据，并且隔离每个线程的数据。
+
+ThreadLocal

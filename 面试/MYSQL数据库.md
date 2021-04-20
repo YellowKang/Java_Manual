@@ -260,11 +260,64 @@ id		name  	type		email
 
 ​					注意：尽量不要再查询条件中使用函数进行计算
 
-### MySQL是如何通过MVCC实现事务的
+### MySQL是如何通过MVCC实现事务的隔离级别
 
-​		
+​		首先是通过我们的隐式字段+Undo Log版本链+读视图实现隔离级别的。
 
+​		每行记录除了我们自定义的字段外，还有数据库隐式定义的，也就是除了我们开启的事务的修改的一些数据，还会给我们记录一些隐式字段，有如下：
 
+- ​			DB_TRX_ID
+
+​				最近修改(修改/插入)事务ID，记录创建这条记录/最后一次修改该记录的事务ID，操作ID
+
+- ​			DB_ROW_ID
+
+​				隐含的自增ID（隐藏主键），如果数据表没有主键，InnoDB会自动以DB_ROW_ID产生一个聚簇索引
+
+- ​			DB_ROLL_PTR
+
+​				回滚指针，指向这条记录的上一个版本（存储于rollback segment里）
+
+- ​			删除标记
+
+​				记录被更新或删除并不代表真的删除，而是删除标记变了
+
+​		例如我们修改了一个name，那么对应的隐式字段如下：
+
+​				类似于如下
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1606381533774.png)				这只是单条的隐式字段后续我们会写入到redo log中，并且生成相应的回滚语句。
+
+在操作的时候会将相应的隐式字段记录到undo log中，并且生成为版本链，数据结构类似如下，左侧为执行的语句：
+
+<img src="https://blog-kang.oss-cn-beijing.aliyuncs.com/1606382271757.png" style="zoom:50%;" />
+
+​		Read View我们听名字就可以知道他是读取一个读视图，那么这个读视图是干啥的呢？这个读视图其实就是主要用于记录我们的事务ID，通过不同区分的事务ID进行可见性判断。
+
+​		Read View遵循一个可见性算法，主要是将要被修改的数据的最新记录中的DB_TRX_ID（即当前事务ID）取出来，与系统当前其他活跃事务的ID去对比（由Read View维护），如果DB_TRX_ID跟Read View的属性做了某些比较，不符合可见性，那就通过DB_ROLL_PTR回滚指针去取出Undo Log中的DB_TRX_ID再比较，即遍历链表的DB_TRX_ID（从链首到链尾，即从最近的一次修改查起），直到找到满足特定条件的DB_TRX_ID, 那么这个DB_TRX_ID所在的旧记录就是当前事务能看见的最新老版本。
+
+​		下面是针对代码解析
+
+```c++
+# id < m_up_limit_id 判断当前的版本链ID是不是小于活跃的最小ID，如果小于最小活跃事务ID表示事务已经提交不是活跃事务
+# id == m_creator_trx_id 表示当前版本链ID是不是等于当前事务的ID如果是返回true表示可见
+if (id < m_up_limit_id || id == m_creator_trx id){
+	return(true)
+}
+
+# 检查id完整性
+check_trx_id_sanity(id, name);
+
+# 判断如果当前版本链ID大于最大ID则直接返回，不可见
+if(id >= m_low_limit_id){
+	return(false);
+# 判断如果没有活跃ID，表示没有其他事务，表示直接可见
+}else if (m_ids.empty()){
+	return(true);
+}
+```
+
+​		对于小于等于RC的隔离级别，每次SQL语句结束后都会调用read_view_close_for_mysql将read view从事务中删除，这样在下一个SQL语句启动时，会判断trx->read_view为NULL，从而重新申请。对于RR隔离级别，则SQL语句结束后不会删除read_view，从而下一个SQL语句时，使用上次申请的，这样保证事务中的read view都一样，从而实现可重复读的隔离级别。				
 
 ### 并发事务修改会造成哪些影响
 

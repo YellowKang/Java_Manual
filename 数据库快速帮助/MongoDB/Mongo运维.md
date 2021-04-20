@@ -61,7 +61,7 @@ mongodump --port 27018 -u minexhb -p minexhb123 -d minexhb-db -o  /download/xhb
 选择需要导入的数据库
 
 ```
-mongorestore -h 39.108.168.33 --port 27017 -u minexhb -p minexhb123 -d minexhb-db --dir /Users/bigkang/Documents
+mongorestore -h 39.108.168.33 --port 27017 -u minexhb -p minexhb123 -d minexhb-db --dir /Users/bigkang/Documents	
 
 mongorestore  -h 192.168.1.11 --port 20168 -u minexhb -p minexhb123 -d minexhb-db --dir /Users/bigkang/Documents/Data/xhb/minexhb-db
 ```

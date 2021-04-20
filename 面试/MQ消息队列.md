@@ -90,3 +90,13 @@
 		# 将幂等性开启，幂等性会在发送消息的时候附带上一个序列ID，如果出现了消息重试等操作，根据这个序列ID我们可以防止消息的重复
 ```
 
+## 聊一聊Kafka的ISR
+
+​		afka在启动的时候会开启两个与ISR相关的定时任务，名称分别为“isr-expiration"和”isr-change-propagation".。isr-expiration任务会周期性的检测每个分区是否需要缩减其ISR集合。这个周期和“[replica.lag.time.max.ms](http://replica.lag.time.max.ms/)”参数有关。大小是这个参数一半。默认值为5000ms，当检测到ISR中有是失效的副本的时候，就会缩减ISR集合。如果某个分区的ISR集合发生变更， 则会将变更后的数据记录到ZooKerper对应/brokers/topics/[topic]/partitions/[partition]/state节点中。
+
+​		结合上上面的消息丢失的ack机制，这条数据才会被Commit，例如我们从partition的leader进行写入，他会将数据同步到follwer中，如果说在写入leader的时候，写完了leader这个时候还没有同步到follwer那么则会出现消息丢失的情况。
+
+​		所以在Kafka生产者写的时候我们会向follwer也进行写入，但是follwer也是有可能出现问题的，所以为了会出现数据一致性的问题，如果follwer出现了问题就对follwer进行更变，及时剔除无效的follwer。
+
+​		
+

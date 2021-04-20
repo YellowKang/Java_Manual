@@ -282,3 +282,18 @@ default-character-set=utf8
 default-character-set=utf8
 ```
 
+
+
+
+
+# MySQL初始化脚本
+
+​		直接将./mysql-init目录挂载至/docker-entrypoint-initdb.d，文件下方放入SQL文件即可
+
+```
+    volumes:
+      - ./mysql-data:/var/lib/mysql         # 挂载数据目录
+      - ./mysql-config:/etc/mysql/conf.d      # 挂载配置文件目录
+      - ./mysql-init:/docker-entrypoint-initdb.d # 挂载初始化文件夹
+```
+

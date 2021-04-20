@@ -236,6 +236,89 @@ docker.io/elasticsearch:6.7.0
 
 可以将jvm优化那个删除（由于内存不够设置），可以修改挂载的文件地址（不建议，因为修改地方多），可以修改数据挂载文件或者不指定（不建议） ，然后指定镜像运行容器
 
+# Docker-Compose启动脚本
+
+​		创建配置文件
+
+```sh
+echo "cluster.name: es-cluster
+node.name: es-server
+network.bind_host: 0.0.0.0
+network.publish_host: elasticsearch-server
+http.port: 9200
+transport.tcp.port: 9300
+http.cors.enabled: true
+http.cors.allow-origin: \"*\"
+node.master: true
+node.data: true
+discovery.zen.ping.unicast.hosts: [\"elasticsearch-server:9300\"]
+discovery.zen.minimum_master_nodes: 1" > ./es-conf/elasticsearch.yml
+```
+
+
+
+```shell
+version: '3.4'
+services:
+  elasticsearch-server:
+    container_name: elasticsearch-server       # 指定容器的名称
+    image: docker.io/elasticsearch:6.7.0        # 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: elasticsearch-server
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    privileged: true
+    volumes: # 挂载目录
+      - ./es-data:/usr/share/elasticsearch/data
+      - ./es-plugins:/usr/share/elasticsearch/plugins
+      - ./es-conf/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+    networks:
+      botpy:
+        ipv4_address: 172.18.0.35
+networks:
+  botpy:
+    external: true
+```
+
+
+
+```sh
+version: '3.4'
+services:
+  elasticsearch-kibana:
+    container_name: elasticsearch-kibana       # 指定容器的名称
+    image: docker.io/kibana:6.7.0        				# 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: elasticsearch-kibana
+    ports:
+      - 5601:5601
+    environment:
+      ELASTICSEARCH_URL: "http://elasticsearch-server:9200"
+    privileged: true
+    volumes: # 挂载目录
+      - ./kibana-conf/kibana.yml:/usr/share/kibana/config/kibana.yml
+    networks:
+      botpy:
+        ipv4_address: 172.18.0.36
+networks:
+  botpy:
+    external: true
+```
+
+
+
+```
+mkdir ./es-data && chmod 777 ./es-data
+sysctl -w vm.max_map_count=655360
+ulimit -u 65535
+sysctl -p
+```
+
+
+
 # Kibana安装
 
 ​		首先先下载Kibana镜像（一定要对应的es版本）
@@ -320,7 +403,7 @@ docker restart elasticsearch6.7
 
 ​		骚操作只谷歌插件：直接可以谷歌插件安装Es—Head
 
-# 插件安装
+# 插件安装(推荐离线安装)
 
 ### 官网插件
 
@@ -586,10 +669,6 @@ GET _analyze
 
 ​		后面将在SpringBoot中整合远程词典的动态添加删除修改
 
-```
-
-```
-
 
 
 ### 拼音插件
@@ -623,7 +702,7 @@ ls
 
 ```shell
 # 下载
-wget install https://github.com/medcl/elasticsearch-analysis-pinyin/releases/download/v6.7.0/elasticsearch-analysis-pinyin-6.7.0.zip
+wget https://github.com/medcl/elasticsearch-analysis-pinyin/releases/download/v6.7.0/elasticsearch-analysis-pinyin-6.7.0.zip
 # 解压
 mkdir ./pinyin
 unzip elasticsearch-analysis-pinyin-6.7.0.zip -d ./pinyin/
@@ -1572,7 +1651,7 @@ rest.action.multi.allow_explicit_index: false
 
 
 
-# Elasticsearch系统配置（Docker启动无需设置）	
+# Elasticsearch系统配置启动失败相关	
 
 ```sh
 #	设置打开文件最大数
@@ -1600,13 +1679,13 @@ GET _nodes?filter_path=**.mlockall
 ​		设置Elasticsearch [`mmapfs`](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/index-modules-store.html#mmapfs)默认使用目录来存储其索引。默认的操作系统对mmap计数的限制可能太低，这可能会导致内存不足异常。
 
 ```
-sysctl -w vm.max_map_count=262144
+sysctl -w vm.max_map_count=655360
 ```
 
 ​		设置线程数
 
 ```
-ulimit -u 4096
+ulimit -u 65535
 
 Elasticsearch对不同类型的操作使用许多线程池。能够在需要时创建新线程很重要。确保Elasticsearch用户可以创建的线程数至少为4096。包分发作为服务运行时，systemd将自动为Elasticsearch进程配置线程数。无需其他配置。
 ```

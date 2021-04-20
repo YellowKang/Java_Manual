@@ -19,6 +19,9 @@
 ```
 curl -L https://github.com/docker/compose/releases/download/1.25.0-rc1/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
 
+
+# 加速地址
+curl -L https://github.91chifun.workers.dev/https://github.com//docker/compose/releases/download/1.29.0/docker-compose-Linux-x86_64 -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 ```
 
@@ -60,8 +63,6 @@ docker-compose -V
 ​		Docker-Compose官方文档地址：[点击进入](https://docs.docker.com/compose/compose-file/)
 
 ​		一下是Docker官网对compose版本以及对应的Docker版本的稳定版的版本说明
-
-![image-20201030175011367](/Users/bigkang/Library/Application Support/typora-user-images/image-20201030175011367.png)
 
 ​		我们则采用3.7的版本进行演示
 

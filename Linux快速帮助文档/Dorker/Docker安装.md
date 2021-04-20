@@ -22,6 +22,8 @@ wget
 
 ```
 wget https://download.docker.com/linux/static/stable/x86_64/docker-18.06.1-ce.tgz
+
+wget https://download.docker.com/linux/static/stable/x86_64/docker-20.10.2.tgz
 ```
 
 解压文件
@@ -188,6 +190,8 @@ yum list docker-ce --showduplicates | sort -r
 
 ```
 sudo yum install docker-ce-18.06.1.ce  
+sudo yum install docker-ce-18.06.3.ce
+sudo yum install docker-ce-19.03.9  -y
 ```
 
 ## 安装最新

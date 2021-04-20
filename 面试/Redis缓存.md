@@ -941,5 +941,36 @@ L1			1        --->		     3         --->	       5         --->	       7   --->  	
 # 这种同步机制类似于MySQL的主从备份机制，可以结合使用阿里的canal对MySQL的binlog进行订阅。
 ```
 
+## 说说HyperLogLog吧
+
+​		Redis 在 2.8.9 版本添加了 HyperLogLog 结构。
+
+​		Redis HyperLogLog 是用来做基数统计的算法，HyperLogLog 的优点是，在输入元素的数量或者体积非常非常大时，计算基数所需的空间总是固定 的、并且是很小的。
+
+​		在 Redis 里面，每个 HyperLogLog 键只需要花费 12 KB 内存，就可以计算接近 2^64 个不同元素的基 数。这和计算基数时，元素越多耗费内存就越多的集合形成鲜明对比。
+
+​		但是，因为 HyperLogLog 只会根据输入元素来计算基数，而不会储存输入元素本身，所以 HyperLogLog 不能像集合那样，返回输入的各个元素。
+
+​		比如数据集 {1, 3, 5, 7, 5, 7, 8}， 那么这个数据集的基数集为 {1, 3, 5 ,7, 8}, 基数(不重复元素)为5。 基数估计就是在误差可接受的范围内，快速计算基数。
+
+​		我们可以把它理解为一个Set，如果已经存在了我们再次设置返回0，如果不存在返回1写入成功，并且我们可以统计里面的元素数量。
+
+```bash
+# 添加一个HyperLogLog元素1
+PFADD bigkang 1
+
+# 添加一个HyperLogLog元素2
+PFADD bigkang 2
+
+# 统计HyperLogLog元素数量
+PFCOUNT bigkang
+
+# 创建一个copy的key并且填入4
+PFADD copy 4
+
+# 合并两个HyperLogLog
+PFMERGE bigkang copy
+```
+
 ## 你过往的工作经历中，是否出现过缓存集群事故，说说细并说说高可用的保障的方案
 
