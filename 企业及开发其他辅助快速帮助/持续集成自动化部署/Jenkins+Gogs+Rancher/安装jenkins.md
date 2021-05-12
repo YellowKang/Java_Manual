@@ -18,6 +18,8 @@ yum install jenkins
 
 # 然后运行容器
 
+## Docker命令直接启动
+
 ​		我们这里需要挂载目录，由于在jenkins中需要安装jdk，以及maven所以我们将目录挂载到本地，将文件目录创建。
 
 ​		直接将宿主机中的Docker挂载到我们自己的Jenkins中
@@ -52,11 +54,49 @@ docker.io/jenkins/jenkins:lts
 sudo chown -R 1000:1000 /docker/jenkins
 ```
 
+## Compose文件启动
+
+```sh
+# 创建挂载文件
+cd ~ && mkdir -p deploy && cd deploy && mkdir -p jenkins-server && cd jenkins-server
+
+# 创建Compose文件
+cat > ./docker-compose-jenkins-server.yml << EOF
+version: '3.4'
+services:
+  jenkins-server:
+    container_name: jenkins-server       # 指定容器的名称
+    image: docker.io/jenkins/jenkins:lts        # 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: jenkins-server					# 主机名
+    ports:
+      - 8888:8080
+      - 50000:50000
+    privileged: true
+    volumes: # 挂载目录
+     - /var/run/docker.sock:/var/run/docker.sock
+     - /docker/jenkins/home:/var/jenkins_home
+     - /etc/localtime:/etc/localtime:ro
+     - $(which docker):/usr/bin/docker
+     - $(which docker-compose):/usr/local/bin/docker-compose
+EOF
+
+# 文件权限
+sudo chown -R 1000:1000 ./jenkins_home
+
+# 启动（先修改下方配置再进行启动）
+docker-compose -f docker-compose-jenkins-server.yml up -d
+```
+
+## 配置
+
 ​		然后修改jenkins加速
 
 ```sh
-# 修改
+# 修改Docker命令方式
 vim /docker/jenkins/home/hudson.model.UpdateCenter.xml
+# 修改Compose方式
+vim ./jenkins_home/hudson.model.UpdateCenter.xml
 
 # 修改为如下
 <?xml version='1.1' encoding='UTF-8'?>
@@ -149,7 +189,7 @@ cp -r ./jdk1.8.0_211 /docker/jenkins/home
 ​		下载maven然后解压，或者手动下载后解压
 
 ```sh
-wget https://apache.website-solution.net/maven/maven-3/3.6.3/binaries/apache-maven-3.6.3-bin.tar.gz -P /docker/jenkins/home
+wget https://ftp.jaist.ac.jp/pub/apache/maven/maven-3/3.8.1/binaries/apache-maven-3.8.1-bin.zip -P /docker/jenkins/home
 cd /docker/jenkins/home
 tar  -zxvf apache-maven-3.6.3-bin.tar.gz 
 mv apache-maven-3.6.3 maven
@@ -516,3 +556,44 @@ su jenkins
 vim /home/jenkins/.ssh//authorized_keys
 ```
 
+
+
+# Jenkins升级
+
+​		下载新版本Jenkins
+
+​		清华加速下载地址：https://mirrors.tuna.tsinghua.edu.cn/jenkins/war/
+
+```
+wget https://mirrors.tuna.tsinghua.edu.cn/jenkins/war/2.289/jenkins.war
+```
+
+​		修改war包
+
+```sh
+# 复制出容器内war包进行备份
+docker cp jenkins-server:/usr/share/jenkins/jenkins.war ./jenkins.war.back
+
+# 复制到容器内部
+docker cp jenkins.war jenkins-server:/usr/share/jenkins/jenkins.war
+```
+
+​		重启
+
+```
+docker restart jenkins-server
+```
+
+# Jenkins构建项目之前构建另一个项目插件
+
+​		下载如下插件，搜索时采用Parameterized搜索
+
+```
+Parameterized Trigger plugin
+```
+
+​		![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1619433337202.png)
+
+​		下载后在创建项目的设置中，添加项目前置构建触发器，触发为另一个项目，这样就会先构建vosp-common再构建当前项目
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1619433382190.png)

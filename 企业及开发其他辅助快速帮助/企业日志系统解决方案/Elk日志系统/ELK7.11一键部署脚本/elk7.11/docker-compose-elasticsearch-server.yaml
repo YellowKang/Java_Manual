@@ -1,0 +1,24 @@
+version: '3.4'
+services:
+  elasticsearch-server:
+    container_name: elasticsearch-server       # 指定容器的名称
+    image: docker.io/elasticsearch:7.11.2        # 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: elasticsearch-server
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    privileged: true
+    volumes: # 挂载目录
+      - ./es-data:/usr/share/elasticsearch/data
+      - ./es-plugins:/usr/share/elasticsearch/plugins
+      - ./es-conf:/usr/share/elasticsearch/config
+      - ./es-logs:/usr/share/elasticsearch/logs
+    networks:
+      botpy:
+        ipv4_address: 172.18.0.35
+networks:
+  botpy:
+    external: true

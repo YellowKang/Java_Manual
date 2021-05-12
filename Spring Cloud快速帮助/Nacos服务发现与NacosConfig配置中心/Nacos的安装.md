@@ -186,6 +186,51 @@ docker run -p 8848:8848 \
 
 然后访问ip:8848/nacos/index.html
 
+### Compose
+
+​		单安装Nacos
+
+```sh
+# 创建部署文件目录
+cd && mkdir -p deploys && cd deploys && mkdir nacos && cd nacos
+
+# 写入Compose配置文件
+cat > ./docker-compose-nacos.yaml << EOF
+version: '3.4' 
+services:   
+  nacos-server:
+    image: nacos/nacos-server:1.1.4
+    container_name: nacos-server
+    hostname: nacos-server
+    restart: always
+    ports:
+      - 8848:8848
+    environment:
+    	MODE: standalone
+    	NACOS_APPLICATION_PORT: 8848
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: 192.168.1.12
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_DB_NAME: nacos
+      MYSQL_SERVICE_USER: root
+      MYSQL_SERVICE_PASSWORD: bigkang
+      MYSQL_DATABASE_NUM: 1
+      MYSQL_SERVICE_DB_PARAM: characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true
+      JVM_XMS: 1g
+      JVM_XMX: 1g
+      JVM_XMN: 512m
+      JVM_MS: 128m
+      JVM_MMS: 220m
+      #NACOS_DEBUG: n
+      TOMCAT_ACCESSLOG_ENABLED: 'true'
+    privileged: true
+EOF
+
+
+# 启动Nacos
+docker-compose -f docker-compose-nacos.yaml up -d
+```
+
 # K8s安装Nacos
 
 ​		官网地址：[点击进入](https://nacos.io/zh-cn/docs/use-nacos-with-kubernetes.html)
@@ -242,7 +287,7 @@ spec:
 
 创建目录
 
-```
+```properties
 mkdir -p /docker/nacos-clust/nacos1/{log,conf}
 mkdir -p /root/nacos-clust/nacos1/
 cd /root/nacos-clust/nacos1
@@ -681,7 +726,15 @@ CREATE TABLE users (
 
 CREATE TABLE roles (
 	username varchar(50) NOT NULL,
-	role varchar(50) NOT NULL
+	role varchar(50) NOT NULL,
+	constraint uk_username_role UNIQUE (username,role)
+);
+
+CREATE TABLE permissions (
+    role varchar(50) NOT NULL,
+    resource varchar(512) NOT NULL,
+    action varchar(8) NOT NULL,
+    constraint uk_role_permission UNIQUE (role,resource,action)
 );
 
 INSERT INTO users (username, password, enabled) VALUES ('nacos', '$2a$10$EuWPZHzz32dJN7jexM34MOeYirDdFAZm2kuWj7VEOJhhZkDrxfvUu', TRUE);

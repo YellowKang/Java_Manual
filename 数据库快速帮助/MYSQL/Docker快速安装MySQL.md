@@ -297,3 +297,51 @@ default-character-set=utf8
       - ./mysql-init:/docker-entrypoint-initdb.d # 挂载初始化文件夹
 ```
 
+
+
+# MySQL8.0安装部署
+
+​		使用Docke-compose方式部署8.0MySQL
+
+```sh
+# 创建部署文件目录
+cd && mkdir -p deploys && cd deploys && mkdir mysql-8.0 && cd mysql-8.0
+
+# 创建配置文件
+mkdir data && mkdir conf && mkdir init-sql
+
+# 初始化MySQL配置文件
+cat > ./conf/mysql.cnf << EOF
+[mysqld]
+character-set-server=utf8
+[client]
+default-character-set=utf8
+[mysql]
+default-character-set=utf8
+EOF
+
+# 写入Compose配置文件
+cat > ./docker-compose-mysql-8.0.yaml << EOF
+version: '3.4'
+services:
+  mysql8:
+    container_name: mysql8       # 指定容器的名称
+    image: mysql:8.0.24         # 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: mysql8
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: bigkang
+    privileged: true
+    volumes: 
+      - ./data:/var/lib/mysql
+      - ./conf/mysql.cnf:/etc/mysql/conf.d/mysql.cnf
+      - ./init-sql:/docker-entrypoint-initdb.d  # 数据库初始化执行的sql只会在数据库刚创建执行一次
+EOF
+
+# 启动部署脚本
+docker-compose -f docker-compose-mysql-8.0.yaml up -d
+```
+
+​		

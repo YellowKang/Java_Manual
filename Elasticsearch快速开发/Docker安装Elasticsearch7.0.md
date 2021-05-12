@@ -99,12 +99,21 @@ docker logs -f elasticsearch-7.12-server
 cd ~ && mkdir -p deploy && cd deploy && mkdir -p kibana-7.12 && cd kibana-7.12
 
 # 创建配置文件,修改IP地址以及密码，如果没有则删除掉username以及password
-echo "server.name: kibana
-server.host: \"0\"
-elasticsearch.hosts: [ \"http://192.168.1.28:9200\" ]
+cat > ./kibana.yml << EOF
+server.name: kibana
+server.host: "0"
+elasticsearch.hosts: [ "http://192.168.1.28:9200" ]
 xpack.monitoring.ui.container.elasticsearch.enabled: true
-elasticsearch.username: \"bigkang\"
-elasticsearch.password: \"bigkang\"" > kibana.yml
+elasticsearch.username: "bigkang"
+elasticsearch.password: "bigkang"
+
+# 设置中文
+# i18n.locale: "zh-CN"
+
+# 如果Kibana需要后缀访问 http://xxxxx:5601/kibana/
+# server.basePath: \"/kibana\"
+# server.rewriteBasePath: true
+EOF
 
 # 创建Compose文件
 cat > ./docker-compose-kibana-7.12.yml << EOF

@@ -1,0 +1,21 @@
+cluster.name: es-cluster
+node.name: es-server
+network.bind_host: 0.0.0.0
+network.publish_host: elasticsearch-server
+http.port: 9200
+transport.tcp.port: 9300
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+node.master: true
+node.data: true
+discovery.zen.ping.unicast.hosts: ["elasticsearch-server:9300"]
+discovery.zen.minimum_master_nodes: 1
+discovery.type: single-node
+# 新增如下xpack配置开启安全认证
+xpack.security.enabled: true
+# 开启安全审计
+# xpack.security.audit.enabled: true
+# 设置为基础，其他级别需要购买
+xpack.license.self_generated.type: basic
+# 开启transport端口ssl认证
+xpack.security.transport.ssl.enabled: true

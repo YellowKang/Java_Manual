@@ -77,7 +77,7 @@ server {
 
 ```sh
 docker run -d \
--p 8088:80 \
+-p 80:80 \
 --name nginx-server \
 -v /docker/nginx/nginx.conf:/etc/nginx/nginx.conf \
 -v /docker/nginx/conf/:/etc/nginx/conf.d/ \

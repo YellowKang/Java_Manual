@@ -1,0 +1,7 @@
+server.name: kibana
+server.host: "0"
+elasticsearch.hosts: [ "http://elasticsearch-server:9200" ]
+xpack.monitoring.ui.container.elasticsearch.enabled: true
+elasticsearch.username: "vosp"
+elasticsearch.password: "vosp123"
+i18n.locale: "zh-CN"

@@ -994,15 +994,163 @@ public class RocketMqUtil {
 				producer.setCallbackExecutor();
 ```
 
+## Controller测试
+
+​		创建Controller返回
+
+```java
+
+import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
+/**
+ * @Author BigKang
+ * @Date 2021/4/1 上午11:47
+ * @Summarize Rocket消息返回实体
+ */
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class RocketMessageResp {
 
+    @ApiModelProperty("消息ID")
+    private String messageId;
 
-# SpringBoot官方整合
+    @ApiModelProperty("标签")
+    private String tags;
 
-## 引入依赖
+    @ApiModelProperty("队列ID")
+    private Integer queueId;
+
+    @ApiModelProperty("内容")
+    private String content;
+
+    @ApiModelProperty("主题")
+    private String topic;
+
+}
 
 ```
+
+​		创建Controller,没有Result的话则直接返回数据即可
+
+```java
+
+import com.botpy.vosp.client.business.common.resp.RocketMessageResp;
+import com.botpy.vosp.common.base.Result;
+import com.botpy.vosp.common.util.RocketMqUtil;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiParam;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import org.apache.rocketmq.client.exception.MQClientException;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.common.message.MessageExt;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.Assert;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @Author BigKang
+ * @Date 2021/4/1 上午11:35
+ * @Summarize
+ */
+@RestController
+@RequestMapping("/rocketmq")
+@Api(tags = "RockerMQ控制器")
+@Slf4j
+public class RocketMqController {
+
+    private final RocketMqUtil rocketMqUtil;
+
+    @Autowired
+    public RocketMqController(RocketMqUtil rocketMqUtil) {
+        this.rocketMqUtil = rocketMqUtil;
+    }
+
+
+    @GetMapping("consumer")
+    @ApiOperation(value = "RockerMQ消费接口", httpMethod = "GET")
+    public Result<List<RocketMessageResp>> consumer(
+            @ApiParam("消费Topic主题") String topic,
+            @ApiParam("消费Group组") String group,
+            @ApiParam("消费Tag表达式") String tagExpression,
+            @ApiParam("消费时间（秒）") Integer time){
+        if(StringUtils.isEmpty(topic)){
+            topic = rocketMqUtil.getRocketMqProperties().getConsumerTopic();
+        }
+        if(StringUtils.isEmpty(group)){
+            group = rocketMqUtil.getRocketMqProperties().getConsumerGroup();
+        }
+        if(StringUtils.isEmpty(tagExpression)){
+            tagExpression = rocketMqUtil.getRocketMqProperties().getConsumer().getTagExpression();
+        }
+        DefaultMQPushConsumer consumer = rocketMqUtil.getConsumer(group, topic, tagExpression);
+        List<RocketMessageResp> list = new ArrayList<>();
+        consumer.registerMessageListener(new MessageListenerConcurrently() {
+            @Override
+            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
+                for (MessageExt msg : msgs) {
+                    RocketMessageResp messageResp = RocketMessageResp.builder()
+                            .messageId(msg.getMsgId())
+                            .tags(msg.getTags())
+                            .queueId(msg.getQueueId())
+                            .content(new String(msg.getBody()))
+                            .topic(msg.getTopic())
+                            .build();
+                    list.add(messageResp);
+                }
+                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+            }
+        });
+        try {
+            consumer.start();
+            // 默认消费5秒钟数据
+            if(time == null || time <= 0){
+                time = 5;
+            }
+            // 获取毫秒
+            time *= 1000;
+            // 睡眠线程
+            Thread.sleep(time);
+            // 关闭消费者
+            consumer.shutdown();
+        } catch (MQClientException | InterruptedException e) {
+            e.printStackTrace();
+        }
+        return Result.success(list);
+    }
+
+    @PostMapping("sendMsg")
+    @ApiOperation(value = "RockerMQ发送消息接口", httpMethod = "POST")
+    public Result<SendResult> sendMsg(String msg,String topic,String tag){
+        Assert.isTrue(StringUtils.isNotEmpty(msg),"Message Can not be empty !");
+        if(StringUtils.isEmpty(topic)){
+            topic = rocketMqUtil.getRocketMqProperties().getProducerTopic();
+        }
+        if(StringUtils.isEmpty(tag)){
+            tag = rocketMqUtil.getRocketMqProperties().getProducer().getTag();
+        }
+        SendResult result = rocketMqUtil.sendMsg(msg, topic, tag);
+        return Result.success(result);
+    }
+}
 
 ```
 

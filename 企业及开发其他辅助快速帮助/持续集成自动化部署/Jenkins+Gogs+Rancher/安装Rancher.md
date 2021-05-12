@@ -14,6 +14,31 @@ docker pull rancher/server
 docker run --name rancher -d -p 18080:8080 rancher/server
 ```
 
+​		生产方式启动
+
+```sh
+# 创建挂载目录
+cd ~ && mkdir -p deploy && cd deploy && mkdir -p rancher-server && cd rancher-server
+
+# 创建Rancher-Compose文件
+cat > ./docker-compose-rancher-server.yml << EOF
+version: '3.4'
+services:
+  rancher-server:
+    container_name: rancher-server       # 指定容器的名称
+    image: rancher/server:v1.6.30        # 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: rancher-server					# 主机名
+    ports:
+      - 8080:8080
+      - 9345:9345      
+EOF
+
+
+# 启动容器
+docker-compose -f docker-compose-rancher-server.yml up -d
+```
+
 运行并且挂载数据文件
 
 ```
@@ -39,5 +64,15 @@ docker run -itd \
 --restart=always \
 -p 8080:8080 \
 rancher/server
+```
+
+
+
+
+
+删除注意
+
+```
+/var/lib/rancher
 ```
 

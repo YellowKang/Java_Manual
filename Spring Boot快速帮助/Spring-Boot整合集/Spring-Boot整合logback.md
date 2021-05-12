@@ -43,7 +43,7 @@ SpringBoot默认就是使用的logback，我们直接添加配置文件即可，
     <!--控制台日志打印格式-->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
-            <level>INFO</level>
+            <level>INFO</level> 
         </filter>
         <encoder>
             <pattern>${log.pattern}</pattern>

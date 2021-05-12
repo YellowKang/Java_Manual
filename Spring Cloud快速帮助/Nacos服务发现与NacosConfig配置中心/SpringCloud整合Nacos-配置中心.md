@@ -322,3 +322,4 @@ test:
   age: 15
 ```
 
+apk add ttf-dejavu fontconfig

@@ -1,0 +1,22 @@
+version: '3.4'
+services:
+  logstash:
+    container_name: logstash      
+    image: docker.io/logstash:7.11.2 
+    restart: always 
+    hostname: logstash
+    ports:
+      - 5044:5044
+      - 9600:9600
+      - 9400:9400
+    privileged: true
+    volumes:
+      - ./logstash-conf/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./logstash-conf/conf.d:/usr/share/logstash/conf.d
+      - ./logstash-logs:/var/log/logstash
+    networks:
+      botpy:
+        ipv4_address: 172.18.0.37
+networks:
+  botpy:
+    external: true

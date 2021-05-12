@@ -1,0 +1,6 @@
+path.config: /usr/share/logstash/conf.d/*.conf
+path.logs: /var/log/logstash
+# 绑定的主机地址
+http.host: 0.0.0.0
+# 输出通道的工作workers数据量（提升输出效率）,建议修改为CPU核数
+pipeline.workers: 4

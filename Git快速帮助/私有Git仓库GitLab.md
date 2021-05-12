@@ -63,3 +63,40 @@ docker.io/twang2218/gitlab-ce-zh
 
 ```
 
+
+
+
+
+# Compose启动
+
+
+
+```sh
+# 创建挂载文件
+cd ~ && mkdir -p deploy && cd deploy && mkdir -p gitlab-server && cd gitlab-server
+
+# 创建Compose文件
+cat > ./docker-compose-gitlab-server.yml << EOF
+version: '3.4'
+services:
+  gitlab-server:
+    container_name: gitlab-server       # 指定容器的名称
+    image: docker.io/gitlab/gitlab-ce:latest        # 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: gitlab-server					# 主机名
+    ports:
+      - 10443:443
+      - 10080:80
+      - 10022:22
+    privileged: true
+    volumes: # 挂载目录
+     - ./config:/etc/gitlab
+     - ./logs:/var/log/gitlab
+     - ./data:/var/opt/gitlab
+EOF
+
+
+# 启动（先修改下方配置再进行启动）
+docker-compose -f docker-compose-gitlab-server.yml up -d
+```
+

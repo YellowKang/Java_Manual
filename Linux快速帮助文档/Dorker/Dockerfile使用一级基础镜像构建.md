@@ -214,6 +214,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 RUN wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
 RUN wget -q -O /tmp/glibc-2.29-r0.apk  https://github.91chifun.workers.dev//https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.29-r0/glibc-2.29-r0.apk
 RUN apk add /tmp/glibc-2.29-r0.apk 
+RUN apk add bash
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 RUN echo 'Asia/Shanghai' > /etc/timezone
@@ -264,7 +265,39 @@ docker tag bigkang/jdk8:alpine registry.cn-shanghai.aliyuncs.com/bigkang/jdk8:al
 docker push registry.cn-shanghai.aliyuncs.com/bigkang/jdk8:alpine
 ```
 
+## OpenJdk11+Alpine基础镜像
 
+
+
+
+
+```bash
+docker push bigkang/jdk:openjdk-11-alpine-font
+docker tag bigkang/jdk:openjdk-11-alpine-font registry.gitlab.botpy.com/botpy/vosp/backend-common/openjdk:11.0.9
+
+pxto8ZwFz4B_ha2t_Qkj
+```
+
+
+
+
+
+```bash
+# 父镜像
+FROM alpine:3.12
+MAINTAINER bigkangsix@qq.com
+# 设置apk源为清华
+# RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirror.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+# 安装bash curl 以及jdk11 还有字体
+RUN apk add bash curl openjdk11  ttf-dejavu fontconfig
+# 设置时区
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN echo 'Asia/Shanghai' > /etc/timezone
+
+# 设置环境变量
+ENV LANG zh_CN.uft8
+```
 
 ## CentOS版本
 
