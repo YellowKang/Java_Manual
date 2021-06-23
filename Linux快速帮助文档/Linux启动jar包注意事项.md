@@ -14,6 +14,12 @@
 
 
 
+```
+
+```
+
+
+
 
     @Delete("delete from config where id=#{id}")
     @Options(useGeneratedKeys = true)

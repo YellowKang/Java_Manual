@@ -89,8 +89,18 @@ import org.springframework.web.client.RestClientException;
 @Configuration
 public class ElasticsearchConfig {
 
-    @Value("${spring.data.elasticsearch.client.rest:null}")
+    @Value("${spring.data.elasticsearch.client.rest}")
     private String urls;
+
+    @Value("${spring.data.elasticsearch.client.username:}")
+    private String username;
+
+    @Value("${spring.data.elasticsearch.client.password:}")
+    private String password;
+
+
+    @Value("${spring.data.elasticsearch.client.timeout:5000}")
+    private Integer timeout;
 
     /**
      * 创建Elasticsearch高级Rest连接
@@ -98,14 +108,23 @@ public class ElasticsearchConfig {
      */
     @Bean
     public RestHighLevelClient restHighLevelClient(){
-        if(StringUtils.isEmpty(urls) || "null".equals(urls)){
+        if(urls.isEmpty()){
             throw new RestClientException("Elasticsearch HighLevel Client Url is Null！");
         }
+        // 设置连接Es服务端地址
         String[] esUrls = urls.split(",");
-        ClientConfiguration clientConfiguration = ClientConfiguration.builder()
-                .connectedTo(esUrls)
-                .build();
-        return RestClients.create(clientConfiguration).rest();
+        ClientConfiguration.MaybeSecureClientConfigurationBuilder builder = ClientConfiguration.builder().connectedTo(esUrls);
+
+        // 设置密码
+        if(!username.isEmpty()){
+            if(!password.isEmpty()){
+                builder.withBasicAuth(username,password);
+            }else {
+                throw new RestClientException("Elasticsearch HighLevel Client Password is Null！");
+            }
+        }
+        builder.withConnectTimeout(timeout);
+        return RestClients.create(builder.build()).rest();
     }
 
 }

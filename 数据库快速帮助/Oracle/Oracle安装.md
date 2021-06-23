@@ -210,3 +210,27 @@ ORA-00900: invalid SQL statement
 
 [官网](https://www.oracle.com/index.html)
 
+# 删除当前用户所有表
+
+
+
+```
+declare
+
+  v_sql varchar2(200);
+
+  v_cnt number(10);
+
+begin
+
+  for v_tab in (select table_name from user_tables t where table_name like '%%') loop
+
+    v_sql := 'drop table '|| v_tab.table_name;
+
+    execute immediate v_sql ;
+
+  end loop;
+
+end;
+```
+

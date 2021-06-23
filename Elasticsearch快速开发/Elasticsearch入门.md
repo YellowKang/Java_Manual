@@ -325,6 +325,21 @@ DELETE docment2
 
 ​		删除之后所有这个索引相关数据都没了
 
+​		批量删除，首先修改集群允许通配符删除
+
+```
+PUT /_cluster/settings
+{
+  "persistent": {
+     "action.destructive_requires_name": false
+  }
+}
+
+DELETE 
+```
+
+
+
 ### Reindex重新索引
 
 ​		官网地址：[点击进入](https://www.elastic.co/guide/en/elasticsearch/reference/6.8/docs-reindex.html)

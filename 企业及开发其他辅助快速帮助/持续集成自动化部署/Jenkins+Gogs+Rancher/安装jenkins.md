@@ -88,6 +88,22 @@ sudo chown -R 1000:1000 ./jenkins_home
 docker-compose -f docker-compose-jenkins-server.yml up -d
 ```
 
+## Linux使用War包安装
+
+​		下载War包
+
+```
+wget https://get.jenkins.io/war-stable/2.277.4/jenkins.war
+```
+
+​		启动Jenkins
+
+```
+nohup java -jar jenkins.war --httpPort=9999 --prefix=/jenkins > /home/jenkins/jenkins.log 2>&1 &
+```
+
+
+
 ## 配置
 
 ​		然后修改jenkins加速
@@ -597,3 +613,137 @@ Parameterized Trigger plugin
 ​		下载后在创建项目的设置中，添加项目前置构建触发器，触发为另一个项目，这样就会先构建vosp-common再构建当前项目
 
 ![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1619433382190.png)
+
+
+
+# 使用JenkinsPipeline部署Jar项目
+
+​		首先配置Jenkins，新建项目选择Pipeline流水线
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1622707411235.png)
+
+​		然后选择保留最近的5个构建记录时间为28天
+
+​		![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1622707456217.png)
+
+​			选择SCM，然后选择Git地址，从Git中拉取代码，或者直接写入脚本文件，建议Git，选择GIT地址然后选择认证，以及分值，脚本路径为根目录下的Jenkinsfile保存即可。
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1622707558139.png)
+
+​		然后来到项目中，新建Jenkinsfile
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1622707654156.png)
+
+​		内容如下
+
+​		记得修改Maven打包的Jar包名称为项目名
+
+```xml
+   <build>
+        <!--使用项目的artifactId作为docker打包的名称-->
+        <finalName>${project.artifactId}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <source>${maven.compile.source}</source>
+                    <target>${maven.compile.target}</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>${maven-source-plugin.version}</version>
+            </plugin>
+        </plugins>
+    </build>
+```
+
+​		Jenkinsfile如下
+
+​		流程：根据Jenkins参数拉取指定分支代码  -》删除公共包，重新拉取 -》maven打包 -》jar包移动到部署路径 -》创建停止以及启动脚本 -》执行停止脚本 -》执行启动脚本 -》睡眠8秒打印日志
+
+```sh
+pipeline {
+    agent any
+    environment {
+        // 项目名称，打包后包名为admin-api-jenkins(为Jar包名称，需要修改)
+        project_name = 'admin-api'
+        // 部署以及启动的目录
+        deploy_dir = '/home/jenkins/deploy/admin-api'
+        // java启动参数，例如JVM启动参数
+        java_opts = '-Xms512m -Xmx512m -Djava.security.egd=file:/dev/./urandom'
+        // app启动参数，例如Spring参数等等
+        app_opts = '--spring.profiles.active=dev --spring.datasource.url=jdbc:oracle:thin:@//172.16.36.41:1521/ORCLPDB1.domain --spring.redis.host=172.16.36.41 --rocketmq.nameSrvAddr=172.16.36.41:9876 --log4j2.logstash.address=172.16.36.41'
+        // jenkins拉取代码配置的认证ID，添加Git账户设置的id
+        credentials_id = 'jenkins-bigkang'
+
+        // git地址
+        git_url = 'https://127.0.0.1/py/VOSP/Admin-API.git'
+
+        // kill shell等脚本符号不需要修改
+        kill_shell_prefix = 'ps -ef | grep'
+        kill_shell_suffix = '| grep -v grep |  awk \'{print $2}\' | xargs kill -9'
+        lt_symbol = '>'
+        run_shell_suffix = ' 2>&1 &'
+    }
+    stages {
+        stage('check out') {
+            steps {
+                //拉取代码
+                checkout([$class: 'GitSCM', branches: [[name: params.branch]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'CleanBeforeCheckout']], submoduleCfg: [], userRemoteConfigs: [[credentialsId: env.credentials_id, url: env.git_url]]])
+                echo 'Checkout'
+            }
+        }
+        stage('build') {
+            steps {
+                sh '''
+					pwd
+					rm -rf /root/.m2/repository/com/botpy/vosp/vosp-common
+					mvn clean package -Dmaven.test.skip=true
+				'''
+
+            }
+        }
+        stage('deploy') {
+            steps {
+
+                sh '''
+                    ls target
+                    echo ${project_name} ${deploy_dir}
+                    mkdir -p ${deploy_dir}
+                    cp -f ./target/${project_name}.jar ${deploy_dir}/${project_name}-jenkins.jar
+
+
+cat > ${deploy_dir}/${project_name}-jenkins-start.sh << EOF
+#!/bin/bash
+nohup java -jar ${deploy_dir}/${project_name}-jenkins.jar ${app_opts} ${lt_symbol} ${deploy_dir}/${project_name}-jenkins.log ${run_shell_suffix}
+EOF
+
+cat > ${deploy_dir}/${project_name}-jenkins-stop.sh << EOF
+#!/bin/bash
+${kill_shell_prefix} ${project_name}-jenkins ${kill_shell_suffix}
+EOF
+
+
+					chmod 777 ${deploy_dir}/${project_name}-jenkins-start.sh
+					chmod 777 ${deploy_dir}/${project_name}-jenkins-stop.sh
+				'''
+                script {
+                    withEnv(['JENKINS_NODE_COOKIE=background_job']) {
+                        sh returnStatus: true, script: "${kill_shell_prefix} ${project_name}-jenkins ${kill_shell_suffix}"
+                        sh """
+					        sh ${deploy_dir}/${project_name}-jenkins-start.sh
+                            sleep 8
+                            tail -n 1000 ${deploy_dir}/${project_name}-jenkins.log
+                        """
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
