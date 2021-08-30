@@ -360,6 +360,33 @@ COLUMN_COMMENT																// 字段注释说明
 GENERATION_EXPRESSION													// 建表信息
 ```
 
+​		使用如下命令快速查询数据库表结构
+
+```sql
+SELECT
+	column_name AS `列名`,
+	data_type AS `数据类型`,
+	column_comment AS `备注`,
+	is_nullable AS `是否允许非空`,
+CASE
+		WHEN extra = 'auto_increment' THEN
+		1 ELSE 0 
+	END AS `是否自增`,
+CASE
+		WHEN column_key = 'PRI' THEN
+		1 ELSE 0 
+	END AS `是否主键`,
+	character_maximum_length AS `字符长度`,
+	numeric_precision AS `数字长度`,
+	numeric_scale AS `小数位数`,
+	column_default AS `默认值` 
+FROM
+	Information_schema.COLUMNS 
+WHERE
+	table_schema = '数据库名' 
+	AND table_name = '表名';
+```
+
 
 
 ## 数据库引擎

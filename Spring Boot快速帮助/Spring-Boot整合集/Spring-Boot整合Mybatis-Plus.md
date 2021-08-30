@@ -860,6 +860,19 @@ public class TreeVoUtil {
         </dependency>
 ```
 
+## XML-SQL
+
+​		结果集映射
+
+```xml
+    <resultMap type="com.botpy.vosp.admin.business.activity.resp.ActivityStyleCityResp" id="cityObject">
+        <id property="province" column="PROVINCE"/>
+        <collection property="city" ofType="java.lang.String">
+            <id column="CITY"/>
+        </collection>
+    </resultMap>
+```
+
 
 
 # 配置方面

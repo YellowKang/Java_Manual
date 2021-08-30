@@ -223,10 +223,6 @@ PS Old Generation
 
 
 
-# 栈
-
-
-
 # 堆
 
 ```properties
