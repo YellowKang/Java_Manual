@@ -310,29 +310,51 @@ public class Test {
 
 
 
-​		一张图对接
-
-​		两次聚类，排行话题
-
-​		TOP10 今日报道
-
-​		问清楚南区二级页功能（最高优先级）
-
-​		事故灾害警报信息
-
-​			事故最近48小时时间降序
-
-​			时间修改为  月-日 时：分
-
-​		会议纪要，需要出会议纪要报告
-
-​		年底工作总结情况（工作内容，问题困难，未来工作）
-
-​		煤矿，危险化学品等等
-
-​		买数据入库等等
+```
 
 ```
 
+
+
+# 本地执行Shell
+
+```java
+    public String execShell(String command) throws IOException {
+        Process process = null;
+        BufferedReader br = null;
+        String line = null;
+        String[] cmd;
+        String osName = System.getProperty("os.name");
+        if (osName.startsWith("Windows")) {
+            cmd = new String[3];
+            if (osName.equals("Windows 95")) {
+                cmd[0] = "command.com";
+            } else {
+                cmd[0] = "cmd.exe";
+            }
+            cmd[1] = "/C";
+            cmd[2] = command;
+        } else if (osName.equals("Linux")) {
+            cmd = new String[3];
+            cmd[0] = "/bin/sh";
+            cmd[1] = "-c";
+            cmd[2] = command;
+        } else if (osName.contains("Mac")) {
+            cmd = new String[3];
+            cmd[0] = "/bin/sh";
+            cmd[1] = "-c";
+            cmd[2] = command;
+        } else {
+            cmd = new String[1];
+            cmd[0] = command;
+        }
+        process = Runtime.getRuntime().exec(cmd);
+        br = new BufferedReader(new InputStreamReader(process.getInputStream(), Charset.forName("GBK")));
+        StringBuilder sb = new StringBuilder();
+        while ((line = br.readLine()) != null) {
+            sb.append(line + "\n");
+        }
+        return sb.toString();
+    }
 ```
 
