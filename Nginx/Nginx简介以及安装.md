@@ -82,6 +82,92 @@ docker run -d \
 -v /docker/nginx/nginx.conf:/etc/nginx/nginx.conf \
 -v /docker/nginx/conf/:/etc/nginx/conf.d/ \
 -v /docker/nginx/logs:/var/log/nginx nginx:1.16
+
+
+docker run -d \
+-p 80:80 \
+--name nginx-server \
+-v /docker/nginx/nginx.conf:/etc/nginx/nginx.conf \
+-v /docker/nginx/conf/:/etc/nginx/conf.d/ \
+-v /docker/nginx/logs:/var/log/nginx nginx:1.16
+```
+
+## Compose文件安装（推荐）
+
+
+
+``` sh
+# 1、创建文件夹
+
+mkdir -p /data/nginx/{conf,logs}
+mkdir -p /data/nginx/conf/{conf.d,ssl}
+
+# 2、创建Compose文件
+
+touch /data/nginx/docker-compose.yaml
+
+# 3、写入如下内容
+
+cat > /data/nginx/docker-compose.yaml << EOF
+version: '3'
+services:
+  nginx-server:
+    container_name: nginx-server
+    image: nginx
+    restart: always
+    privileged: true
+    ports:
+      - 80:80
+      - 8080:8080
+      - 443:443
+    volumes:
+      - /data/nginx/conf/nginx.conf:/etc/nginx/nginx.conf
+      - /data/nginx/conf/conf.d/:/etc/nginx/conf.d/
+      - /data/nginx/conf/ssl/:/etc/nginx/ssl/
+      - /data/nginx/logs:/var/log/nginx
+EOF
+
+# 4、创建nginx配置文件
+cat > /data/nginx/conf/nginx.conf << EOF
+user  nginx;
+worker_processes  1;
+
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+    sendfile        on;
+    keepalive_timeout  65;
+    include /etc/nginx/conf.d/*.conf;
+}
+EOF
+
+# 5、创建子配置文件
+cat > /data/nginx/conf/conf.d/nginx.conf << EOF
+server {
+    listen       80;
+    server_name  localhost;
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+    }
+}
+EOF
+
+# 6、启动服务
+cd /data/nginx
+docker-compose up -d
 ```
 
 

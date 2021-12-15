@@ -219,11 +219,15 @@ Kubernetes集群之内，Node IP网、Pod IP网于Cluster IP网之间的通信�
 
 ​		控制平面组件可以在集群中的任何节点上运行。 然而，为了简单起见，设置脚本通常会在同一个计算机上启动所有控制平面组件，并且不会在此计算机上运行用户容器。 请参阅[构建高可用性集群](https://kubernetes.io/zh/docs/setup/production-environment/tools/kubeadm/high-availability/) 中对于多主机 VM 的设置示例。
 
+​		控制平面的组件我们会找一台单独的机器来部署，我们习惯上把部署控制平面组件的机器称为master节点，以下都会用master节点来代替控制平面这个概念，master节点的组件能够对k8s的集群做出全局决策（例如，调度），以及检测和响应集群事件(例如，当部署的副本字段不满足时启动一个新的POD)。Master节点组件可以在k8s集群中的任何机器上运行。然而，为了简单起见，通常会在同一台机器上启动所有控制平面组件，这台机器上最好不运行其他的容器化程序，所以我们就把专门部署控制平面组件的集群称为master节点。
+
 ### kube-apiserver
 
 ​		API 服务器是 Kubernetes [控制面](https://kubernetes.io/zh/docs/reference/glossary/?all=true#term-control-plane)的组件， 该组件公开了 Kubernetes API。 API 服务器是 Kubernetes 控制面的前端。
 
 ​		Kubernetes API 服务器的主要实现是 [kube-apiserver](https://kubernetes.io/zh/docs/reference/command-line-tools-reference/kube-apiserver/)。 kube-apiserver 设计上考虑了水平伸缩，也就是说，它可通过部署多个实例进行伸缩。 你可以运行 kube-apiserver 的多个实例，并在这些实例之间平衡流量。
+
+​		kube-apiserver是Kubernetes master节点的组件，它公开了Kubernetes API。 API服务是Kubernetes master节点的前端。Kubernetes API服务是通过kube-apiserver组件实现的，kube-apiserver被设计成可以进行自动扩缩容，你可以运行多个kube-apiserver组件，通过keepalive+lvs或者其他负载均衡策略在这些组件之间平衡流量。kube-apiserver提供了资源操作的唯一入口，并提供认证、授权、访问控制、API注册和发现等机制，负责接收、解析、处理请求。
 
 ### etcd
 
@@ -231,11 +235,20 @@ Kubernetes集群之内，Node IP网、Pod IP网于Cluster IP网之间的通信�
 
 ​		您的 Kubernetes 集群的 etcd 数据库通常需要有个备份计划。要了解 etcd 更深层次的信息，请参考 [etcd 文档](https://etcd.io/docs)。
 
+​		etcd是一个key/value形式的键值存储，保存了整个kubernetes集群的状态，在kubernetes中使用etcd时，需要对etcd做备份，保证高可用。整个kubernetes系统中一共有两个服务需要用到etcd，用etcd来协同和存储配置，分别是：
+
+​			（1）网络插件calico、对于其它网络插件也需要用到etcd存储网络的配置信息 
+​			（2）kubernetes本身，包括各种对象的状态和元信息配置 
+
+注意：网络插件操作etcd使用的是v2的API，而kubernetes操作etcd使用的v3的API，所以在下面我们执行etcdctl的时候需要设置ETCDCTL_API环境变量，该变量默认值为2，表示使用v2版本的etcd api，v3表示使用v3版本的etcd api
+
 ### kube-scheduler
 
 ​		主节点上的组件，该组件监视那些新创建的未指定运行节点的 Pod，并选择节点让 Pod 在上面运行。
 
 ​		调度决策考虑的因素包括单个 Pod 和 Pod 集合的资源需求、硬件/软件/策略约束、亲和性和反亲和性规范、数据位置、工作负载间的干扰和最后时限。
+
+​		kube-scheduler是kubernetes master节点的组件，用来监视已经被创建但是没有调度到node节点的pod，然后选择一个node节点用来运行它，kube-scheduler主要是负责pod的调度，按照预定的调度策略（如亲和性，反亲和性等）将Pod调度到相应的机器上。
 
 ### kube-controller-manager
 
@@ -249,6 +262,8 @@ Kubernetes集群之内，Node IP网、Pod IP网于Cluster IP网之间的通信�
 - 副本控制器（Replication Controller）: 负责为系统中的每个副本控制器对象维护正确数量的 Pod。
 - 端点控制器（Endpoints Controller）: 填充端点(Endpoints)对象(即加入 Service 与 Pod)。
 - 服务帐户和令牌控制器（Service Account & Token Controllers）: 为新的命名空间创建默认帐户和 API 访问令牌.
+
+​		控制器管理器，用来检测控制器健康状态的，控制器是负责维护集群的状态，检查pod的健康状态，比如故障检测、自动扩展、滚动更新等一些操作。
 
 ### cloud-controller-manager
 
@@ -274,6 +289,8 @@ Kubernetes集群之内，Node IP网、Pod IP网于Cluster IP网之间的通信�
 
 ​		kubelet 接收一组通过各类机制提供给它的 PodSpecs，确保这些 PodSpecs 中描述的容器处于运行状态且健康。kubelet 不会管理不是由 Kubernetes 创建的容器。
 
+​		kubelet在k8s集群的每一个节点上都需要运行，属于节点组件，负责与master节点的apiserver进行通信的，接收到客户的请求，进行创建Pod，管理Pod，启动pod等相关操作
+
 ### kube-proxy
 
 ​		[kube-proxy](https://kubernetes.io/docs/reference/command-line-tools-reference/kube-proxy/) 是集群中每个节点上运行的网络代理,实现 Kubernetes [Service](https://kubernetes.io/zh/docs/concepts/services-networking/service/) 概念的一部分。
@@ -281,6 +298,8 @@ Kubernetes集群之内，Node IP网、Pod IP网于Cluster IP网之间的通信�
 kube-proxy 维护节点上的网络规则。这些网络规则允许从集群内部或外部的网络会话与 Pod 进行网络通信。
 
 如果操作系统提供了数据包过滤层并可用的话，kube-proxy会通过它来实现网络规则。否则，kube-proxy 仅转发流量本身。
+
+​		k8s代理，是在群集中的每个节点上运行的网络代理，kube-proxy负责请求转发，一旦发现了某一个Service关联的Pod信息发生了改变（如IP、Port等），由Kube-Proxy就会把变化后的service转换成IPVS或IPtables规则中，完成对后端pod的负载均衡
 
 ### 容器运行时（Container Runtime）
 
@@ -302,11 +321,19 @@ kube-proxy 维护节点上的网络规则。这些网络规则允许从集群内
 
 ​		Kubernetes 启动的容器自动将此 DNS 服务器包含在其 DNS 搜索列表中。
 
+
+
+​		coredns:
+
+​		k8s1.11之前使用的是kubedns，1.11之后才有coredns，coredns是一个DNS服务器，能够为 Kubernetes services提供 DNS记录。
+
 ### Web 界面（仪表盘）
 
 ​		我们也可以称之为Kubernetes监控工具。
 
 ​		[Dashboard](https://kubernetes.io/zh/docs/tasks/access-application-cluster/web-ui-dashboard/) 是K ubernetes 集群的通用的、基于 Web 的用户界面。 它使用户可以管理集群中运行的应用程序以及集群本身并进行故障排除。
+
+​		Dashboard是k8s集群的一个web ui界面，通过这个界面可以对k8s资源进行操作，如创建pod，创建存储，创建网络等，也可以监控pod和节点资源使用情况。
 
 ### 容器资源监控
 
@@ -314,7 +341,28 @@ kube-proxy 维护节点上的网络规则。这些网络规则允许从集群内
 
 ​		[容器资源监控](https://kubernetes.io/zh/docs/tasks/debug-application-cluster/resource-usage-monitoring/) 将关于容器的一些常见的时间序列度量值保存到一个集中的数据库中，并提供用于浏览这些数据的界面。	
 
+​		要扩展应用程序并提供可靠的服务，你需要了解应用程序在部署时的行为。 你可以通过检测容器检查 Kubernetes 集群中的应用程序性能， [Pods](https://kubernetes.io/zh/docs/concepts/workloads/pods), [服务](https://kubernetes.io/zh/docs/concepts/services-networking/service/) 和整个集群的特征。 Kubernetes 在每个级别上提供有关应用程序资源使用情况的详细信息。 此信息使你可以评估应用程序的性能，以及在何处可以消除瓶颈以提高整体性能。
+
+在 Kubernetes 中，应用程序监控不依赖单个监控解决方案。 在新集群上，你可以使用[资源度量](https://kubernetes.io/zh/docs/tasks/debug-application-cluster/resource-usage-monitoring/#resource-metrics-pipeline)或 [完整度量](https://kubernetes.io/zh/docs/tasks/debug-application-cluster/resource-usage-monitoring/#full-metrics-pipeline)管道来收集监视统计信息。
+
+​		一个完整度量管道可以让你访问更丰富的度量。 Kubernetes 还可以根据集群的当前状态，使用 Pod 水平自动扩缩器等机制， 通过自动调用扩展或调整集群来响应这些度量。 监控管道从 kubelet 获取度量值，然后通过适配器将它们公开给 Kubernetes， 方法是实现 `custom.metrics.k8s.io` 或 `external.metrics.k8s.io` API。
+
+​		[Prometheus](https://prometheus.io/) 是一个 CNCF 项目，可以原生监控 Kubernetes、 节点和 Prometheus 本身。 完整度量管道项目不属于 CNCF 的一部分，不在 Kubernetes 文档的范围之内。
+
+​		监控系统，可以对kubernetes集群本身的组件监控，也可对物理节点，容器做监控，对监控到的超过报警阀值的数据进行报警，这个报警会发送到指定的目标，如钉钉，微信，qq，slack等。
+
 ### 集群层面日志
 
 ​		[集群层面日志](https://kubernetes.io/zh/docs/concepts/cluster-administration/logging/) 机制负责将容器的日志数据 保存到一个集中的日志存储中，该存储能够提供搜索和浏览接口。
 
+​		日志管理系统，可以对物理节点和容器的日志进行统一收集，把收集到的数据在kibana界面展示，kibana提供按指定条件搜索和过滤日志。
+
+# 高可用K8s集群
+
+​		k8s的物理结构是master/node模式,架构图如下所示。
+
+​		master一般是三个节点或者五个节点做高可用，根据集群规模来定，master高可用指的是对apiserver做高可用或者对master的物理节点做高可用。
+
+​		node可以有多个节点，专门用来部署应用的。
+
+![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1639474218098.png)

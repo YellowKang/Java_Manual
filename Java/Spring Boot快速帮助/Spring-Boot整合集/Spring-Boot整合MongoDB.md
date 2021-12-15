@@ -929,9 +929,11 @@ public class MongoConfig {
         </dependency>
 ```
 
-# 连接断开问题
+# 连接断开问题（连接池配置）
 
 ​		设置maxConnectionIdleTime
+
+​		老版本
 
 ```java
 @Configuration
@@ -943,6 +945,39 @@ public class MongoDbSettings {
             .builder()
             .maxConnectionIdleTime(60000)
             .build();
+    }
+
+}
+```
+
+​		新版本
+
+```java
+
+@Configuration
+public class MongoDbSettings {
+
+    @Bean
+    public MongoClientSettings mongoClientSettings() throws Exception {
+        MongoClientSettingsFactoryBean factoryBean = new MongoClientSettingsFactoryBean();
+        // 连接池最大数量
+        factoryBean.setPoolMaxSize(10);
+        // 连接池最小数量
+        factoryBean.setPoolMinSize(10);
+
+        // 设置等待时间（毫秒）
+        factoryBean.setPoolMaxWaitTimeMS(1000);
+        // 最大连接寿命（毫秒）
+        factoryBean.setPoolMaxConnectionLifeTimeMS(360000);
+        // 最大连接空闲时间（毫秒）
+        factoryBean.setPoolMaxConnectionIdleTimeMS(360000);
+
+        // 初始延迟毫秒
+        factoryBean.setPoolMaintenanceInitialDelayMS(100);
+        // 设置连接池维护频率（毫秒）
+        factoryBean.setPoolMaintenanceFrequencyMS(5000);
+
+        return factoryBean.getObject();
     }
 
 }

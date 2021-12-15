@@ -659,6 +659,104 @@ logging:
 
 ​		参考上方Log4j2一样
 
+## Json方式日志
+
+​		需要引入Logstash的JsonEncoder依赖
+
+```xml
+　　　　 <dependency>
+            <groupId>net.logstash.logback</groupId>
+            <artifactId>logstash-logback-encoder</artifactId>
+            <version>6.1</version>
+        </dependency>
+```
+
+​		下方logback配置
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    	<!--从配置文件读取配置路径，并且添加默认值-->
+      <springProperty scope="context" name="log.pattern" source="log.pattern"
+                    defaultValue="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%c] [%M] %logger{36} -%msg%n"/>
+      <springProperty scope="context" name="log.path" source="log.path"
+                    defaultValue="log"/>
+  
+  		<!--从SpringBoot配置文件读取项目名，环境-->
+      <springProperty scope="context" name="springAppName" source="spring.application.name"/>
+      <springProperty scope="context" name="springProfile" source="spring.profiles.active"/>
+  
+      <!--控制台日志打印格式 1-->
+      <appender name="CONSOLE1" class="ch.qos.logback.core.ConsoleAppender">
+          <filter class="ch.qos.logback.classic.filter.LevelFilter">
+              <level>INFO</level>
+          </filter>
+          <encoder>
+              <layout>
+                  <Pattern>${log.pattern}</Pattern>
+              </layout>
+          </encoder>
+      </appender>
+
+      <!--INFO日志打印-->
+      <appender name="file" class="ch.qos.logback.core.rolling.RollingFileAppender">
+          <!-- 正在记录的日志文件的路径及文件名 -->
+          <file>${log.path}/${springAppName:-}/${springAppName:-}.log</file>
+          <filter class="ch.qos.logback.classic.filter.LevelFilter">
+              <level>INFO</level>
+          </filter>
+          <!--日志名称，如果没有File 属性，那么只会使用FileNamePattern的文件路径规则如果同时有<File>和<FileNamePattern>，那么当天日志是<File>，明天会自动把今天的日志改名为今天的日期。即，<File> 的日志都是当天的。-->
+          <!--<File>logs/info.spring-boot-demo-logback.log</File>-->
+          <!--滚动策略，按照时间滚动 TimeBasedRollingPolicy-->
+          <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+              <!--文件路径,定义了日志的切分方式——把每一天的日志归档到一个文件中,以防止日志填满整个磁盘空间-->
+              <FileNamePattern>${log.path}/${springAppName:-}/%d{yyyy-MM-dd}/part_%i.log</FileNamePattern>
+              <!--只保留最近10天的日志-->
+              <maxHistory>10</maxHistory>
+              <!--用来指定日志文件的上限大小，那么到了这个值，就会删除旧的日志-->
+              <totalSizeCap>100GB</totalSizeCap>
+              <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                  <!-- maxFileSize:这是活动文件的大小，默认值是10MB -->
+                  <maxFileSize>1GB</maxFileSize>
+              </timeBasedFileNamingAndTriggeringPolicy>
+          </rollingPolicy>
+          <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+              <providers>
+                  <timestamp>
+                      <timeZone>UTC</timeZone>
+                  </timestamp>
+                  <pattern>
+                      <pattern>
+                          {
+                          <!--设置项目-->
+                          "app": "${springAppName:-}",
+                          <!--设置环境-->
+                          "profile": "${springProfile:-}",
+                          <!--设置等级-->
+                          "level": "%level",
+                          <!--设置类名-->
+                          "class": "%c",
+                          <!--设置方法名-->
+                          "method": "%M",
+                          <!--设置消息-->
+                          "message": "[%thread] [%logger{35}:%L] --- %msg",
+                          <!--设置异常栈信息-->
+                          "stackTrace": "%exception"
+                          }
+                      </pattern>
+                  </pattern>
+              </providers>
+          </encoder>
+      </appender>
+  
+      <root level="info">
+        <appender-ref ref="CONSOLE1"/>
+        <appender-ref ref="file"/>
+    </root>
+</configuration>
+```
+
 # Kibana使用
 
 ## 修改时间显示格式化

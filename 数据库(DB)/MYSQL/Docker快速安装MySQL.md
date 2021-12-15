@@ -33,52 +33,6 @@ docker run -p 3306:3306 \
 -d docker.io/mysql:5.7
 ```
 
-# 安装MySQL8
-
-和上面一样
-
-```sh
-mkdir -p /docker/mysql8/conf
-mkdir -p /docker/mysql8/data
-
-vim /docker/mysql8/conf/my.cnf
-```
-
-```sh
-[mysqld]
-character-set-server=utf8
-[client]
-default-character-set=utf8
-[mysql]
-default-character-set=utf8
-```
-
-启动容器
-
-```sh
-docker run -p 13306:3306 \
---name mysql8 \
--e MYSQL_ROOT_PASSWORD=bigkang \
---privileged=true \
--v /docker/mysql8/data:/var/lib/mysql \
--v /docker/mysql8/conf/my.cnf:/etc/mysql/conf.d/mysql.cnf \
--d docker.io/mysql:8.0.16
-```
-
-启动后执行sql命令
-
-全都设置为utf8
-
-```
-SET NAMES utf8;
-```
-
-
-
-
-
-
-
 # 一键设置编码
 
 ```sql
@@ -286,26 +240,15 @@ default-character-set=utf8
 
 
 
-# MySQL初始化脚本
-
-​		直接将./mysql-init目录挂载至/docker-entrypoint-initdb.d，文件下方放入SQL文件即可
-
-```
-    volumes:
-      - ./mysql-data:/var/lib/mysql         # 挂载数据目录
-      - ./mysql-config:/etc/mysql/conf.d      # 挂载配置文件目录
-      - ./mysql-init:/docker-entrypoint-initdb.d # 挂载初始化文件夹
-```
-
-
-
 # MySQL8.0安装部署
 
 ​		使用Docke-compose方式部署8.0MySQL
 
 ```sh
 # 创建部署文件目录
-cd && mkdir -p deploys && cd deploys && mkdir mysql-8.0 && cd mysql-8.0
+# cd && mkdir -p deploys && cd deploys && mkdir mysql-8.0 && cd mysql-8.0
+mkdir -p /data/mysql8 
+cd /data/mysql8
 
 # 创建配置文件
 mkdir data && mkdir conf && mkdir init-sql

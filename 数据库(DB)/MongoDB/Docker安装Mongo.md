@@ -34,6 +34,8 @@ docker.io/mongo:latest \
 
 ## 自定义配置文件启动
 
+### 命令方式
+
 ```sh
 #首先创建文件夹用于挂载目录
 
@@ -57,6 +59,49 @@ docker run --name mongo -d \
 -v /docker/mongo/conf:/data/configdb \
 -v /docker/mongo/data:/data/db \
 docker.io/mongo:latest mongod -f /data/configdb/mongo.conf
+```
+
+### Compose方式
+
+```sh
+#首先创建文件夹用于挂载目录
+
+mkdir -p /data/mongo/{conf,data}
+
+#赋予权限
+cd /data/mongo
+chmod 777 conf
+chmod 777 data
+
+# 新建配置文件
+cat > ./conf/mongo.conf << EOF
+logappend=true
+port=27018
+auth=true
+EOF
+
+# 新建Compose文件
+cat > ./docker-compose.yaml << EOF
+version: '3.4'
+services:
+  mongo:
+    container_name: mongo       # 指定容器的名称
+    image: docker.io/mongo:latest     # 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: mongo
+    ports:
+      - 27018:27018
+    privileged: true
+    command: mongod -f /data/configdb/mongo.conf
+    volumes: 
+      - ./conf:/data/configdb
+      - ./data:/data/db
+EOF
+
+# 启动容器
+docker-compose up -d
+
+# 启动后将auth改为false再去创建用户
 ```
 
 # 创建用户

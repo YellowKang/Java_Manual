@@ -334,3 +334,161 @@ echo "itsm    ALL=(ALL:ALL) ALL" >> /etc/sudoers
 adduser itsm
 ```
 
+
+
+
+
+# 青云服务器重置
+
+​		替换yum源
+
+```sh
+cd /etc/yum.repos.d/
+mv CentOS-Linux-BaseOS.repo CentOS-Linux-BaseOS.repo.bak
+wget -O CentOS-Linux-BaseOS.repo http://mirrors.aliyun.com/repo/Centos-8.repo
+
+echo "192.168.100.11       qingyun01
+192.168.100.12       qingyun02
+192.168.100.13       qingyun03" >> /etc/hosts
+
+
+# 生成ssh
+ssh-keygen -t rsa
+
+cat /root/.ssh/id_rsa.pub  >> /root/.ssh/authorized_keys
+
+
+# 安装Docker
+sudo yum install -y yum-utils device-mapper-persistent-data lvm2
+sudo yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo 
+sudo yum install docker-ce-20.10.6  -y
+
+
+
+
+# 上传OR下载Compose
+
+cp docker-compose-linux-x86_64 /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+
+# 磁盘挂载
+
+mkdir /data
+mkfs -t ext4 /dev/vdc
+mount /dev/vdc /data
+rm -rf /data/lost+found
+
+ blkid /dev/vdc
+
+# echo "UUID=31d82231-ebae-47ca-ad23-d0ee1ad92976 /data                       ext4     defaults        0 0" >>  /etc/fstab
+
+
+
+sudo mkdir -p /etc/docker
+sudo tee /etc/docker/daemon.json <<-'EOF'
+{
+  "registry-mirrors": ["https://ldlov75k.mirror.aliyuncs.com"],
+  "graph":"/data/docker",
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "1000m",
+    "max-file": "3"
+  },
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "insecure-registries" : ["hub.bigkang.k8s"]
+}
+EOF
+
+
+systemctl enable docker.service
+systemctl start docker.service
+
+
+# 初始设置
+systemctl stop firewalld && systemctl disable firewalld
+setenforce 0 && sed -i "s/^SELINUX=enforcing/SELINUX=disabled/g" /etc/selinux/config
+swapoff -a && sed -i 's/.*swap.*/#&/' /etc/fstab
+modprobe br_netfilter
+modprobe ip_conntrack
+cat > /etc/sysctl.d/k8s.conf << EOF
+net.bridge.bridge-nf-call-iptables=1
+net.bridge.bridge-nf-call-ip6tables=1
+net.ipv4.ip_forward=1
+net.ipv4.tcp_tw_recycle=0
+vm.swappiness=0
+vm.overcommit_memory=1
+vm.panic_on_oom=0
+fs.inotify.max_user_watches=89100
+fs.file-max=52706963
+fs.nr_open=52706963
+net.ipv6.conf.all.disable_ipv6=1
+net.netfilter.nf_conntrack_max=2310720
+EOF
+sysctl -p /etc/sysctl.d/k8s.conf
+cat > /etc/yum.repos.d/kubernetes.repo << EOF
+[kubernetes]
+name=Kubernetes
+baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+EOF
+
+export kubeletVersion="1.22.0"
+yum install -y kubelet-$kubeletVersion kubeadm-$kubeletVersion kubectl-$kubeletVersion
+
+
+systemctl enable kubelet
+
+# 修改IP以及 K8s版本
+
+cat > /var/lib/kubelet/config.yaml << EOF
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: 192.168.100.11
+  bindPort: 6443
+nodeRegistration:
+  taints:
+  - effect: PreferNoSchedule
+    key: node-role.kubernetes.io/master
+---
+apiVersion: kubeadm.k8s.io/v1beta2
+imageRepository: registry.aliyuncs.com/google_containers
+kind: ClusterConfiguration
+kubernetesVersion: v1.22.0
+networking:
+  podSubnet: 10.244.0.0/16
+EOF
+
+kubeadm init --config /var/lib/kubelet/config.yaml --ignore-preflight-errors=Swap 
+
+
+# 写入环境变量
+echo "export KUBECONFIG=/etc/kubernetes/admin.conf" >> /etc/profile
+source  /etc/profile
+
+# 安装网络
+# 创建目录存放命令
+mkdir ~/flannel
+cd ~/flannel
+# 下载Flannel
+wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+# 下载前ping 域名然后修改host
+ping raw.githubusercontent.com
+199.232.4.133 raw.githubusercontent.com
+
+# 然后应用
+kubectl apply -f kube-flannel.yml
+
+
+# 然后检查集群是否健康
+wget https://github.91chi.fun//https://github.com//vmware-tanzu/sonobuoy/releases/download/v0.55.1/sonobuoy_0.55.1_linux_386.tar.gz
+
+tar -zxvf sonobuoy_0.55.1_linux_386.tar.gz
+sonobuoy run --wait
+```
+
