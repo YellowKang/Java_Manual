@@ -1918,25 +1918,53 @@ kubectl delete secret $domainName-tls-secret
 
 ## 安装Harbor镜像私服
 
-​		我们选择将Harbor安装
-
-​		安装Docker-Compose
-
 ```sh
+# 安装Docker-Compose(可以自行安装或者下载可能比较慢并且注意Docker版本)
 curl -L https://github.91chifun.workers.dev//https://github.com/docker/compose/releases/download/1.27.4/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
-
 docker-compose version
+
+# 指定Harbor下载目录
+export harborPath="/data/harbor"
+mkdir -p $harborPath && cd $harborPath
+
+# 下载解压Harbor
+wget https://github.91chifun.workers.dev//https://github.com/goharbor/harbor/releases/download/v2.1.1/harbor-online-installer-v2.1.1.tgz -O harbor-online-installer.tgz
+tar -zxvf harbor-online-installer.tgz
+
+# 创建证书
+# 定义域名,生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
+export domainNamePath="/root/k8s/tls"
+export domainName="harbor.bigkang.club"
+mkdir -p $domainNamePath/$domainName && cd $domainNamePath/$domainName
+openssl genrsa -out $domainName.key
+openssl req -new -sha256 -key $domainName.key -out $domainName.csr -subj "/C=CN/ST=sichuan/L=dazhou/O=bigkang/OU=kaifa/CN=$domainName"
+openssl x509 -req -days 3650 -sha1 -extensions v3_ca -signkey $domainName.key -in $domainName.csr -out $domainName.crt
+openssl x509 -in $domainName.crt -out $domainName.pem -outform PEM
+
+# 复制配置文件
+cd $harborPath/harbor
+cp harbor.yml.tmpl harbor.yml
+
+# 修改域名映射
+sed -i "s#hostname: reg.mydomain.com#hostname: $domainName#g" harbor.yml
+
+# 修改证书地址
+sed -i "s#certificate: /your/certificate/path#certificate: $domainNamePath/$domainName.crt#g" harbor.yml
+sed -i "s#private_key: /your/private/key/path#private_key: $domainNamePath/$domainName.key#g" harbor.yml
+
+# 修改密码
+export harborPassword="bigkang"
+sed -i "s#Harbor12345#$harborPassword#g" harbor.yml
+
+# 设置挂载的Harbor的Data盘
+export harborDataPath="/data/harbor/data"
+mkdir -p $harborDataPath
+sed -i "s#data_volume: /data#data_volume: $harborDataPath#g" harbor.yml
+
 ```
 
-​		下载Harbor
 
-```sh
-wget https://github.91chifun.workers.dev//https://github.com/goharbor/harbor/releases/download/v2.1.1/harbor-online-installer-v2.1.1.tgz
-
-tar -zxvf harbor-online-installer-v2.1.1.tgz
-cd harbor
-```
 
 ​		修改配置文件
 
