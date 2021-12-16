@@ -1147,6 +1147,8 @@ kube-flannel-ds-x9drq             0/1     Init:0/1   0          64s
 
 ​		官网地址：[点击进入](https://github.com/projectcalico/cni-plugin)
 
+​			地址更新：https://github.com/projectcalico/calico
+
 ​			Calico是Kubernetes生态系统中另一种流行的网络选择。虽然Flannel被公认为是最简单的选择，但Calico以其性能、灵活性而闻名。Calico的功能更为全面，不仅提供主机和pod之间的网络连接，还涉及网络安全和管理。Calico CNI插件在CNI框架内封装了Calico的功能。
 
 ​			在满足系统要求的新配置的Kubernetes集群上，用户可以通过应用单个manifest文件快速部署Calico。如果您对Calico的可选网络策略功能感兴趣，可以向集群应用其他manifest，来启用这些功能。
@@ -1161,7 +1163,22 @@ kube-flannel-ds-x9drq             0/1     Init:0/1   0          64s
 
 ​		在线联网安装：
 
-```
+```sh
+# 指定版本
+# curl https://docs.projectcalico.org/archive/v3.13/manifests/calico.yaml -O
+ 
+ 
+# 指定下载目录
+export calicoPath="/root/calico"
+mkdir -p $calicoPath && cd $calicoPath
+# 最新版本
+curl https://docs.projectcalico.org/manifests/calico.yaml -O
+
+
+# 如果使用 192.168.0.0/16 作为Pod网络范围
+
+# 使用calico.yaml
+kubectl apply -f calico.yaml
 
 ```
 
@@ -1216,32 +1233,32 @@ kube-flannel-ds-x9drq             0/1     Init:0/1   0          64s
 ​		执行如下命令
 
 ```sh
-mkdir ~/k8s-dashboard
-cd ~/k8s-dashboard
-wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.4.0/aio/deploy/recommended.yaml
-```
+# 指定下载目录
+export k8sDashboardPath="/root/k8s-dashboard"
+mkdir -p $k8sDashboardPath && cd $k8sDashboardPath
+# 下载部署文件
+wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.4.0/aio/deploy/recommended.yaml -O deploy.yaml
 
-​		然后修改
+sed -i "s#  namespace: kubernetes-dashboard\nspec:\n  ports:\n    - port: 443\n      targetPort: 8443#  namespace: kubernetes-dashboard\nspec:\n  ports:\n    - port: 443\n      targetPort: 8443\n      nodePort: 30000#g" deploy.yaml
 
-​		修改类型为type: NodePort，然后新增nodePort: 30000暴露端口
 
-```sh
-vim ~/k8s-dashboard/recommended.yaml
-```
 
-```sh
-spec:
-  type: NodePort
-  ports:
-    - port: 443
-      targetPort: 8443
+
+
       nodePort: 30000
-```
 
-​		然后应用
+# 添加宿主机端口号30000
+sed -i '/targetPort: 8443/a\      nodePort: 30000' deploy.yaml
+# 设置类型为NodePort
+sed -i '/targetPort: 8443/i\  type: NodePort' deploy.yaml
 
-```sh
-kubectl apply -f ~/k8s-dashboard/recommended.yaml
+# 启动dashboard
+kubectl apply -f deploy.yaml
+
+# 查看相关POD
+kubectl -n kubernetes-dashboard get pods
+kubectl -n kubernetes-dashboard get svc 
+
 ```
 
 ​		然后查看pod
@@ -1862,7 +1879,7 @@ openssl x509 -in $domainName.crt -out $domainName.pem -outform PEM
 
 
 # 创建tls证书
-kubectl create secret tls $domainName-tls-secret --cert=$domainName.pem --key=$domainName.key
+kubectl create secret tls $domainName-tls-secret --namespace=kubernetes-dashboard --cert=$domainName.pem --key=$domainName.key
 ```
 
 ```sh
@@ -1879,6 +1896,11 @@ kind: Ingress
 metadata:
   name: ingress-k8s-dashboard
   namespace: kubernetes-dashboard
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
 spec:
   tls:
     - hosts:
@@ -1950,8 +1972,8 @@ cp harbor.yml.tmpl harbor.yml
 sed -i "s#hostname: reg.mydomain.com#hostname: $domainName#g" harbor.yml
 
 # 修改证书地址
-sed -i "s#certificate: /your/certificate/path#certificate: $domainNamePath/$domainName.crt#g" harbor.yml
-sed -i "s#private_key: /your/private/key/path#private_key: $domainNamePath/$domainName.key#g" harbor.yml
+sed -i "s#certificate: /your/certificate/path#certificate: $domainNamePath/$domainName/$domainName.crt#g" harbor.yml
+sed -i "s#private_key: /your/private/key/path#private_key: $domainNamePath/$domainName/$domainName.key#g" harbor.yml
 
 # 修改密码
 export harborPassword="bigkang"
@@ -1962,6 +1984,10 @@ export harborDataPath="/data/harbor/data"
 mkdir -p $harborDataPath
 sed -i "s#data_volume: /data#data_volume: $harborDataPath#g" harbor.yml
 
+# 设置日志盘
+export harborLogPath="/data/harbor/log"
+mkdir -p $harborLogPath
+sed -i "s#/var/log/harbor#$harborLogPath#g" harbor.yml
 ```
 
 
@@ -2622,5 +2648,35 @@ docker images | grep google_containers |xargs docker rmi -f
 docker images | grep pause  |xargs docker rmi -f
 docker images | grep coredns |xargs docker rmi -f
 docker images | grep etcd |xargs docker rmi -f
+```
+
+```
+# 不删除镜像
+
+kubeadm reset -f
+rpm -qa|grep kube*|xargs rpm --nodeps -e
+modprobe -r ipip
+lsmod
+rm -rf ~/.kube/
+rm -rf /etc/kubernetes/
+rm -rf /etc/systemd/system/kubelet.service.d
+rm -rf /etc/systemd/system/kubelet.service
+rm -rf /usr/bin/kube*
+rm -rf /etc/cni
+rm -rf /opt/cni
+rm -rf /var/lib/etcd
+rm -rf /var/etcd
+
+docker ps -a| grep rancher | grep -v grep| awk '{print "docker stop "$1}'|sh
+docker ps -a| grep rancher | grep -v grep| awk '{print "docker rm "$1}'|sh
+
+
+
+docker ps -a| grep google_containers | grep -v grep| awk '{print "docker stop "$1}'|sh
+docker ps -a| grep google_containers | grep -v grep| awk '{print "docker rm "$1}'|sh
+docker ps -a| grep k8s_ | grep -v grep| awk '{print "docker stop "$1}'|sh
+docker ps -a| grep k8s_ | grep -v grep| awk '{print "docker rm "$1}'|sh
+
+
 ```
 
