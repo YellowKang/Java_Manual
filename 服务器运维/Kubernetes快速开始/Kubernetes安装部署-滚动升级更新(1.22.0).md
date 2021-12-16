@@ -79,10 +79,17 @@ ssh node1
 
 ​		将桥接的IPv4流量传递到iptables的链,以及内核优化(所有节点)
 
+```
+
+```
+
+
+
 ```sh
 modprobe br_netfilter
 modprobe ip_conntrack
 cat > /etc/sysctl.d/k8s.conf << EOF
+br_netfilter
 net.bridge.bridge-nf-call-iptables=1
 net.bridge.bridge-nf-call-ip6tables=1
 net.ipv4.ip_forward=1
@@ -90,6 +97,7 @@ net.ipv4.tcp_tw_recycle=0
 vm.swappiness=0
 vm.overcommit_memory=1
 vm.panic_on_oom=0
+net.ipv4.tcp_timestamps=0
 fs.inotify.max_user_watches=89100
 fs.file-max=52706963
 fs.nr_open=52706963
@@ -114,6 +122,7 @@ sudo tee /etc/docker/daemon.json <<-'EOF'
     "max-file": "3"
   },
   "exec-opts": ["native.cgroupdriver=systemd"],
+  "storage-driver": "overlay2",
   "insecure-registries" : ["hub.bigkang.k8s"]
 }
 EOF
@@ -163,6 +172,15 @@ gpgcheck=1
 repo_gpgcheck=1
 gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
 EOF
+```
+
+​		安装K8s命令补全
+
+```sh
+yum -y install bash-completion
+source /usr/share/bash-completion/bash_completion
+source <(kubectl completion bash)
+echo "source <(kubectl completion bash)" >> ~/.bashrc
 ```
 
 # 开始安装
@@ -1115,33 +1133,28 @@ journalctl -xefu kubelet
 ​			由CoreOS开发的项目Flannel，可能是最直接和最受欢迎的CNI插件。它是容器编排系统中最成熟的网络结构示例之一，旨在实现更好的容器间和主机间网络。随着CNI概念的兴起，Flannel CNI插件算是早期的入门。
 与其他方案相比，Flannel相对容易安装和配置。它被打包为单个二进制文件FlannelD，许多常见的Kubernetes集群部署工具和许多Kubernetes发行版都可以默认安装Flannel。Flannel可以使用Kubernetes集群的现有etcd集群来使用API存储其状态信息，因此不需要专用的数据存储。
 
-​			在线联网安装,Master节点执行
+​		在线联网安装,Master节点执行
 
 ```sh
-# 创建目录存放命令
-mkdir ~/flannel
-cd ~/flannel
+# 指定下载目录
+export flannelPath="/root/flannel"
+mkdir -p $flannelPath && cd $flannelPath
+
 # 下载Flannel
-wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml -O flannel.yml
+
 # 然后应用
-kubectl apply -f kube-flannel.yml
-```
+kubectl apply -f flannel.yml
 
-​		查看是否安装成功
-
-```sh
+# 查看是否安装成功
 kubectl get pods -n kube-system | grep kube-flannel
+
+# 如下都Running则成功并且都准备完成 1/1
+
+# kube-flannel-ds-lzpgk             1/1     Running    0          64s
+# kube-flannel-ds-t749p             1/1     Running    0          64s
+# kube-flannel-ds-x9drq             1/1     Running    0          64s
 ```
-
-​		返回类似如下
-
-```sh
-kube-flannel-ds-lzpgk             1/1     Running    0          64s
-kube-flannel-ds-t749p             1/1     Running    0          64s
-kube-flannel-ds-x9drq             0/1     Init:0/1   0          64s
-```
-
-​		等待所有状态都为Running表示安装成功
 
 ### Calico（推荐）
 
@@ -1167,12 +1180,11 @@ kube-flannel-ds-x9drq             0/1     Init:0/1   0          64s
 # 指定版本
 # curl https://docs.projectcalico.org/archive/v3.13/manifests/calico.yaml -O
  
- 
 # 指定下载目录
 export calicoPath="/root/calico"
 mkdir -p $calicoPath && cd $calicoPath
 # 最新版本
-curl https://docs.projectcalico.org/manifests/calico.yaml -O
+curl https://docs.projectcalico.org/manifests/calico.yaml -O calico.yaml
 
 
 # 如果使用 192.168.0.0/16 作为Pod网络范围
@@ -1180,6 +1192,14 @@ curl https://docs.projectcalico.org/manifests/calico.yaml -O
 # 使用calico.yaml
 kubectl apply -f calico.yaml
 
+# 查看是否安装成功
+kubectl get pods -n kube-system | grep calico
+
+# 如下都Running则成功并且都准备完成 1/1
+# calico-kube-controllers-6b9fbfff44-qxk8b   1/1     Running   0             4h36m
+# calico-node-n25rw                          1/1     Running   0             4h36m
+# calico-node-rqqcg                          1/1     Running   0             4h36m
+# calico-node-rrq5g                          1/1     Running   0             13m
 ```
 
 
@@ -1214,10 +1234,6 @@ kubectl apply -f calico.yaml
 
 ​			对于那些寻求功能丰富的网络、同时希望不要增加大量复杂性或管理难度的人来说，Weave是一个很好的选择。它设置起来相对容易，提供了许多内置和自动配置的功能，并且可以在其他解决方案可能出现故障的场景下提供智能路由。网状拓扑结构确实会限制可以合理容纳的网络的大小，不过对于大多数用户来说，这也不是一个大问题。此外，Weave也提供收费的技术支持，可以为企业用户提供故障排除等等技术服务。
 
-
-
-
-
 ## 安装监控工具
 
 ​		官方地址：[点击进入](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)
@@ -1239,18 +1255,23 @@ mkdir -p $k8sDashboardPath && cd $k8sDashboardPath
 # 下载部署文件
 wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.4.0/aio/deploy/recommended.yaml -O deploy.yaml
 
-sed -i "s#  namespace: kubernetes-dashboard\nspec:\n  ports:\n    - port: 443\n      targetPort: 8443#  namespace: kubernetes-dashboard\nspec:\n  ports:\n    - port: 443\n      targetPort: 8443\n      nodePort: 30000#g" deploy.yaml
-
-
-
-
-
-      nodePort: 30000
-
 # 添加宿主机端口号30000
 sed -i '/targetPort: 8443/a\      nodePort: 30000' deploy.yaml
-# 设置类型为NodePort
-sed -i '/targetPort: 8443/i\  type: NodePort' deploy.yaml
+# 设置新增类型为NodePort，全局搜/8443
+vim deploy.yaml
+
+--------------
+metadata:
+  labels:
+    k8s-app: kubernetes-dashboard
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+spec:
+	type: NodePort   # 新增这一行
+  ports:
+    - port: 443
+      targetPort: 8443
+--------------
 
 # 启动dashboard
 kubectl apply -f deploy.yaml
@@ -1433,32 +1454,153 @@ kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboar
 
 ​		官网地址：[点击进入](https://kubernetes.github.io/ingress-nginx/deploy/#quick-start)
 
+​		安装部署：
+
 ```sh
+# 指定Yaml下载目录
+export ingressNginxPath="/root/ingress-nginx"
 # 创建挂载目录
-mkdir -p ~/ingress-nginx/ && cd ~/ingress-nginx/
+mkdir -p $ingressNginxPath && cd $ingressNginxPath
 # 下载
-wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/cloud/deploy.yaml
+# wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/cloud/deploy.yaml -O deploy.yaml
+
+wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/baremetal/deploy.yaml -O deploy.yaml
+
+# 修改镜像为阿里云加速镜像否则无法创建拉取
+# 将 k8s.gcr.io/ingress-nginx/controller 替换为 registry.aliyuncs.com/google_containers/nginx-ingress-controller
+sed -i "s#k8s.gcr.io/ingress-nginx/controller#registry.aliyuncs.com/google_containers/nginx-ingress-controller#g" deploy.yaml
+sed -i "s#k8s.gcr.io/ingress-nginx/kube-webhook-certgen#registry.aliyuncs.com/google_containers/kube-webhook-certgen#g" deploy.yaml
+
+# 然后我们定义Ingress的宿主机端口,全局搜 type: LoadBalancer
+vim deploy.yaml
+
+-------------
+spec:
+  type: NodePort
+  externalTrafficPolicy: Local
+  ipFamilyPolicy: SingleStack
+  ipFamilies:
+    - IPv4
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+      appProtocol: http
+      nodePort: 30080  # 新增NodePort宿主机映射端口
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+      appProtocol: https
+      nodePort: 30443 # 新增NodePort宿主机映射端口
+-------------
+
+
+# 启动部署
+kubectl apply -f deploy.yaml
+
+
+# 如下nginx-controller运行成功即可
+ingress-nginx-admission-create--1-mcdt8     0/1     Completed   0          3m2s
+ingress-nginx-admission-patch--1-lrqsr      0/1     Completed   1          3m2s
+ingress-nginx-controller-6747bcd76c-d597b   1/1     Running     0          3m2s
+```
+
+​		修改端口（可以不修改）
+
+```sh
+# 如果想使用80 以及 443,那我们需要修改默认NodePort端口范围（不太推荐，不想使用443 以及 80可以略过）
+kubectl get pod -A | grep apiserver
+
+# 返回如下
+kube-system            kube-apiserver-qingyun01                    1/1     Running   3 (77m ago)   5h34m
+
+# 我们导出apiserver
+# 指定Yaml下载目录
+export customApiServerPath="/root/apiServer"
+mkdir -p $customApiServerPath
+kubectl get pod kube-apiserver-qingyun01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
+
+# 查看是否指定端口，如果有则修改没有则新增
+cat $customApiServerPath/apiserver.yaml | grep service-node-port-rang
+# 添加端口号范围
+sed -i '/kubernetes.default.svc.cluster.local/a\    - --service-node-port-range=80-65535' /etc/kubernetes/manifests/kube-apiserver.yaml
+# 修改完成后自动更新，不需要操作，重新导出一份yaml
+kubectl get pod kube-apiserver-qingyun01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
+# 再次检查是否设置成功
+cat $customApiServerPath/apiserver.yaml | grep service-node-port-rang
+# 然后我们定义Ingress的宿主机端口,全局搜 ingress-nginx/templates/controller-service.yaml
+vim deploy.yaml
+-------------
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+      appProtocol: http
+      nodePort: 80  # 新增NodePort宿主机映射端口
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+      appProtocol: https
+      nodePort: 443 # 新增NodePort宿主机映射端口
+-------------
+kubectl apply -f deploy.yaml
+```
+
+​		部署测试项目
+
+```sh
+# 创建并且暴露demo
+kubectl create deployment demo --image=httpd --port=80
+kubectl expose deployment demo
+
+# 查看demo是否启动
+kubectl get all | grep demo
+
+# # 创建证书
+
+# 定义域名,域名证书地址，证书命名空间，以及Ingress服务
+# 生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
+export domainName="demo.bigkang.club"
+export domainPath="/root/k8s/tls"
+export tlsNameSpace="default"
+export ingressService="demo:80"
+mkdir -p $domainPath/$domainName && cd $domainPath/$domainName
+openssl genrsa -out $domainName.key
+openssl req -new -sha256 -key $domainName.key -out $domainName.csr -subj "/C=CN/ST=sichuan/L=dazhou/O=bigkang/OU=kaifa/CN=$domainName"
+openssl x509 -req -days 3650 -sha1 -extensions v3_ca -signkey $domainName.key -in $domainName.csr -out $domainName.crt
+openssl x509 -in $domainName.crt -out $domainName.pem -outform PEM
+
+
+# 创建tls证书
+kubectl create secret tls $domainName-tls-secret --namespace=$tlsNameSpace --cert=$domainName.pem --key=$domainName.key
+
+# 然后使用nginx进行映射,使用demo.localdev.me域名即可访问
+kubectl create ingress $domainName-ingress --namespace=$tlsNameSpace --class=nginx \
+  --rule=$domainName/*=$ingressService
+  
+
+# 修改hosts 访问域名
+echo "192.168.100.11 $domainName"
+
+
 ```
 
 ​		部署ingress-nginx
 
 ```sh
-# 修改镜像为阿里云加速镜像否则无法创建拉取
-
-# 将 k8s.gcr.io/ingress-nginx/controller 替换为 registry.aliyuncs.com/google_containers/nginx-ingress-controller
-sed -i "s#k8s.gcr.io/ingress-nginx/controller#registry.aliyuncs.com/google_containers/nginx-ingress-controller#g" deploy.yaml
-
-sed -i "s#k8s.gcr.io/ingress-nginx/kube-webhook-certgen#registry.aliyuncs.com/google_containers/kube-webhook-certgen#g" deploy.yaml
 
           
-# 启动部署
-kubectl apply -f deploy.yaml
+
 ```
 
 ​			然后查看信息直到全部启动
 
 ```
- kubectl get all -n ingress-nginx
+
 ```
 
 ​			查看是否启动成功
@@ -1466,11 +1608,7 @@ kubectl apply -f deploy.yaml
 ```sh
 kubectl get pod -n ingress-nginx 
 
-# ingress准备好了
-kubectl wait --namespace ingress-nginx \
-  --for=condition=ready pod \
-  --selector=app.kubernetes.io/component=controller \
-  --timeout=120s
+
 ```
 
 ​			然后我们新建一个测试Demo用于ingress转发
@@ -1487,7 +1625,8 @@ kubectl get all
 kubectl create ingress demo-localhost --class=nginx \
   --rule=demo.localdev.me/*=demo:80
   
- 
+kubectl create ingress demo-localhost --class=nginx \
+  --rule=demo.bigkang.club/*=demo:80
 
 # 修改host 访问域名
 192.168.100.11 demo.localdev.me
@@ -2586,6 +2725,90 @@ openssl x509 -in root.crt -out root.pem -outform PEM
 kubectl create secret tls custom-tls-secret --cert=root.pem --key=root.key
 ```
 
+# 问题排查
+
+## 访问端口超时卡死
+
+​		本地部署k8s后访问nodePort使用curl等一直连接超时，无论什么原因都无法访问，telnet端口无限卡死
+
+```sh
+# 查看所有Pod
+kubectl get pods -A
+
+NAMESPACE              NAME                                        READY   STATUS    RESTARTS      AGE
+default                cirros-28920                                1/1     Running   0             36m
+default                demo-654c477f6d-x79bb                       1/1     Running   0             33m
+kube-system            calico-kube-controllers-6b9fbfff44-qxk8b    1/1     Running   0             4h13m
+kube-system            calico-node-fppj8                           0/1     Running   1 (21m ago)   39m
+kube-system            calico-node-n25rw                           1/1     Running   0             4h13m
+
+# 发现POD calico-kube 重启并且没有就绪
+# 查看容器日志
+kubectl logs -f --tail 100 calico-node-fppj8 -n kube-system
+
+# 发现如下
+2021-12-16 13:52:59.237 [INFO][64] monitor-addresses/startup.go 713: Using autodetected IPv4 address on interface br-20b81ecbf803: 172.18.0.1/16
+2021-12-16 13:53:57.952 [INFO][67] felix/summary.go 100: Summarising 11 dataplane reconciliation loops over 1m2.6s: avg=4ms longest=6ms ()
+2021-12-16 13:53:59.239 [INFO][64] monitor-addresses/startup.go 713: Using autodetected IPv4 address on interface br-20b81ecbf803: 172.18.0.1/16
+
+# 使用接口br-20b81ecbf803上的自动检测IPv4地址:172.18.0.1/16
+# 定位到是网络ipv4的问题,发现是个网桥应该是某个容器的网桥
+ifconfig | grep br-20b81ecbf803
+
+# 查询Docker网络
+docker network ls
+
+# 发现如下（harbor占用了）
+NETWORK ID     NAME            DRIVER    SCOPE
+43a365c1a427   bridge          bridge    local
+20b81ecbf803   harbor_harbor   bridge    local
+83d930364997   host            host      local
+e78673506809   none            null      local
+
+# 我们找到Harbor的启动目录
+cd XXX/harbor
+# 停止Harbor容器，并且删除网络
+docker-compose stop
+docker network rm 20b81ecbf803
+
+
+# 删除Pod重新启动
+kubectl delete pod calico-node-fppj8 -n kube-system
+
+
+# 重新安装启动Harbor
+./install.sh
+```
+
+## 集群健康检查
+
+
+
+```
+kubectl get cs
+
+scheduler Unhealthy Get “http://127.0.0.1:10251/healthz“: dial tcp 127.0.0.1:10251: con
+
+解决方法：
+cd /etc/kubernetes/manifest
+然后将你的scheduler以及controll manager .yaml中都port=0注释掉
+
+ containers:
+  - command:
+    - kube-scheduler
+    - --authentication-kubeconfig=/etc/kubernetes/scheduler.conf
+    - --authorization-kubeconfig=/etc/kubernetes/scheduler.conf
+    - --bind-address=127.0.0.1
+    - --kubeconfig=/etc/kubernetes/scheduler.conf
+    - --leader-elect=true
+#    - --port=0
+    image: k8s.gcr.io/kube-sc
+
+kubectl cluster-info
+
+
+```
+
 
 
 # kubeadmin重新初始化
@@ -2593,6 +2816,7 @@ kubectl create secret tls custom-tls-secret --cert=root.pem --key=root.key
 ​		删除旧文件
 
 ```sh
+kubeadm reset
 rm -rf /etc/kubernetes/manifests
 systemctl stop kubelet 
 rm -rf /var/lib/etcd/*
@@ -2606,12 +2830,8 @@ rm -rf /var/lib/etcd/*
   --image-repository registry.aliyuncs.com/google_containers \
   --kubernetes-version v1.18.0 \
   --service-cidr=10.1.0.0/16 \
-  --pod-network-cidr=10.244.0.0/16
+  --pod-network-cidr=10.244.0.0/1
 ```
-
-
-
-
 
 # K8s卸载
 
