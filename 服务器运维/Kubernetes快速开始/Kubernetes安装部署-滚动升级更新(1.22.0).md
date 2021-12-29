@@ -1,4 +1,4 @@
-# 基础环境
+基础环境
 
 ​		3台服务器，Kubernetes版本：1.22.0
 
@@ -1179,14 +1179,18 @@ kubectl get pods -n kube-system | grep kube-flannel
 ```sh
 # 指定版本
 # curl https://docs.projectcalico.org/archive/v3.13/manifests/calico.yaml -O
- 
+
 # 指定下载目录
 export calicoPath="/root/calico"
 mkdir -p $calicoPath && cd $calicoPath
 # 最新版本
-curl https://docs.projectcalico.org/manifests/calico.yaml -O calico.yaml
+wget https://docs.projectcalico.org/manifests/calico.yaml -O calico.yaml
 
-
+# 查看Node 此时应该都为 NotReady
+kubectl get nodes
+# qingyun01   NotReady   control-plane,master   10m     v1.22.0
+# qingyun02   NotReady   <none>                 4m57s   v1.22.0
+# qingyun03   NotReady   <none>                 4m      v1.22.0
 # 如果使用 192.168.0.0/16 作为Pod网络范围
 
 # 使用calico.yaml
@@ -1200,6 +1204,12 @@ kubectl get pods -n kube-system | grep calico
 # calico-node-n25rw                          1/1     Running   0             4h36m
 # calico-node-rqqcg                          1/1     Running   0             4h36m
 # calico-node-rrq5g                          1/1     Running   0             13m
+
+# 查看Node 此时应该都为 Ready
+kubectl get nodes
+# qingyun01   Ready   control-plane,master   10m     v1.22.0
+# qingyun02   Ready   <none>                 4m57s   v1.22.0
+# qingyun03   Ready   <none>                 4m      v1.22.0
 ```
 
 
@@ -1471,7 +1481,7 @@ wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.
 sed -i "s#k8s.gcr.io/ingress-nginx/controller#registry.aliyuncs.com/google_containers/nginx-ingress-controller#g" deploy.yaml
 sed -i "s#k8s.gcr.io/ingress-nginx/kube-webhook-certgen#registry.aliyuncs.com/google_containers/kube-webhook-certgen#g" deploy.yaml
 
-# 然后我们定义Ingress的宿主机端口,全局搜 type: LoadBalancer
+# 然后我们定义Ingress的宿主机端口,全局搜 type: NodePort
 vim deploy.yaml
 
 -------------
@@ -1496,12 +1506,29 @@ spec:
       nodePort: 30443 # 新增NodePort宿主机映射端口
 -------------
 
+# 然后修改HostWork 全局搜：--election-id=ingress-controller-leader
+
+-------------
+
+    spec:
+      dnsPolicy: ClusterFirst
+      hostNetwork: true  # 新增网络hostNetwork
+      containers:
+        - name: controller
+          image: registry.aliyuncs.com/google_containers/nginx-ingress-controller:v1.1.0@sha256:f766669fdcf3dc26347ed273a55e754b427eb4411ee075a53f30718b4499076a
+          imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+
+-------------
+
 
 # 启动部署
 kubectl apply -f deploy.yaml
 
 
 # 如下nginx-controller运行成功即可
+kubectl get pod -n ingress-nginx
 ingress-nginx-admission-create--1-mcdt8     0/1     Completed   0          3m2s
 ingress-nginx-admission-patch--1-lrqsr      0/1     Completed   1          3m2s
 ingress-nginx-controller-6747bcd76c-d597b   1/1     Running     0          3m2s
@@ -1550,7 +1577,7 @@ vim deploy.yaml
 kubectl apply -f deploy.yaml
 ```
 
-​		部署测试项目
+​		部署测试项目并且创建ingress
 
 ```sh
 # 创建并且暴露demo
@@ -1560,448 +1587,216 @@ kubectl expose deployment demo
 # 查看demo是否启动
 kubectl get all | grep demo
 
-# # 创建证书
-
 # 定义域名,域名证书地址，证书命名空间，以及Ingress服务
 # 生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
 export domainName="demo.bigkang.club"
 export domainPath="/root/k8s/tls"
 export tlsNameSpace="default"
-export ingressService="demo:80"
+export ingressService="demo"
+export ingressServicePort="80"
+
+# 前置准备删除原来的证书以及Ingress
+kubectl delete secret $domainName-tls-secret 
+kubectl delete ingress $domainName-ingress
+kubectl delete secret $domainName-tls-secret --namespace=$tlsNameSpace
+kubectl delete ingress $domainName-ingress --namespace=$tlsNameSpace
+
+# 定义域名,生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
 mkdir -p $domainPath/$domainName && cd $domainPath/$domainName
-openssl genrsa -out $domainName.key
-openssl req -new -sha256 -key $domainName.key -out $domainName.csr -subj "/C=CN/ST=sichuan/L=dazhou/O=bigkang/OU=kaifa/CN=$domainName"
-openssl x509 -req -days 3650 -sha1 -extensions v3_ca -signkey $domainName.key -in $domainName.csr -out $domainName.crt
-openssl x509 -in $domainName.crt -out $domainName.pem -outform PEM
+# 生成私钥(KEY)
+openssl genrsa -out $domainName.key 4096
+openssl req -x509 -new -nodes -key $domainName.key -subj "/CN=$domainName" -days 36500 -out $domainName.crt
+openssl req -new -sha256 \
+    -key $domainName.key \
+    -subj "/C=CN/ST=Beijing/L=Beijing/O=UnitedStack/OU=Devops/CN=$domainName" \
+    -reqexts SAN \
+    -config <(cat /etc/pki/tls/openssl.cnf \
+        <(printf "[SAN]\nsubjectAltName=DNS:$domainName")) \
+    -out $domainName.csr
+openssl req -text -in $domainName.csr
+openssl x509 -req -days 365000 \
+    -in $domainName.csr -CA $domainName.crt -CAkey $domainName.key -CAcreateserial \
+    -extfile <(printf "subjectAltName=DNS:$domainName") \
+    -out $domainName.pem
 
 
 # 创建tls证书
-kubectl create secret tls $domainName-tls-secret --namespace=$tlsNameSpace --cert=$domainName.pem --key=$domainName.key
+kubectl create secret tls $domainName-tls-secret --namespace=$tlsNameSpace --cert=$domainName.pem --key=$domainName.key --dry-run=client -o yaml > $domainName-secret.yaml
+kubectl apply -f $domainName-secret.yaml
 
-# 然后使用nginx进行映射,使用demo.localdev.me域名即可访问
-kubectl create ingress $domainName-ingress --namespace=$tlsNameSpace --class=nginx \
-  --rule=$domainName/*=$ingressService
-  
+
 
 # 修改hosts 访问域名
 echo "192.168.100.11 $domainName"
 
+# Yaml方式启动
+cat > $domainName-ingress.yaml << EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: $domainName-ingress
+  namespace: $tlsNameSpace
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+       access_log /var/log/nginx/test.example.com.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/test.example.com.error.log;
+spec:
+  tls:
+    - hosts:
+      - $domainName
+      secretName: $domainName-tls-secret
+  ingressClassName: nginx
+  rules:
+    - host: $domainName
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: $ingressService
+              port:
+                number: $ingressServicePort
+EOF
 
+
+# 应用
+kubectl apply -f  $domainName-ingress.yaml
+
+# 查看ingress
+kubectl get ing -n $tlsNameSpace
 ```
 
-​		部署ingress-nginx
+#### tomcat
+
+​		然后我们部署一个tomcat测试转发功能，以及域名映射
 
 ```sh
+# 定义域名,域名证书地址，证书命名空间，以及Ingress服务
+# 生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
+export domainName="tomcat.bigkang.club"
+export domainPath="/root/k8s/tls"
+export tlsNameSpace="default"
+export ingressService="tomcat"
+export ingressServicePort="8080"
 
-          
+# 前置准备删除原来的证书以及Ingress
+kubectl delete secret $domainName-tls-secret 
+kubectl delete ingress $domainName-ingress
+kubectl delete secret $domainName-tls-secret --namespace=$tlsNameSpace
+kubectl delete ingress $domainName-ingress --namespace=$tlsNameSpace
 
-```
+# 创建目录
+mkdir -p $domainPath/$domainName && cd $domainPath/$domainName
 
-​			然后查看信息直到全部启动
-
-```
-
-```
-
-​			查看是否启动成功
-
-```sh
-kubectl get pod -n ingress-nginx 
-
-
-```
-
-​			然后我们新建一个测试Demo用于ingress转发
-
-```sh
-# 创建并且暴露demo
-kubectl create deployment demo --image=httpd --port=80
-kubectl expose deployment demo
-
-# 查看demo是否启动
-kubectl get all
-
-# 然后使用nginx进行映射,使用demo.localdev.me域名即可访问
-kubectl create ingress demo-localhost --class=nginx \
-  --rule=demo.localdev.me/*=demo:80
-  
-kubectl create ingress demo-localhost --class=nginx \
-  --rule=demo.bigkang.club/*=demo:80
-
-# 修改host 访问域名
-192.168.100.11 demo.localdev.me
-```
-
-​		启动成功查看是否有服务
-
-```sh
-kubectl  get service -n ingress-nginx -o wide
-```
-
-​		然后我们部署一个tomcat测试转发功能
-
-```yaml
-cd ~
-echo "apiVersion: v1
+# 创建Tomcat部署的deployment
+cat > $domainName-deployment.yaml << EOF 
+apiVersion: v1
 kind: Service
 metadata:
-  name: tomcat
-  namespace: default
+  name: $ingressService
+  namespace: $tlsNameSpace
 spec:
   selector:
-   app: tomcat
-   release: canary
+   app: $ingressService
   ports:
   - name: http
-    targetPort: 8080
-    port: 8080
-  - name: ajp
-    targetPort: 8009
-    port: 8009
- 
+    targetPort: $ingressServicePort
+    port: $ingressServicePort 
+    
 ---
  
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: tomcat-deploy
-  namespace: default
+  name: $ingressService
+  namespace: $tlsNameSpace
 spec:
   replicas: 1
   selector:
    matchLabels:
-     app: tomcat
-     release: canary
+     app: $ingressService
   template:
    metadata:
      labels:
-       app: tomcat
-       release: canary
+       app: $ingressService
    spec:
      containers:
-     - name: tomcat
+     - name: $ingressService
        image: tomcat
        ports:
        - name: http
-         containerPort: 8080" > tomcat.yaml
-```
+         containerPort: $ingressServicePort
+EOF
 
-​		创建完成yaml后启动
+# 部署Tomcat
+kubectl apply -f $domainName-deployment.yaml
 
-```sh
-kubectl apply -f tomcat.yaml
-```
+# 初始化证书
+# 生成私钥(KEY)
+openssl genrsa -out $domainName.key 4096
+openssl req -x509 -new -nodes -key $domainName.key -subj "/CN=$domainName" -days 36500 -out $domainName.crt
+openssl req -new -sha256 \
+    -key $domainName.key \
+    -subj "/C=CN/ST=Beijing/L=Beijing/O=UnitedStack/OU=Devops/CN=$domainName" \
+    -reqexts SAN \
+    -config <(cat /etc/pki/tls/openssl.cnf \
+        <(printf "[SAN]\nsubjectAltName=DNS:$domainName")) \
+    -out $domainName.csr
+openssl req -text -in $domainName.csr
+openssl x509 -req -days 365000 \
+    -in $domainName.csr -CA $domainName.crt -CAkey $domainName.key -CAcreateserial \
+    -extfile <(printf "subjectAltName=DNS:$domainName") \
+    -out $domainName.pem
+    
+# 创建tls证书
+kubectl create secret tls $domainName-tls-secret --namespace=$tlsNameSpace --cert=$domainName.pem --key=$domainName.key --dry-run=client -o yaml > $domainName-secret.yaml
+kubectl apply -f $domainName-secret.yaml
 
-​		查看是否启动成功
+# 修改hosts 访问域名
+echo "192.168.100.11 $domainName"
 
-```sh
-kubectl get pods | grep tomcat
-```
-
-​		启动成功后我们创建一个访问控制策略
-
-​		然后启动控制策略
-
-```sh
-kubectl apply -f tomcat-ingress.yaml
-```
-
-​		然后查看是否启动成功
-
-```
-kubectl get Ingress
-```
-
-![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1605078645402.png)
-
-​		然后我们修改自己电脑上的hosts（如果有真实的域名+公网IP则使用即可），如果没有则修改Host否则无法访问
-
-```
-192.168.1.12 tomcat.bigkang.k8s
-```
-
-​		然后访问域名
-
-```
-http://tomcat.bigkang.k8s:30080
-```
-
-​		我们采用四层负载代理TCP
-
-​		我们发现使用30080端口不好，那么我们在最外面再部署一个nginx，用于转发我们使用Docker部署,切记nginx下放入ca证书
-
-```sh
-mkdir -p /data/nginx/{conf,logs,data}
-touch  /data/nginx/nginx.conf
-chmod 777 /data/nginx/
-
-
-# 写入如下内容
-vim /data/nginx/nginx.conf
-
-user  nginx;
-worker_processes  1;
-
-error_log  /var/log/nginx/error.log warn;
-pid        /var/run/nginx.pid;
-
-events {
-    worker_connections  1024;
-}
-
-http {
-    include       /etc/nginx/mime.types;
-    default_type  application/octet-stream;
-    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
-
-    access_log  /var/log/nginx/access.log  main;
-    sendfile        on;
-    keepalive_timeout  65;
-    include /etc/nginx/conf.d/*.conf;
-}
-stream {
-     server {
-       listen 80;
-       proxy_pass 192.168.1.12:30080;
-     }
-     server {
-       ssl_certificate /data/ca/root.crt;
-       ssl_certificate_key /data/ca/root.key;
-       ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
-       listen 443;
-       proxy_pass 192.168.1.12:30443;
-     }
-}
-```
-
-​		创建http证书
-
-```sh
-mkdir -p /data/nginx/data/ca &&  cd /data/nginx/data/ca
-
-openssl genrsa -out root.key 2048
-openssl req -new -x509 -key root.key -out root.crt -days 3650 -subj "/C=CN/ST=shanghai/L=jingan/O=dev/OU=island/CN=*.onebean.net"
-```
-
-​		然后启动即可
-
-```sh
-docker run -d \
---name nginx-server \
---restart=always \
--p 80:80 \
--p 443:443 \
--v /data/nginx/nginx.conf:/etc/nginx/nginx.conf \
--v /data/nginx/conf:/etc/nginx/conf.d \
--v /data/nginx/data:/data \
--v /data/nginx/logs:/var/log/nginx nginx:1.17.8
-```
-
-​		我们访问80即可
-
-​		然后我们再将tomcat改造成https方式请求
-
-​		生成tls证书
-
-```sh
-cd /data/nginx/data/ca
-# crt转pem
-openssl x509 -in root.crt -out root.pem -outform PE
-# K8s添加tls证书
-kubectl create secret tls custom-tls-secret --cert=root.pem --key=root.key
-
-# 查看证书
-kubectl get secret  custom-tls-secret
-
-
-
-```
-
-​		我们修改tomcat-ingress.yaml
-
-```sh
-cd ~
-vim tomcat-ingress.yaml
-
-# 修改如下，新增tls证书以及域名secretName为刚添加的证书
-spec:
-  tls:
-  - hosts: 
-    - tomcat.bigkang.k8s
-    secretName: custom-tls-secret
-  rules:
-  - host: tomcat.bigkang.k8s
-    http:
-      paths:
-      - path:
-        backend:
-          serviceName: tomcat
-          servicePort: 8080
-
-
-
-# 重新应用
-kubectl replace --force -f tomcat-ingress.yaml
-```
-
-​		然后访问http也会直接跳转到https，也可直接访问https
-
-​		然后我们将dashboard也改造为https,注意kubernetes-dashboard有自己的tls证书，还有命名空间,以及修改注解
-
-​		这里注意注解需要修改，不再是nginx，而是HTTPS以及ssl等
-
-```sh
-cd /root/k8s-dashboard
-
-cat >  dashboard-ingress.yaml  <<EOF
-apiVersion: extensions/v1beta1
+# 创建Ingress的yaml文件
+cat > $domainName-ingress.yaml << EOF
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: ingress-k8s-dashboard
-  namespace: kubernetes-dashboard
+  name: $domainName-ingress
+  namespace: $tlsNameSpace
   annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/secure-backends: "true"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+       access_log /var/log/nginx/test.example.com.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/test.example.com.error.log;
 spec:
   tls:
-  - hosts: 
-    - dashboard.bigkang.k8s
-    secretName: kubernetes-dashboard-certs
+    - hosts:
+      - $domainName
+      secretName: $domainName-tls-secret
+  ingressClassName: nginx
   rules:
-  - host: dashboard.bigkang.k8s
-    http:
-      paths:
-      - path:
-        backend:
-          serviceName: kubernetes-dashboard
-          servicePort: 443
+    - host: $domainName
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: $ingressService
+              port:
+                number: $ingressServicePort
 EOF
 
-# 然后应用
-kubectl apply -f dashboard-ingress.yaml
-
-replace
-
-# 然后查看
-kubectl get ingress -n kubernetes-dashboard
+# 启动Ingress
+kubectl apply -f $domainName-ingress.yaml
 ```
-
-​		再次修改hosts
-
-```
-192.168.1.12 dashboard.bigkang.k8s
-```
-
-​		此时访问https://dashboard.bigkang.k8s 已经可以，但是我们需要关闭掉以前的30000端口
-
-​		然后我们关闭3000端口
-
-```sh
-vim recommended.yaml 
-
-
-# 删除node port以及type
-# 修改完成后如下
-spec:
-  ports:
-    - port: 443
-      targetPort: 8443
-  selector:
-    k8s-app: kubernetes-dashboard
-
-# 然后需要重新加载，有两种方式，重新应用后创建用户，或者将创建用户写入资源文件一起执行
-# 有两种方式，选择一种即可推荐第二种
-```
-
-​		第一种重新应用后创建用户
-
-```sh
-kubectl replace --force -f recommended.yaml 
-# 重新加载后需要重新创建用户否则无法查询集群信息
-# 执行如下两步即可
-# 新建用户
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: admin-user
-  namespace: kubernetes-dashboard
-EOF
-# 设置Rbac权限
-cat <<EOF | kubectl apply -f -
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: admin-user
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: admin-user
-  namespace: kubernetes-dashboard
-EOF
-```
-
-​		第二种直接写入资源文件（推荐）
-
-```sh
-# 我们可以直接执行命令或者把资源创建放在recommended.yaml中
-# 写入文件，写入后需要重新加载
-echo "---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: admin-user
-  namespace: kubernetes-dashboard
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: admin-user
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: admin-user
-  namespace: kubernetes-dashboard
-" >> recommended.yaml 
-# 重新应用
-kubectl replace --force -f recommended.yaml 
-```
-
-​		查看是否启动完成
-
-```
-kubectl get all -n kubernetes-dashboard
-```
-
-​		然后重新获取token
-
-```sh
-# 获取token
-kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') | grep token | tail -n 1 | awk '{print $2}' 
-
-# 将token写入文件,查询最后一行
-kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') | grep token | tail -n 1 | awk '{print $2}'  > /root/k8s/k8s-dashboard-token
-```
-
-​		然后重启dashboard-ingress
-
-```sh
-kubectl replace --force -f dashboard-ingress.yaml
-```
-
-这样我们就可以只访问ingress-nginx转发的dashboard了，而不是暴露nodeport
-
-
 
 #### ingress-k8s-dashboard
 
@@ -2018,7 +1813,9 @@ openssl x509 -in $domainName.crt -out $domainName.pem -outform PEM
 
 
 # 创建tls证书
-kubectl create secret tls $domainName-tls-secret --namespace=kubernetes-dashboard --cert=$domainName.pem --key=$domainName.key
+kubectl create secret tls $domainName-tls-secret --namespace=kubernetes-dashboard --cert=$domainName.pem --key=$domainName.key --dry-run=client -o yaml > $domainName-secret.yaml
+
+kubectl apply -f $domainName-secret.yaml
 ```
 
 ```sh
@@ -2072,10 +1869,293 @@ kubectl delete ingress ingress-k8s-dashboard -n kubernetes-dashboard
 
 # 删除tls证书
 kubectl delete secret $domainName-tls-secret
+```
+
+#### 配置大全
+
+​		我们使用ingress需要做很多配置我们可以通过注解annotation
+
+​		官网地址：[注解 官网配置点击进入](https://github.com/kubernetes/ingress-nginx/blob/main/docs/user-guide/nginx-configuration/annotations.md)
+
+```yaml
+cat >  demo-ingress.yaml  <<EOF
+kind: Ingress # 类型
+apiVersion: networking.k8s.io/v1 # API版本
+metadata:
+  name: demo.bigkang.club-ingress # 名称
+  namespace: default # 命名空间
+  annotations:
+  
+  
+  	###  重定向相关
+  	nginx.ingress.kubernetes.io/ssl-redirect: "false" 					# 是否把重定向到https，访问http
+  	nginx.ingress.kubernetes.io/force-ssl-redirect: "false"			# 强制重定向到HTTPS，即使入口不启用TLS
+  	nginx.ingress.kubernetes.io/app-root: "/"										# 定义应用程序根目录，如果它在'/'上下文中，控制器必须重定向它
+  	nginx.ingress.kubernetes.io/use-regex: "false" 							# 指示入口中定义的路径是否使用正则表达式
+  	nginx.ingress.kubernetes.io/rewrite-target: "/$2"						
+  	# 必须重定向流量的目标URI,在这个入口定义中，被捕获的任何字符(.*)都将分配给占位符$2，然后将其用作rewrite-target注释中的参数。
+  	# 例如，上面的入口定义将导致以下重写：
+    #    demo.bigkang.club/test 改写为 demo.bigkang.club/
+    #    demo.bigkang.club/test/ 改写为 demo.bigkang.club/
+    #    demo.bigkang.club/test/new 改写为 demo.bigkang.club/new
+    
+spec:
+  ingressClassName: nginx # ingress 类型 这里使用nginx
+  tls:
+    - hosts:
+        - demo.bigkang.club # https域名
+      secretName: demo.bigkang.club-tls-secret # tls证书secret服务的名称（注意和证书同一命名空间）
+  rules:
+    - host: demo.bigkang.club # http的host域名
+      http:
+        paths:
+          - path: / # 解析路径Path
+            pathType: Prefix # 解析类型
+            backend:
+              service:
+                name: demo # 后端的服务名 （同一命名空间的服务）
+                port:
+                  number: 80 # 端口
+          - path: /test(/|$)(.*)  # 解析路径Path
+            pathType: Prefix # 解析类型
+            backend:
+              service:
+                name: demo # 后端的服务名 （同一命名空间的服务）
+                port:
+                  number: 80 # 端口
+EOF
+```
+
+​		如下更多
+
+```properties
+# 粘性的Session会话
+
+参考如下: https://github.com/kubernetes/ingress-nginx/blob/main/docs/examples/affinity/cookie/README.md
+
+# 验证认证配置,配置Nginx用户名密码访问
+
+参考如下: https://github.com/kubernetes/ingress-nginx/blob/main/docs/examples/auth/basic/README.md
+
+# 一致性Hash
+
+参考如下: https://github.com/kubernetes/ingress-nginx/blob/main/docs/examples/chashsubset/deployment.yaml
+
+# Ingress-Nginx ConfigMap配置以及默认值配置
+参考如下: https://github.com/kubernetes/ingress-nginx/blob/main/docs/user-guide/nginx-configuration/configmap.md#load-balance
+
 
 ```
 
+## 部署Nacos
 
+### 单机版本
+
+```sh
+# 定义参数
+export nacosPath="/root/k8s/deploy/nacos"
+# 创建目录
+mkdir -p $nacosPath && cd nacosPath
+
+# 下载部署文件
+git clone https://github.com/nacos-group/nacos-k8s.git
+
+# 进入目录
+cd nacos-k8s
+# 启动Nacos
+chmod +x quick-startup.sh
+./quick-startup.sh
+```
+
+​		卸载单机版本Nacos
+
+```sh
+# ！！！ 卸载
+# 定义参数
+export nacosPath="/root/k8s/deploy/nacos"
+# 创建目录
+mkdir -p $nacosPath && cd nacosPath
+
+# 卸载Nacos
+kubectl delete -f ./deploy/nacos/nacos-quick-start.yaml
+
+# 卸载MySQL
+kubectl delete -f ./deploy/mysql/mysql-local.yaml
+```
+
+### 集群持久化
+
+```sh
+# 定义参数
+export nacosPath="/root/k8s/deploy/nacos"
+# 创建目录
+mkdir -p $nacosPath && cd nacosPath
+
+# 下载部署文件
+git clone https://github.com/nacos-group/nacos-k8s.git
+
+# 进入目录
+cd nacos-k8s
+
+# 安装NFS
+yum install -y nfs-utils
+
+
+# 部署nfs
+kubectl create -f deploy/nfs/rbac.yaml
+kubectl create -f deploy/nfs/deployment.yaml
+kubectl create -f deploy/nfs/class.yaml
+
+# 验证nfs是否部署成功
+kubectl get pod -l app=nfs-client-provisioner
+```
+
+### Ingress
+
+```sh
+# 定义域名,域名证书地址，证书命名空间，以及Ingress服务
+# 生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
+export domainName="nacos.bigkang.club"
+export domainPath="/root/k8s/tls"
+export tlsNameSpace="default"
+export ingressService="nacos-headless"
+export ingressServicePort="8848"
+
+# 前置准备删除原来的证书以及Ingress
+kubectl delete secret $domainName-tls-secret 
+kubectl delete ingress $domainName-ingress
+kubectl delete secret $domainName-tls-secret --namespace=$tlsNameSpace
+kubectl delete ingress $domainName-ingress --namespace=$tlsNameSpace
+
+# 创建目录
+mkdir -p $domainPath/$domainName && cd $domainPath/$domainName
+
+
+# 初始化证书
+# 生成私钥(KEY)
+openssl genrsa -out $domainName.key 4096
+openssl req -x509 -new -nodes -key $domainName.key -subj "/CN=$domainName" -days 36500 -out $domainName.crt
+openssl req -new -sha256 \
+    -key $domainName.key \
+    -subj "/C=CN/ST=Beijing/L=Beijing/O=UnitedStack/OU=Devops/CN=$domainName" \
+    -reqexts SAN \
+    -config <(cat /etc/pki/tls/openssl.cnf \
+        <(printf "[SAN]\nsubjectAltName=DNS:$domainName")) \
+    -out $domainName.csr
+openssl req -text -in $domainName.csr
+openssl x509 -req -days 365000 \
+    -in $domainName.csr -CA $domainName.crt -CAkey $domainName.key -CAcreateserial \
+    -extfile <(printf "subjectAltName=DNS:$domainName") \
+    -out $domainName.pem
+    
+# 创建tls证书
+kubectl create secret tls $domainName-tls-secret --namespace=$tlsNameSpace --cert=$domainName.pem --key=$domainName.key --dry-run=client -o yaml > $domainName-secret.yaml
+kubectl apply -f $domainName-secret.yaml
+
+# 修改hosts 访问域名
+echo "192.168.100.11 $domainName"
+
+# 创建Ingress的yaml文件
+cat > $domainName-ingress.yaml << EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: $domainName-ingress
+  namespace: $tlsNameSpace
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+       access_log /var/log/nginx/test.example.com.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/test.example.com.error.log;
+spec:
+  tls:
+    - hosts:
+      - $domainName
+      secretName: $domainName-tls-secret
+  ingressClassName: nginx
+  rules:
+    - host: $domainName
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: $ingressService
+              port:
+                number: $ingressServicePort
+EOF
+
+# 启动Ingress
+kubectl apply -f $domainName-ingress.yaml
+
+
+# 访问如下
+echo "https://$domainName/nacos/"
+```
+
+## 部署MySQL
+
+
+
+## 部署TiDB
+
+
+
+## 部署ELK
+
+
+
+## 安装Helm
+
+​		官网地址：[点击进入](https://helm.sh/)
+
+​		什么是Helm？
+
+​		官网描述		**Helm The package manager for Kubernetes**
+
+​								Helm 是Kubernetes的包管理器
+
+​		Helm是找到、共享和使用为Kubernetes开发的软件的最佳途径。
+
+​		
+
+```sh
+# 定义Helm参数
+export helmPath="/root/helm"
+export helmVersion="3.7.2"
+
+# 创建安装目录
+mkdir -p $helmPath && cd $helmPath
+
+# 安装Helm
+wget https://get.helm.sh/helm-v"$helmVersion"-linux-amd64.tar.gz -O $helmPath/helm-$helmVersion.tar.gz
+# 解压
+tar -zxvf helm-$helmVersion.tar.gz
+# 复制到系统命令
+cp linux-amd64/helm /usr/local/bin/
+
+
+# 查看版本
+helm version
+```
+
+## 安装Harbor镜像私服
+
+```bash
+# 定义Helm参数
+export harborPath="/root/helm/deploy/harbor"
+mkdir -p $harborPath && cd $harborPath
+
+
+
+# helm安装Harbor
+helm repo add harbor https://helm.goharbor.io
+helm fetch harbor/harbor --untar
+```
 
 ## 安装Harbor镜像私服
 
@@ -2526,168 +2606,6 @@ boot-k8s-deploy-f86cd775f-rlrlz   1/1     Terminating   0          15h     10.24
 # 稍等一会后发现只有一个pod了
 ```
 
-## 安装CoreDns
-
-​		官网地址：[点击进入](https://github.com/coredns/coredns)
-
-​		CoreDNS是用Go编写的DNS服务器/转发器，它链接[插件](https://coredns.io/plugins)。每个插件执行一个（DNS）功能。
-
-​		CoreDNS可以代替Kubernetes中的标准Kube-DNS运行。使用*kubernetes* 插件，CoreDNS将从Kubernetes集群读取区域数据。它实现了为基于Kubernetes DNS的服务发现定义的规范：[DNS规范](https://github.com/kubernetes/dns/blob/master/docs/specification.md)。
-
-​		首先我们来安装使用CoreDns
-
-```sh
-# 创建目录
-mkdir ~/coreDns && cd ~/coreDns
-# 下载部署脚本
-wget https://raw.githubusercontent.com/coredns/deployment/master/kubernetes/deploy.sh
-wget https://raw.githubusercontent.com/coredns/deployment/master/kubernetes/coredns.yaml.sed
-
-# 启动脚本并且应用
-chmod 7 deploy.sh
-./deploy.sh | kubectl apply -f -
-# 删除原来的kube-dns
-kubectl delete --namespace=kube-system deployment kube-dns
-```
-
-​		如果需要回滚到kube-dns，使用如下(一般不需要)
-
-```sh
-# 下载回滚脚本
-wget https://github.com/coredns/deployment/blob/master/kubernetes/rollback.sh
-
-# 回滚应用
-./rollback.sh | kubectl apply -f -
-
-# 删除CoreDns
-kubectl delete --namespace=kube-system deployment coredns
-```
-
-​		验证是否能够使用CoreDNS
-
-```sh
-# 运行容器
-kubectl run cirros-$RANDOM --rm -it --image=cirros -- sh
-# 进入脚本后我们先查看hosts
-cat /etc/resolv.conf 
-# 返回如下，我们可以看到search的域
-nameserver 10.1.0.10
-search default.svc.cluster.local svc.cluster.local cluster.local openstacklocal
-options ndots:5
-# 测试访问外网
-ping baidu.com
-# 测试我们直接使用service名称访问
-ping boot-k8s-service
-# 返回如下，因为Master执行所以无法ping通，但是我们可以看到DNS解析成功了，成功解析到service的ip
-PING boot-k8s-service (10.1.85.177): 56 data bytes
-```
-
-## kube-proxy使用ipvs（pod无法pingservice问题）
-
-​		我们发现pod中无法ping通service
-
-​		**原因：kube-proxy使用了iptable模式，修改为ipvs模式则可以在pod内ping通clusterIP或servicename**
-
-​		我们查看
-
-```sh
-# 查看kube-proxy
-kubectl get pods -A  | grep kube-proxy
-
-# 返回如下
-kube-system            kube-proxy-2clfd                             1/1     Running   0          24h
-kube-system            kube-proxy-mn9j4                             1/1     Running   0          24h
-kube-system            kube-proxy-mprrf                             1/1     Running   0          24h
-
-# 查看日志
-kubectl logs -n kube-system kube-proxy-mn9j4
-
-# 返回如下
-W1119 03:07:18.587672       1 server_others.go:559] Unknown proxy mode "", assuming iptables proxy
-I1119 03:07:18.593516       1 node.go:136] Successfully retrieved node IP: 192.168.1.115
-I1119 03:07:18.593540       1 server_others.go:186] Using iptables Proxier.
-I1119 03:07:18.593713       1 server.go:583] Version: v1.18.12
-I1119 03:07:18.593978       1 conntrack.go:100] Set sysctl 'net/netfilter/nf_conntrack_max' to 131072
-I1119 03:07:18.593995       1 conntrack.go:52] Setting nf_conntrack_max to 131072
-I1119 03:07:18.594041       1 conntrack.go:100] Set sysctl 'net/netfilter/nf_conntrack_tcp_timeout_established' to 86400
-I1119 03:07:18.594061       1 conntrack.go:100] Set sysctl 'net/netfilter/nf_conntrack_tcp_timeout_close_wait' to 3600
-I1119 03:07:18.594444       1 config.go:315] Starting service config controller
-I1119 03:07:18.594459       1 shared_informer.go:223] Waiting for caches to sync for service config
-I1119 03:07:18.594475       1 config.go:133] Starting endpoints config controller
-I1119 03:07:18.594484       1 shared_informer.go:223] Waiting for caches to sync for endpoints config
-I1119 03:07:18.694579       1 shared_informer.go:230] Caches are synced for service config 
-I1119 03:07:18.694609       1 shared_informer.go:230] Caches are synced for endpoints config 
-
-# 我们可以看到
-I1119 03:07:18.593540       1 server_others.go:186] Using iptables Proxier.
-# 使用的iptables
-```
-
-​		修改为**ipvs模式**
-
-```sh
-# 便捷configMap，cm为简写
-kubectl edit cm kube-proxy -n kube-system
-
-# 找到mod
-    kind: KubeProxyConfiguration
-    metricsBindAddress: ""
-    mode: ""
-    nodePortAddresses: null
-    oomScoreAdj: null
-    portRange: ""
-    showHiddenMetricsForVersion: ""
-
-# 修改为ipvs
-    kind: KubeProxyConfiguration
-    metricsBindAddress: ""
-    mode: "ipvs"
-    nodePortAddresses: null
-    oomScoreAdj: null
-    portRange: ""
-    showHiddenMetricsForVersion: ""
-```
-
-​		然后服务器中设置ipvs配置
-
-```sh
-cat > /etc/sysconfig/modules/ipvs.modules <<EOF
-#!/bin/bash 
-modprobe -- ip_vs 
-modprobe -- ip_vs_rr 
-modprobe -- ip_vs_wrr 
-modprobe -- ip_vs_sh 
-modprobe -- nf_conntrack_ipv4 
-EOF
-```
-
-​		设置权限
-
-```sh
-sudo chmod 755 /etc/sysconfig/modules/ipvs.modules && bash /etc/sysconfig/modules/ipvs.modules && lsmod | grep -e ip_vs -e nf_conntrack_ipv4
-```
-
-​		Master中重启pod
-
-```sh
-kubectl get pod -n kube-system | grep kube-proxy |awk '{system("kubectl delete pod "$1" -n kube-system")}'
-```
-
-​		查看日志
-
-```sh
-kubectl get pods -A  | grep kube-proxy
-
-kubectl logs -n kube-system  kube-proxy-jfl44 
-
-# 返回如下
-I1120 03:55:42.062279       1 node.go:136] Successfully retrieved node IP: 192.168.1.12
-I1120 03:55:42.062316       1 server_others.go:259] Using ipvs Proxier.
-W1120 03:55:42.062496       1 proxier.go:429] IPVS scheduler not specified, use rr by default
-```
-
-​		发现修改为Using ipvs Proxier即可
-
 # 辅助
 
 ## 创建TLS证书
@@ -2695,35 +2613,102 @@ W1120 03:55:42.062496       1 proxier.go:429] IPVS scheduler not specified, use 
 ​		使用openssl创建
 
 ```sh
-# 生成.key
-# openssl genrsa -out root.key
-# 生成.csr，
-# C=国家代号  			 		 CN表示中国
-# ST=省（拼音）  		 		shanghai（上海）
-# L=市（拼音）  					jingan（静安）
-# O=组织名（公司名）  		bigkang（bigkang公司）
-# OU=组织单位名（公司名）  kaifa（开发单位）
-# CN=域名								bigkang
-# openssl req -new -sha256 -key root.key -out root.csr -subj "/C=CN/ST=shanghai/L=jingan/O=bigkang/OU=kaifa/CN=bigkang"
-# 生成.crt，-days为天数，
-# openssl x509 -req -days 3650 -sha1 -extensions v3_ca -signkey root.key -in root.csr -out root.crt
-# crt装pem
-# openssl x509 -in root.crt -out root.pem -outform PE
+# 定义域名,域名证书地址，证书命名空间，以及Ingress服务
+# 生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
+export domainName="tomcat.bigkang.club"
+export domainPath="/root/k8s/tls"
+export tlsNameSpace="default"
+export ingressService="tomcat"
+export ingressServicePort="8080"
 
+# 前置准备删除原来的证书以及Ingress
+kubectl delete secret $domainName-tls-secret 
+kubectl delete ingress $domainName-ingress
+kubectl delete secret $domainName-tls-secret --namespace=$tlsNameSpace
+kubectl delete ingress $domainName-ingress --namespace=$tlsNameSpace
 
-# 生成秘钥
-openssl genrsa -out root.key 1024
-# 生成证书请求文件
-openssl req -new -sha256 -key root.key -out root.csr -subj "/C=CN/ST=shanghai/L=sichuan/O=bigkang/OU=kaifa/CN=bigkang"
-# 生成CA根证书 (公钥证书)
-openssl x509 -req -days 3650 -sha1 -extensions v3_ca -signkey root.key -in root.csr -out root.crt
+# 创建目录
+mkdir -p $domainPath/$domainName && cd $domainPath/$domainName
 
-# 根据服务器私钥生成公钥文件
-openssl x509 -in root.crt -out root.pem -outform PEM
+# 初始化证书
+# 生成私钥(KEY)
+openssl genrsa -out $domainName.key 4096
+openssl req -x509 -new -nodes -key $domainName.key -subj "/CN=$domainName" -days 36500 -out $domainName.crt
+openssl req -new -sha256 \
+    -key $domainName.key \
+    -subj "/C=CN/ST=Beijing/L=Beijing/O=UnitedStack/OU=Devops/CN=$domainName" \
+    -reqexts SAN \
+    -config <(cat /etc/pki/tls/openssl.cnf \
+        <(printf "[SAN]\nsubjectAltName=DNS:$domainName")) \
+    -out $domainName.csr
+openssl req -text -in $domainName.csr
+openssl x509 -req -days 365000 \
+    -in $domainName.csr -CA $domainName.crt -CAkey $domainName.key -CAcreateserial \
+    -extfile <(printf "subjectAltName=DNS:$domainName") \
+    -out $domainName.pem
+    
+# 创建tls证书
+kubectl create secret tls $domainName-tls-secret --namespace=$tlsNameSpace --cert=$domainName.pem --key=$domainName.key --dry-run=client -o yaml > $domainName-secret.yaml
+kubectl apply -f $domainName-secret.yaml
 
-# K8s添加tls证书
-kubectl create secret tls custom-tls-secret --cert=root.pem --key=root.key
+# 修改hosts 访问域名
+echo "192.168.100.11 $domainName"
+
+# 创建Ingress的yaml文件
+cat > $domainName-ingress.yaml << EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: $domainName-ingress
+  namespace: $tlsNameSpace
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+       access_log /var/log/nginx/test.example.com.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/test.example.com.error.log;
+spec:
+  tls:
+    - hosts:
+      - $domainName
+      secretName: $domainName-tls-secret
+  ingressClassName: nginx
+  rules:
+    - host: $domainName
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: $ingressService
+              port:
+                number: $ingressServicePort
+EOF
+
+# 启动Ingress
+kubectl apply -f $domainName-ingress.yaml
 ```
+
+## 删除加入节点
+
+​		找到Master服务器在上面执行
+
+```sh
+# 删除老节点
+kubectl delete node1
+
+# 创建永久token
+kubeadm token create --ttl 0 --print-join-command
+`kubeadm join 192.168.100.11:6443 --token rpi151.qx3660ytx2ixq8jk     --discovery-token-ca-cert-hash sha256:5cf4e801c903257b50523af245f2af16a88e78dc00be3f2acc154491ad4f32a4`
+
+# 新节点加入
+kubeadm join 192.168.100.11:6443 --token rpi151.qx3660ytx2ixq8jk     --discovery-token-ca-cert-hash sha256:5cf4e801c903257b50523af245f2af16a88e78dc00be3f2acc154491ad4f32a4
+```
+
+
 
 # 问题排查
 
@@ -2790,7 +2775,7 @@ kubectl get cs
 scheduler Unhealthy Get “http://127.0.0.1:10251/healthz“: dial tcp 127.0.0.1:10251: con
 
 解决方法：
-cd /etc/kubernetes/manifest
+cd /etc/kubernetes/manifests
 然后将你的scheduler以及controll manager .yaml中都port=0注释掉
 
  containers:
@@ -2855,8 +2840,6 @@ rm -rf /var/etcd
 docker ps -a| grep rancher | grep -v grep| awk '{print "docker stop "$1}'|sh
 docker ps -a| grep rancher | grep -v grep| awk '{print "docker rm "$1}'|sh
 
-
-
 docker ps -a| grep google_containers | grep -v grep| awk '{print "docker stop "$1}'|sh
 docker ps -a| grep google_containers | grep -v grep| awk '{print "docker rm "$1}'|sh
 docker ps -a| grep k8s_ | grep -v grep| awk '{print "docker stop "$1}'|sh
@@ -2872,31 +2855,23 @@ docker images | grep etcd |xargs docker rmi -f
 
 ```
 # 不删除镜像
-
 kubeadm reset -f
-rpm -qa|grep kube*|xargs rpm --nodeps -e
 modprobe -r ipip
 lsmod
+systemctl stop kubelet 
 rm -rf ~/.kube/
 rm -rf /etc/kubernetes/
-rm -rf /etc/systemd/system/kubelet.service.d
-rm -rf /etc/systemd/system/kubelet.service
-rm -rf /usr/bin/kube*
 rm -rf /etc/cni
 rm -rf /opt/cni
 rm -rf /var/lib/etcd
 rm -rf /var/etcd
 
 docker ps -a| grep rancher | grep -v grep| awk '{print "docker stop "$1}'|sh
-docker ps -a| grep rancher | grep -v grep| awk '{print "docker rm "$1}'|sh
-
-
-
 docker ps -a| grep google_containers | grep -v grep| awk '{print "docker stop "$1}'|sh
-docker ps -a| grep google_containers | grep -v grep| awk '{print "docker rm "$1}'|sh
 docker ps -a| grep k8s_ | grep -v grep| awk '{print "docker stop "$1}'|sh
+
+docker ps -a| grep rancher | grep -v grep| awk '{print "docker rm "$1}'|sh
+docker ps -a| grep google_containers | grep -v grep| awk '{print "docker rm "$1}'|sh
 docker ps -a| grep k8s_ | grep -v grep| awk '{print "docker rm "$1}'|sh
-
-
 ```
 
