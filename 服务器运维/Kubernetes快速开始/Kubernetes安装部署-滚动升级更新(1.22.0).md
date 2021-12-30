@@ -1999,7 +1999,46 @@ cd nacos-k8s
 
 # 安装NFS
 yum install -y nfs-utils
+yum install -y rpcbind
 
+# 开机自启
+systemctl enable nfs-server.service
+# 设置NFS
+vim /etc/exports
+# 写入如下
+# /data/nfs/nacos *(insecure,rw,sync,no_root_squash) (不限制网段)
+/data/nfs/nacos 192.168.100.0/24(insecure,rw,sync,no_root_squash)
+
+# 参数详解
+#   ro #只读共享
+#   rw #读写共享
+#   sync #同步写操作
+#   async #异步写操作
+#   wdelay #延迟写操作
+#   root_squash #屏蔽远程root权限
+#   no_root_squash #不屏蔽远程root权限
+#   all_squash #屏蔽所有远程用户的权限
+#   no_subtree_check #此选项可防止子树检查
+
+# 创建目录
+mkdir -p /data/nfs/nacos
+
+# 启动NFS服务
+systemctl start nfs-server.service
+systemctl start rpcbind
+
+# 查看共享的目录
+showmount -e
+# 返回如下即可
+# Export list for qingyun01:
+# /data/nfs/nacos 192.168.100.0/24
+
+# 修改NFS的网络配置
+sed -i "s#172.17.79.3#192.168.100.11#g"  ./deploy/nfs/deployment.yaml
+sed -i "s#/data/nfs-share#/data/nfs/nacos#g"  ./deploy/nfs/deployment.yaml
+
+# 子节点安装NFS
+yum install -y nfs-utils
 
 # 部署nfs
 kubectl create -f deploy/nfs/rbac.yaml
@@ -2008,6 +2047,16 @@ kubectl create -f deploy/nfs/class.yaml
 
 # 验证nfs是否部署成功
 kubectl get pod -l app=nfs-client-provisioner
+
+# 修改NFS
+sed -i "s#172.17.79.3#192.168.100.11#g"  deploy/mysql/mysql-nfs.yaml
+sed -i "s#/data/mysql#/data/nfs/nacos#g"  deploy/mysql/mysql-nfs.yaml
+
+# 部署MySQL-NFS
+kubectl create -f deploy/mysql/mysql-nfs.yaml
+
+# 部署Nacos
+
 ```
 
 ### Ingress
@@ -2706,6 +2755,53 @@ kubeadm token create --ttl 0 --print-join-command
 
 # 新节点加入
 kubeadm join 192.168.100.11:6443 --token rpi151.qx3660ytx2ixq8jk     --discovery-token-ca-cert-hash sha256:5cf4e801c903257b50523af245f2af16a88e78dc00be3f2acc154491ad4f32a4
+```
+
+## NFS安装部署
+
+```sh
+# 安装NFS
+yum install -y nfs-utils
+yum install -y rpcbind
+
+# 开机自启
+systemctl enable nfs-server.service
+# 设置NFS
+vim /etc/exports
+# 写入如下
+# /data/nfs/nacos *(insecure,rw,sync,no_root_squash) (不限制网段)
+/data/nfs/nacos 192.168.100.0/24(insecure,rw,sync,no_root_squash)
+
+# 参数详解
+#   ro #只读共享
+#   rw #读写共享
+#   sync #同步写操作
+#   async #异步写操作
+#   wdelay #延迟写操作
+#   root_squash #屏蔽远程root权限
+#   no_root_squash #不屏蔽远程root权限
+#   all_squash #屏蔽所有远程用户的权限
+#   no_subtree_check #此选项可防止子树检查
+
+# 创建目录
+mkdir -p /data/nfs/nacos
+
+# 启动NFS服务
+systemctl start nfs-server.service
+systemctl start rpcbind
+
+# 查看共享的目录
+showmount -e
+# 返回如下即可
+# Export list for qingyun01:
+# /data/nfs/nacos 192.168.100.0/24
+
+# 修改NFS的网络配置
+sed -i "s#172.17.79.3#192.168.100.11#g"  ./deploy/nfs/deployment.yaml
+sed -i "s#/data/nfs-share#/data/nfs/nacos#g"  ./deploy/nfs/deployment.yaml
+
+# 子节点安装NFS
+yum install -y nfs-utils
 ```
 
 

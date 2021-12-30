@@ -197,95 +197,230 @@ roleRef:
 
 
 
+# 容器
+
+## 镜像
+
+​		官网地址：[点击进入](https://kubernetes.io/zh/docs/concepts/containers/images/)
+
+​		当你最初创建一个 [Deployment](https://kubernetes.io/zh/docs/concepts/workloads/controllers/deployment/)、 [StatefulSet](https://kubernetes.io/zh/docs/concepts/workloads/controllers/statefulset/)、Pod 或者其他包含 Pod 模板的对象时，如果没有显式设定的话，Pod 中所有容器的默认镜像 拉取策略是 `IfNotPresent`。这一策略会使得 [kubelet](https://kubernetes.io/docs/reference/generated/kubelet) 在镜像已经存在的情况下直接略过拉取镜像的操作。
+
+​		容器的 **imagePullPolicy** 和镜像的标签会影响 kubelet 尝试拉取（下载）指定的镜像。以下列表包含了 imagePullPolicy 可以设置的值，拉取容器镜像有如下三种策略：
+
+​				**IfNotPresent**：如果节点的镜像不存在就进行镜像拉取，如果存在就使用这个镜像进行启动。
+
+​				**Always**：每当 kubelet 启动一个容器时，kubelet 会查询容器的镜像仓库， 将名称解析为一个镜像[摘要](https://docs.docker.com/engine/reference/commandline/pull/#pull-an-image-by-digest-immutable-identifier)。 如果 kubelet 有一个容器镜像，并且对应的摘要已在本地缓存，kubelet 就会使用其缓存的镜像； 否则，kubelet 就会使用解析后的摘要拉取镜像，并使用该镜像来启动容器。（查询镜像仓库Sha256，如果本地有镜像判断Sha256是否一致，如果一致则启动，不一致继续pull然后启动，如果本地没有镜像则拉取最新）
+
+​			**Never**：Kubelet 不会尝试获取镜像。如果镜像已经以某种方式存在本地， kubelet 会尝试启动容器；否则，会启动失败。 更多细节见[提前拉取镜像](https://kubernetes.io/zh/docs/concepts/containers/images/#pre-pulled-images)。（不会去拉取镜像，如果本地没有则直接容器启动失败）
+
+​		**说明：**
+
+​				在生产环境中部署容器时，你应该避免使用 `:latest` 标签，因为这使得正在运行的镜像的版本难以追踪，并且难以正确地回滚。相反，应指定一个有意义的标签，如 `v1.42.0`。
+
+​		**默认镜像拉取策略**
+
+​		当你（或控制器）向 API 服务器提交一个新的 Pod 时，你的集群会在满足特定条件时设置 `imagePullPolicy `字段：
+
+- 如果你省略了 `imagePullPolicy` 字段，并且容器镜像的标签是 `:latest`， `imagePullPolicy` 会自动设置为 `Always`。
+- 如果你省略了 `imagePullPolicy` 字段，并且没有指定容器镜像的标签， `imagePullPolicy` 会自动设置为 `Always`。
+- 如果你省略了 `imagePullPolicy` 字段，并且为容器镜像指定了非 `:latest` 的标签， `imagePullPolicy` 就会自动设置为 `IfNotPresent`。
+
+## 容器资源管理
+
+​		限制容器资源CPU等，官网地址：[点击进入](https://kubernetes.io/zh/docs/concepts/configuration/manage-resources-containers/)
+
+​		
+
 # POD
 
-​		POD是通过资源从模板中进行创建并且管理的，PodTemplates是用于创建Pod的规范，并且包含在工作负载资源，工作负载资源又分为3种，分别是如下3种：
+## Pod 的生命周期
 
-- ​						[Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+​		官网地址，[点击进入](https://kubernetes.io/zh/docs/concepts/workloads/pods/pod-lifecycle/)
 
-- ​						[Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/job/)
+## Pod卷存储
 
-- ​						[DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/)
+​		配置：[点击进入](https://kubernetes.io/zh/docs/tasks/configure-pod-container/configure-persistent-volume-storage/)
 
-​		下面我们将通过如下三种方式创建POD
+# ConfigMap
 
-## Deployment
+​		POD中配置ConfigMap官网地址：[点击进入](https://kubernetes.io/zh/docs/concepts/configuration/configmap/)
 
-### 简介
+## 基于目录以及文件
 
-​		官网地址：[点击进行](https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#deployment-v1-apps)
+```sh
+# 新建目录
+export configMapFilePath="/root/k8s/test/configMap/testPath"
+export configMapNameSpace="default"
 
-​		一个部署提供了声明更新[POD](https://kubernetes.io/docs/concepts/workloads/pods/) 和 [副本集](https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/)，您在部署中描述*所需的状态*，然后在部署中[控制者](https://kubernetes.io/docs/concepts/architecture/controller/)以受控速率将实际状态更改为所需状态。您可以定义部署以创建新的副本集，或删除现有部署并在新部署中采用其所有资源。
+mkdir -p $configMapFilePath && cd $configMapFilePath
 
-​		分别有五个根字段
+# 新建配置文件
+cat > $configMapFilePath/mysql << EOF
+mysql.username=root
+mysql.password=root
+mysql.port=3306
+EOF
+cat > $configMapFilePath/mongo << EOF
+mongo.username=mongo
+mongo.password=mongoroot
+mongo.port=27017
+EOF
 
-- ​				apiVersion
+# 创建ConfigMap
+kubectl create configmap mysql-mongo-config --from-file=$configMapFilePath -n $configMapNameSpace
 
+# 查看configMap
+kubectl describe configmaps mysql-mongo-config
+
+
+#   Data
+#   ====
+#   mongo:
+#   ----
+#   mongo.username=mongo
+#   mongo.password=mongoroot
+#   mongo.port=27017
+
+#   mysql:
+#   ----
+#   mysql.username=root
+#   mysql.password=root
+#   mysql.port=3306
+
+# kubectl get configmaps mysql-mongo-config -o yaml
+
+# 基于单个OR多个文件创建
+# 单个
+kubectl create configmap mysql-mongo-config-1 --from-file=$configMapFilePath/mysql
+# 多个
+kubectl create configmap mysql-mongo-config-2 --from-file=$configMapFilePath/mysql --from-file=$configMapFilePath/mongo
+
+
+
+
+# ！！！清理环境
+# 删除ConfigMap
+kubectl delete configmap mysql-mongo-config -n $configMapNameSpace
+kubectl delete configmap mysql-mongo-config
+kubectl delete configmap mysql-mongo-config-1
+kubectl delete configmap mysql-mongo-config-2
 ```
-		APIVersion定义了该对象表示形式的版本控制架构。服务器应将已识别的架构转换为最新的内部值，并可能拒绝无法识别的值。更多信息：https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
-```
 
-- ​				kind
+## 基于Yaml
 
-```
-		Kind是一个字符串值，表示此对象表示的REST资源。服务器可以从客户端向其提交请求的端点推断出这一点。无法更新。在CamelCase中。更多信息：https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
-```
-
-- ​				[metadata](https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta)
-
-```
-		对象元	标准对象元数据。
-```
-
-- ​				[spec](https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#deploymentspec-v1-apps)
-
-```
-		指定部署所需的行为。		
-```
-
-- ​				[status](https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#deploymentstatus-v1-apps)
-
-```
-		最近观察到的部署状态。
-```
-
-​		例如我们查看官网的示例：
+​		创建一个ConfigMap
 
 ```yaml
-# api版本
-apiVersion: apps/v1
-# 类型
-kind: Deployment
-# 元数据
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: nginx-deployment
-  labels:
-    app: nginx
-# 清单
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: nginx
-  template:
-    metadata:
-      labels:
-        app: nginx
-    spec:
-      containers:
-      - name: nginx
-        image: nginx:1.14.2
-        ports:
-        - containerPort: 80
+  name: mysql-mongo-config
+  namespace: default
+# 配置数据
+data:
+	# 配置项
+  mysql.db.name: "nacos_devtest"
+  mysql.port: "3306"
+  mysql.user: "nacos"
+  mysql.password: "nacos"
+  
+  # 配置项
+	demo.username: "bigkang"  
+	demo.password: "ad31?dad.>dw%32"
+	
+	# 多文件配置项
+  mysql: |
+    mysql.username=root
+    mysql.password=root
+    mysql.port=3306
+  mongo: |
+    mongo.username=mongo
+    mongo.password=mongoroot
+    mongo.port=27017
 ```
 
+## POD中使用
+
+​		将单个配置引入
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: k8s.gcr.io/busybox
+      command: [ "/bin/sh", "-c", "echo $(MYSQL_USERNAME)" ] # 数据环境变量
+      env:
+        - name: MYSQL_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: mysql-mongo-config 	# 使用的configMap
+              key: mysql.user 					# 使用的键
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: mysql-mongo-config	# 使用的configMap
+              key: demo.username				# 使用的键
+```
+
+​		直接引入整个配置文件（引入整合配置文件进行覆盖，将所有的键环境变量都覆盖进来）
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: k8s.gcr.io/busybox
+      command: [ "/bin/sh", "-c", "env" ]
+      envFrom:
+      - configMapRef:
+          name: mysql-mongo-config
+  restartPolicy: Never
+```
+
+​		volumes数据卷使用ConfigMap
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dapi-test-pod
+spec:
+  containers:
+    - name: test-container
+      image: k8s.gcr.io/busybox
+      command: [ "/bin/sh", "-c", "ls /etc/config/" ]
+      volumeMounts:
+      - name: config-volume
+        mountPath: /etc/config
+  volumes:
+    - name: config-volume
+      configMap:
+        # Provide the name of the ConfigMap containing the files you want
+        # to add to the container
+        name: special-config
+  restartPolicy: Never
+```
+
+​	
 
 
-## Jobs
+
+# Service
 
 
 
-## DaemonSets
+# Secret
+
+​		官网地址：[点击进入](https://kubernetes.io/zh/docs/concepts/configuration/secret/)
+
+​		
 
 # KubeCtl
 
