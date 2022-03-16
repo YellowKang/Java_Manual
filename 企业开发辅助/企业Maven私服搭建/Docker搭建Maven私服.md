@@ -169,3 +169,11 @@ http://maven.aliyun.com/nexus/content/groups/public/
 
 ![](img\depoly.png)
 
+# Maven依赖冲突解决
+
+​		使用IDEA工具
+
+```
+Maven Helper
+```
+

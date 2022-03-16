@@ -239,7 +239,102 @@ roleRef:
 
 ## Pod卷存储
 
+​		我们知道容器中我们肯定需要将文件卷挂载到我们的固定物理磁盘防止丢失，如果我们把文件放入POD中，那么POD删除后这部分的数据就会丢失了，那么我们怎么持久化我们的物理磁盘呢？Kubernetes 支持很多类型的卷。 [Pod](https://kubernetes.io/docs/concepts/workloads/pods/pod-overview/) 可以同时使用任意数目的卷类型。 临时卷类型的生命周期与 Pod 相同，但持久卷可以比 Pod 的存活期长。 当 Pod 不再存在时，Kubernetes 也会销毁临时卷；不过 Kubernetes 不会销毁 持久卷。对于给定 Pod 中任何类型的卷，在容器重启期间数据都不会丢失。
+
+​		有如下方式类型可以进行持久化（不全）：
+
+|        持久化类型         |                             描述                             |                           官网示例                           |
+| :-----------------------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
+| **awsElasticBlockStore**  | `awsElasticBlockStore` 卷将 Amazon Web服务（AWS）[EBS 卷](https://aws.amazon.com/ebs/) 挂载到你的 Pod 中。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#aws-ebs-%E9%85%8D%E7%BD%AE%E7%A4%BA%E4%BE%8B) |
+|       **azureDisk**       | `azureDisk` 卷类型用来在 Pod 上挂载 Microsoft Azure [数据盘（Data Disk）](https://azure.microsoft.com/en-us/documentation/articles/virtual-machines-linux-about-disks-vhds/) 。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#azuredisk) |
+|        **cephfs**         |      `cephfs` 卷允许你将现存的 CephFS 卷挂载到 Pod 中。      | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#cephfs) |
+|        **cinder**         |   `cinder` 卷类型用于将 OpenStack Cinder 卷挂载到 Pod 中。   | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#cinder) |
+|       **configMap**       | ConfigMap 对象中存储的数据可以被卷引用，然后被 Pod 中运行的 容器化应用使用。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#configmap) |
+|      **downwardAPI**      |   `downwardAPI` 卷用于使 downward API 数据对应用程序可用。   | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#downwardapi) |
+|       **emptyDir**        | 当 Pod 分派到某个 Node 上时，`emptyDir` 卷会被创建。<br />并且在 Pod 在该节点上运行期间，卷一直存在。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#emptydir) |
+|     **fc (光纤通道)**     |    `fc` 卷类型允许将现有的光纤通道块存储卷挂载到 Pod 中。    | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#fc) |
+|   **gcePersistentDisk**   | `gcePersistentDisk` 卷能将谷歌计算引擎 (GCE) [持久盘（PD）](http://cloud.google.com/compute/docs/disks) 挂载到你的 Pod 中。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#gcepersistentdisk) |
+|       **glusterfs**       | `glusterfs` 卷能将 [Glusterfs](https://www.gluster.org/) (一个开源的网络文件系统) 挂载到你的 Pod 中。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#glusterfs) |
+|       **hostPath**        | `hostPath` 卷能将主机节点文件系统上的文件或目录挂载到你的 Pod 中。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#hostpath) |
+|         **iscsi**         | `iscsi` 卷能将 iSCSI (基于 IP 的 SCSI) 卷挂载到你的 Pod 中。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#iscsi) |
+|         **local**         | `local` 卷所代表的是某个被挂载的本地存储设备，例如磁盘、分区或者目录。<br />`local` 卷只能用作静态创建的持久卷。尚不支持动态配置。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#local) |
+|          **nfs**          |     `nfs` 卷能将 NFS (网络文件系统) 挂载到你的 Pod 中。      | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#nfs) |
+| **persistentVolumeClaim** | `persistentVolumeClaim` 卷用来将[持久卷](https://kubernetes.io/zh/docs/concepts/storage/persistent-volumes/)（PersistentVolume） 挂载到 Pod 中。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#persistentvolumeclaim) |
+|    **portworxVolume**     | `portworxVolume` 是一个可伸缩的块存储层<br />能够以超融合（hyperconverged）的方式与 Kubernetes 一起运行。 | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#portworxvolume) |
+|     **vsphereVolume**     |  `vsphereVolume` 用来将 vSphere VMDK 卷挂载到你的 Pod 中。   | [点击进入](https://kubernetes.io/zh/docs/concepts/storage/volumes/#vspherevolume) |
+
+
+
+### persistentVolumeClaim
+
+​		存储的管理是一个与计算实例的管理完全不同的问题。PersistentVolume 子系统为用户 和管理员提供了一组 API，将存储如何供应的细节从其如何被使用中抽象出来。 
+
+​		为了实现这点，我们引入了两个新的 API 资源：PersistentVolume 和 PersistentVolumeClaim。
+
+​		**持久卷**（**PersistentVolume**，PV）是集群中的一块存储，可以由管理员事先供应，或者 使用[存储类（Storage Class）](https://kubernetes.io/zh/docs/concepts/storage/storage-classes/)来动态供应。 持久卷是集群资源，就像节点也是集群资源一样。PV 持久卷和普通的 Volume 一样，也是使用 卷插件来实现的，只是它们拥有独立于任何使用 PV 的 Pod 的生命周期。 此 API 对象中记述了存储的实现细节，无论其背后是 NFS、iSCSI 还是特定于云平台的存储系统。
+
+​		**持久卷申领**（**PersistentVolumeClaim**，PVC）表达的是用户对存储的请求。概念上与 Pod 类似。 Pod 会耗用节点资源，而 PVC 申领会耗用 PV 资源。Pod 可以请求特定数量的资源（CPU 和内存）；同样 PVC 申领也可以请求特定的大小和访问模式 （例如，可以要求 PV 卷能够以 ReadWriteOnce、ReadOnlyMany 或 ReadWriteMany 模式之一来挂载，参见[访问模式](https://kubernetes.io/zh/docs/concepts/storage/persistent-volumes/#access-modes)）。
+
+​		尽管 PersistentVolumeClaim 允许用户消耗抽象的存储资源，常见的情况是针对不同的 问题用户需要的是具有不同属性（如，性能）的 PersistentVolume 卷。 集群管理员需要能够提供不同性质的 PersistentVolume，并且这些 PV 卷之间的差别不 仅限于卷大小和访问模式，同时又不能将卷是如何实现的这些细节暴露给用户。 为了满足这类需求，就有了 *存储类（StorageClass）* 资源。
+
+​		PV 卷的供应有两种方式：静态供应或动态供应。
+
+​				**静态**：集群管理员创建若干 PV 卷。这些卷对象带有真实存储的细节信息，并且对集群 用户可用（可见）。PV 卷对象存在于 Kubernetes API 中，可供用户消费（使用）。
+
+​				**动态**：如果管理员所创建的所有静态 PV 卷都无法与用户的 PersistentVolumeClaim 匹配， 集群可以尝试为该 PVC 申领动态供应一个存储卷。 这一供应操作是基于 StorageClass 来实现的：PVC 申领必须请求某个 [存储类](https://kubernetes.io/zh/docs/concepts/storage/storage-classes/)，同时集群管理员必须 已经创建并配置了该类，这样动态供应卷的动作才会发生。 如果 PVC 申领指定存储类为 `""`，则相当于为自身禁止使用动态供应的卷。
+
+​		简单的概述就是我们要创建**PersistentVolume（持久卷）**然后通过**PersistentVolumeClaim（持久卷申领）**来进行绑定，如果**PersistentVolumeClaim（持久卷申领）**绑定到了**PersistentVolume（持久卷）**那么则属于静态，如果没有绑定但是指定了**存储类（Storage Class）**那么则会自动创建，绑定规则如下:
+
+​				用户创建一个带有特定存储容量和特定访问模式需求的 PersistentVolumeClaim 对象； 在动态供应场景下，这个 PVC 对象可能已经创建完毕。 主控节点中的控制回路监测新的 PVC 对象，寻找与之匹配的 PV 卷（如果可能的话）， 并将二者绑定到一起。 如果为了新的 PVC 申领动态供应了 PV 卷，则控制回路总是将该 PV 卷绑定到这一 PVC 申领。 否则，用户总是能够获得他们所请求的资源，只是所获得的 PV 卷可能会超出所请求的配置。 一旦绑定关系建立，则 PersistentVolumeClaim 绑定就是排他性的，无论该 PVC 申领是 如何与 PV 卷建立的绑定关系。 PVC 申领与 PV 卷之间的绑定是一种一对一的映射，实现上使用 ClaimRef 来记述 PV 卷 与 PVC 申领间的双向绑定关系。
+
+​				如果找不到匹配的 PV 卷，PVC 申领会无限期地处于未绑定状态。 当与之匹配的 PV 卷可用时，PVC 申领会被绑定。 例如，即使某集群上供应了很多 50 Gi 大小的 PV 卷，也无法与请求 100 Gi 大小的存储的 PVC 匹配。当新的 100 Gi PV 卷被加入到集群时，该 PVC 才有可能被绑定。
+
+
+
+```
+
+```
+
+
+
 ​		配置：[点击进入](https://kubernetes.io/zh/docs/tasks/configure-pod-container/configure-persistent-volume-storage/)
+
+​		创建PersistentVolume卷
+
+```sh
+# 设置创建的目录卷
+export pvPath="/root/k8s/test/pv"
+mkdir -p $pvPath && cd $pvPath
+
+# 创建一个本地Local的卷,存储为10个G
+cat > test-local-pv.yaml << EOF
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: test-pv-volume
+spec:
+  storageClassName: test-local
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/testLocal"
+EOF
+
+# 创建PV
+kubectl apply -f test-local-pv.yaml
+
+# 查看PV
+kubectl get pv
+
+# NAME             CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
+# test-pv-volume   10Gi       RWO            Retain           Available           test-local              107s
+
+# 状态Available未绑定PersistentVolumeClaim
+```
+
+
 
 # ConfigMap
 

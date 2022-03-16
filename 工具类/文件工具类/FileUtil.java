@@ -202,6 +202,15 @@ public class FileUtil {
     }
 
     /**
+     * 根据file路径返回List字符串
+     * @param file
+     * @return
+     */
+    public static List<String> fileStringConvertList(String file){
+        return inputStreamConvertList(checkFileGetInputStream(new File(file)));
+    }
+
+    /**
      * 输入流按行转换List字符串集合
      * @param is
      * @return
