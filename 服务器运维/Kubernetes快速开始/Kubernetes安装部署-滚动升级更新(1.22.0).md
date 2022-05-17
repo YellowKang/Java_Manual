@@ -192,6 +192,9 @@ echo "source <(kubectl completion bash)" >> ~/.bashrc
 ​		安装kubeadm，kubelet和kubectl，指定版本（所有节点）
 
 ```sh
+# CentOs8 k8s yum加速
+sudo curl -o /etc/yum.repos.d/CentOS-Base.repo curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-vault-8.5.2111.repo
+
 export kubeletVersion="1.22.0"
 yum install -y kubelet-$kubeletVersion kubeadm-$kubeletVersion kubectl-$kubeletVersion
 ```
@@ -1212,7 +1215,21 @@ kubectl get nodes
 # qingyun03   Ready   <none>                 4m      v1.22.0
 ```
 
+#### 问题汇总
 
+​		问题：unable to connect to BIRDv4 socket: dial unix /var/run/bird/bird.ctl: connect
+
+​		网卡问题导致，使用通配符匹配网卡
+
+```sh
+# 网卡问题导致重启或者外部情况导致，配置新增自定义网卡通配符					
+            - name: IP_AUTODETECTION_METHOD
+              value: "interface=eth*"
+              
+# 然后删除重新应用
+kubectl delete -f calico.yaml
+kubectl apply -f calico.yaml
+```
 
 ### 安装Canal
 
@@ -1481,7 +1498,22 @@ wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.
 sed -i "s#k8s.gcr.io/ingress-nginx/controller#registry.aliyuncs.com/google_containers/nginx-ingress-controller#g" deploy.yaml
 sed -i "s#k8s.gcr.io/ingress-nginx/kube-webhook-certgen#registry.aliyuncs.com/google_containers/kube-webhook-certgen#g" deploy.yaml
 
+
+
+# 启动部署
+kubectl apply -f deploy.yaml
+
+
+# 如下nginx-controller运行成功即可
+kubectl get pod -n ingress-nginx
+ingress-nginx-admission-create--1-mcdt8     0/1     Completed   0          3m2s
+ingress-nginx-admission-patch--1-lrqsr      0/1     Completed   1          3m2s
+ingress-nginx-controller-6747bcd76c-d597b   1/1     Running     0          3m2s
+
+
+# ------暂时不用------暂时不用 ------暂时不用 ------暂时不用 ------暂时不用  
 # 然后我们定义Ingress的宿主机端口,全局搜 type: NodePort
+# 暂时不用
 vim deploy.yaml
 
 -------------
@@ -1505,9 +1537,7 @@ spec:
       appProtocol: https
       nodePort: 30443 # 新增NodePort宿主机映射端口
 -------------
-
 # 然后修改HostWork 全局搜：--election-id=ingress-controller-leader
-
 -------------
 
     spec:
@@ -1521,17 +1551,6 @@ spec:
             preStop:
 
 -------------
-
-
-# 启动部署
-kubectl apply -f deploy.yaml
-
-
-# 如下nginx-controller运行成功即可
-kubectl get pod -n ingress-nginx
-ingress-nginx-admission-create--1-mcdt8     0/1     Completed   0          3m2s
-ingress-nginx-admission-patch--1-lrqsr      0/1     Completed   1          3m2s
-ingress-nginx-controller-6747bcd76c-d597b   1/1     Running     0          3m2s
 ```
 
 ​		修改端口（可以不修改）
@@ -1989,7 +2008,7 @@ kubectl delete -f ./deploy/mysql/mysql-local.yaml
 # 定义参数
 export nacosPath="/root/k8s/deploy/nacos"
 # 创建目录
-mkdir -p $nacosPath && cd nacosPath
+mkdir -p $nacosPath && cd $nacosPath
 
 # 下载部署文件
 git clone https://github.com/nacos-group/nacos-k8s.git
@@ -2041,9 +2060,10 @@ sed -i "s#/data/nfs-share#/data/nfs/nacos#g"  ./deploy/nfs/deployment.yaml
 yum install -y nfs-utils
 
 # 部署nfs
-kubectl create -f deploy/nfs/rbac.yaml
-kubectl create -f deploy/nfs/deployment.yaml
-kubectl create -f deploy/nfs/class.yaml
+
+kubectl apply -f deploy/nfs/rbac.yaml
+kubectl apply -f deploy/nfs/deployment.yaml
+kubectl apply -f deploy/nfs/class.yaml
 
 # 验证nfs是否部署成功
 kubectl get pod -l app=nfs-client-provisioner
@@ -2053,10 +2073,380 @@ sed -i "s#172.17.79.3#192.168.100.11#g"  deploy/mysql/mysql-nfs.yaml
 sed -i "s#/data/mysql#/data/nfs/nacos#g"  deploy/mysql/mysql-nfs.yaml
 
 # 部署MySQL-NFS
-kubectl create -f deploy/mysql/mysql-nfs.yaml
+kubectl apply -f deploy/mysql/mysql-nfs.yaml
 
 # 部署Nacos
+kubectl apply -f deploy/nacos/nacos-pvc-nfs.yaml
+```
 
+### 自定义持久化
+
+​		mysql持久化pvc
+
+```sh
+cat >  nacos-mysql-pvc.yaml  <<EOF
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nacos-mysql-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  nfs:
+    server: 192.168.100.11
+    path: /data/nfs/nacos-mysql
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nacos-mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs
+EOF
+kubectl apply -f nacos-mysql-pvc.yaml 
+```
+
+​		mysql部署
+
+```sh
+cat >  nacos-mysql.yaml  <<EOF
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: nacos-mysql
+  labels:
+    name: nacos-mysql
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: nacos-mysql
+    spec:
+      containers:
+      - name: nacos-mysql
+        image: nacos/nacos-mysql:8.0.16
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "bigkang"
+        - name: MYSQL_DATABASE
+          value: "nacos_devtest"
+        - name: MYSQL_USER
+          value: "nacos"
+        - name: MYSQL_PASSWORD
+          value: "nacos"
+      volumes:
+      - name: mysql-data
+        persistentVolumeClaim:
+          claimName: nacos-mysql-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-mysql
+  labels:
+    name: nacos-mysql
+spec:
+  type: NodePort
+  ports:
+  - port: 3306
+    protocol: TCP
+    nodePort: 63306
+    targetPort: 3306
+  selector:
+    name: nacos-mysql
+EOF
+
+
+kubectl apply -f nacos-mysql.yaml
+```
+
+​		部署Nacos
+
+```sh
+# 定义参数
+export mysqlHost="nacos-mysql"
+export clusterIp="nacos-0.nacos-headless.default.svc.cluster.local:8848 nacos-1.nacos-headless.default.svc.cluster.local:8848 nacos-2.nacos-headless.default.svc.cluster.local:8848"
+
+cat >  nacos-deploy.yaml  <<EOF
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-headless
+  labels:
+    app: nacos
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  ports:
+    - port: 8848
+      name: server
+      targetPort: 8848
+    - port: 9848
+      name: client-rpc
+      targetPort: 9848
+    - port: 9849
+      name: raft-rpc
+      targetPort: 9849
+    ## 兼容1.4.x版本的选举端口
+    - port: 7848
+      name: old-raft-rpc
+      targetPort: 7848
+  clusterIP: None
+  selector:
+    app: nacos
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nacos-cm
+data:
+  mysql.service.host: "${mysqlHost}"
+  mysql.db.name: "nacos_devtest"
+  mysql.port: "3306"
+  mysql.user: "nacos"
+  mysql.password: "nacos"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nacos
+spec:
+  serviceName: nacos-headless
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: nacos
+      annotations:
+        pod.alpha.kubernetes.io/initialized: "true"
+    spec:
+      containers:
+        - name: nacos
+          imagePullPolicy: IfNotPresent
+          image: nacos/nacos-server:v2.1.0
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+          ports:
+            - containerPort: 8848
+              name: client-port
+            - containerPort: 9848
+              name: client-rpc
+            - containerPort: 9849
+              name: raft-rpc
+            - containerPort: 7848
+              name: old-raft-rpc
+          env:
+            - name: NACOS_REPLICAS
+              value: "3"
+            - name: SERVICE_NAME
+              value: "nacos-headless"
+            - name: DOMAIN_NAME
+              value: "cluster.local"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MYSQL_SERVICE_DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.db.name
+            - name: MYSQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.service.host
+            - name: MYSQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.port
+            - name: MYSQL_SERVICE_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.user
+            - name: MYSQL_SERVICE_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.password
+            - name: NACOS_SERVER_PORT
+              value: "8848"
+            - name: NACOS_APPLICATION_PORT
+              value: "8848"
+            - name: PREFER_HOST_MODE
+              value: "hostname"
+            - name: NACOS_SERVERS
+              value: "$clusterIp"
+  selector:
+    matchLabels:
+      app: nacos
+EOF
+
+kubectl apply -f nacos-deploy.yaml
+```
+
+​		创建nacos-pvc(弃用)
+
+```sh
+# 定义参数
+export nfsServer="192.168.100.11"
+export nfsPath="/data/nfs/nacos"
+export namespaceDp="default"
+
+cat >  nacos-pvc.yaml  <<EOF
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nacos-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs
+  nfs:
+    server: $nfsServer
+    path: $nfsPath
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-client-root
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: nfs-client-provisioner-runner
+rules:
+- apiGroups: [""]
+  resources: ["persistentvolumes"]
+  verbs: ["get", "list", "watch", "create", "delete"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "update"]
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "update", "patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: run-nfs-client-provisioner
+subjects:
+- kind: ServiceAccount
+  name: nfs-client-provisioner
+  namespace: $namespaceDp
+roleRef:
+  kind: ClusterRole
+  name: nfs-client-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+rules:
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: leader-locking-nfs-client-provisioner
+subjects:
+- kind: ServiceAccount
+  name: nfs-client-provisioner
+  # replace with namespace where provisioner is deployed
+  namespace: $namespaceDp
+roleRef:
+  kind: Role
+  name: leader-locking-nfs-client-provisioner
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nfs-client-provisioner
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: nfs-client-provisioner
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nfs-client-provisioner
+  template:
+    metadata:
+      labels:
+        app: nfs-client-provisioner
+    spec:
+      serviceAccount: nfs-client-provisioner
+      containers:
+        - name: nfs-client-provisioner
+          image: k8s.gcr.io/sig-storage/nfs-subdir-external-provisioner:v4.0.2
+          volumeMounts:
+            - name: nfs-client-root
+              mountPath: /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: k8s-sigs.io/nfs-subdir-external-provisioner
+            - name: NFS_SERVER
+              value: $nfsServer
+            - name: NFS_PATH
+              value: $nfsPath
+      volumes:
+        - name: nfs-client-root
+          nfs:
+            server: $nfsServer
+            path: $nfsPath
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: managed-nfs-storage
+provisioner: k8s-sigs.io/nfs-subdir-external-provisioner
+parameters:
+  archiveOnDelete: "false"
+EOF
+kubectl apply -f nacos-pvc.yaml 
 ```
 
 ### Ingress
@@ -2148,6 +2538,246 @@ echo "https://$domainName/nacos/"
 
 ## 部署MySQL
 
+​		初始化目录
+
+```sh
+# 定义参数
+export name="mysql"
+export deployPath="~/k8s/deploy/mysql"
+export deployNamespace="default"
+# 创建目录
+mkdir -p $deployPath && cd $deployPath
+```
+
+​		创建PVC以及配置文件
+
+```sh
+# 定义NFS信息
+export nfsHost="192.168.100.12"
+export nfsPath="/data/nfs/mysql"
+export nfsSize="20Gi"
+
+# NFS新增挂载(修改网段)
+echo "${nfsPath} 192.168.100.0/24(insecure,rw,sync,no_root_squash)" >> /etc/exports
+# 重新加载NFS
+systemctl reload nfs-server.service
+showmount -e
+
+# 创建pvc
+cat >  ${name}-pvc.yaml  <<EOF
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ${name}-pv
+spec:
+  capacity:
+    storage: $nfsSize
+  accessModes:
+    - ReadWriteMany
+  storageClassName: $name
+  nfs:
+    server: $nfsHost
+    path: $nfsPath
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${name}-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: $nfsSize
+  storageClassName: $name
+EOF
+
+# 应用pvc
+kubectl apply -f ${name}-pvc.yaml
+```
+
+​		部署MySQL
+
+```sh
+# 定义参数,root密码，初始化用户密码，以及镜像,暴露的端口
+export rootPass="bigkang"
+export initUser="bigkang"
+export initPass="bigkang"
+export podImage="mysql:8.0.28"
+export nodePort="13306"
+
+
+cat >  ${name}-deploy.yaml  <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${name}-conf
+  namespace: $deployNamespace
+data:
+  mysql.cnf: |
+    [mysqld]
+
+     pid-file        = /var/run/mysqld/mysqld.pid
+     socket          = /var/run/mysqld/mysqld.sock
+     datadir         = /var/lib/mysql
+     
+     symbolic-links=0
+     sql-mode=ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+     character-set-server=utf8
+    [client]
+     default-character-set=utf8
+    [mysql]
+     default-character-set=utf8
+     
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${name}
+  namespace: $deployNamespace
+  labels:
+    app: ${name}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${name}
+  template:
+    metadata:
+      labels:
+        app: ${name}
+    spec:
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: ${name}-pvc
+        - name: mysql-conf
+          configMap:
+            name: ${name}-conf
+      containers:
+        - env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: $rootPass
+            - name: MYSQL_USER
+              value: $initUser
+            - name: MYSQL_PASSWORD
+              value: $initPass
+          image: $podImage
+          imagePullPolicy: IfNotPresent
+          name: ${name}
+          ports:
+            - containerPort: 3306
+              protocol: TCP
+              name: http
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+            - name: mysql-conf
+              mountPath: /etc/mysql/mysql.conf.d
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${name}-svc
+  namespace: $deployNamespace
+spec:
+  type: NodePort
+  selector:
+    app: ${name}
+  ports:
+    - port: 3306
+      targetPort: 3306
+      nodePort: $nodePort
+EOF
+```
+
+​		使用Ingress
+
+```sh
+# 定义域名,域名证书地址，证书命名空间，以及Ingress服务
+# 生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
+export domainName="mysql.bigkang.club"
+export domainPath="/root/k8s/tls"
+export tlsNameSpace="default"
+export ingressService="mysql-svc"
+export ingressServicePort="3306"
+
+# 前置准备删除原来的证书以及Ingress
+kubectl delete secret $domainName-tls-secret 
+kubectl delete ingress $domainName-ingress
+kubectl delete secret $domainName-tls-secret --namespace=$tlsNameSpace
+kubectl delete ingress $domainName-ingress --namespace=$tlsNameSpace
+
+# 创建目录
+mkdir -p $domainPath/$domainName && cd $domainPath/$domainName
+
+
+# 初始化证书
+# 生成私钥(KEY)
+openssl genrsa -out $domainName.key 4096
+openssl req -x509 -new -nodes -key $domainName.key -subj "/CN=$domainName" -days 36500 -out $domainName.crt
+openssl req -new -sha256 \
+    -key $domainName.key \
+    -subj "/C=CN/ST=Beijing/L=Beijing/O=UnitedStack/OU=Devops/CN=$domainName" \
+    -reqexts SAN \
+    -config <(cat /etc/pki/tls/openssl.cnf \
+        <(printf "[SAN]\nsubjectAltName=DNS:$domainName")) \
+    -out $domainName.csr
+openssl req -text -in $domainName.csr
+openssl x509 -req -days 365000 \
+    -in $domainName.csr -CA $domainName.crt -CAkey $domainName.key -CAcreateserial \
+    -extfile <(printf "subjectAltName=DNS:$domainName") \
+    -out $domainName.pem
+    
+# 创建tls证书
+kubectl create secret tls $domainName-tls-secret --namespace=$tlsNameSpace --cert=$domainName.pem --key=$domainName.key --dry-run=client -o yaml > $domainName-secret.yaml
+kubectl apply -f $domainName-secret.yaml
+
+# 修改hosts 访问域名
+echo "192.168.100.11 $domainName"
+
+# 创建Ingress的yaml文件
+cat > $domainName-ingress.yaml << EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: $domainName-ingress
+  namespace: $tlsNameSpace
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+       access_log /var/log/nginx/test.example.com.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/test.example.com.error.log;
+spec:
+  tls:
+    - hosts:
+      - $domainName
+      secretName: $domainName-tls-secret
+  ingressClassName: nginx
+  rules:
+    - host: $domainName
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: $ingressService
+              port:
+                number: $ingressServicePort
+EOF
+
+# 启动Ingress
+kubectl apply -f $domainName-ingress.yaml
+
+
+# 访问如下
+echo "https://$domainName/nacos/"
+```
+
 
 
 ## 部署TiDB
@@ -2155,6 +2785,418 @@ echo "https://$domainName/nacos/"
 
 
 ## 部署ELK
+
+
+
+```sh
+# 定义参数
+export deployPath="~/k8s/deploy/elk/es"
+# 创建目录
+mkdir -p $deployPath && cd $deployPath
+
+# 定义参数
+export deployName="es-master"
+export deployNameSpace="default"
+
+cat > ${deployName}-rbac.yaml << EOF
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ${deployName}-storage
+  namespace: $deployNameSpace
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+   name: ${deployName}-storage
+   namespace: $deployNameSpace
+rules:
+   -  apiGroups: [""]
+      resources: ["persistentvolumes"]
+      verbs: ["get", "list", "watch", "create", "delete"]
+   -  apiGroups: [""]
+      resources: ["persistentvolumeclaims"]
+      verbs: ["get", "list", "watch", "update", "delete"]
+   -  apiGroups: ["storage.k8s.io"]
+      resources: ["storageclasses"]
+      verbs: ["get", "list", "watch"]
+   -  apiGroups: [""]
+      resources: ["events"]
+      verbs: ["watch", "create", "update", "patch"]
+   -  apiGroups: [""]
+      resources: ["services", "endpoints"]
+      verbs: ["get","create","list", "watch","update"]
+   -  apiGroups: ["extensions"]
+      resources: ["podsecuritypolicies"]
+      resourceNames: ["${deployName}-storage"]
+      verbs: ["use"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ${deployName}-storage-bind
+subjects:
+  - kind: ServiceAccount
+    name: ${deployName}-storage
+    namespace: $deployNameSpace
+roleRef:
+  kind: ClusterRole
+  name: ${deployName}-storage
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+
+
+export nfsHost="192.168.100.13"
+export nfsPath="/data/nfs/es"
+
+cat > ${deployName}-storage.yaml << EOF
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ${deployName}-storage
+  namespace: $deployNameSpace
+provisioner: ${deployName}/nfs
+parameters:
+  archiveOnDelete: "true"
+reclaimPolicy: Retain
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${deployName}-provisioner
+  namespace: $deployNameSpace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${deployName}-provisioner
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ${deployName}-provisioner
+    spec:
+      serviceAccount: ${deployName}-storage
+      containers:
+        - name: ${deployName}-provisioner
+          image: easzlab/nfs-subdir-external-provisioner:v4.0.1
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: nfs-client-root
+              mountPath:  /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: ${deployName}/nfs
+            - name: NFS_SERVER
+              value: $nfsHost
+            - name: NFS_PATH
+              value: $nfsPath
+      volumes:
+        - name: nfs-client-root
+          nfs:
+            server: $nfsHost
+            path: $nfsPath
+EOF
+```
+
+
+
+
+
+```sh
+cat > ${deployName}-pvc.yaml << EOF
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: es
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-ssd
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ${deployName}-pv
+spec:
+  capacity:
+    storage: $nfsSize
+  accessModes:
+    - ReadWriteMany
+  storageClassName: es
+  nfs:
+    server: $nfsHost
+    path: $nfsPath
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${deployName}-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: es
+  resources:
+    requests:
+      storage: 10Gi
+EOF
+```
+
+
+
+```sh
+# 定义NFS信息
+export nfsHost="192.168.100.13"
+export nfsPath="/data/nfs/es"
+export nfsSize="30Gi"
+
+cat > ${deployName}-pvc.yaml << EOF
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ${deployName}-pv
+spec:
+  capacity:
+    storage: $nfsSize
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "${deployName}-storage"
+  nfs:
+    server: $nfsHost
+    path: $nfsPath
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${deployName}-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: ${deployName}-storage
+  resources:
+    requests:
+      storage: $nfsSize
+EOF
+```
+
+
+
+```sh
+
+
+cat > ${deployName}-deploy.yaml << EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${deployName}-svc
+  namespace: $deployNameSpace
+  labels:
+    app: es
+spec:
+  type: NodePort
+  ports:
+  - port: 9200
+    targetPort: 9200
+    name: http
+  - port: 9300
+    targetPort: 9300
+    name: tcp
+  selector:
+    app: es
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ${deployName}
+  namespace: $deployNameSpace
+spec:
+  serviceName: ${deployName}-svc
+  replicas: 3
+  selector:
+    matchLabels:
+      app: es
+  template:
+    metadata:
+      labels:
+        app: es
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - es
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+      - name: increase-vm-max-map
+        image: busybox
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      - name: increase-fd-ulimit
+        image: busybox
+        command: ["sh", "-c", "ulimit -n 65536"]
+        securityContext:
+          privileged: true
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: ${deployName}
+          image: elasticsearch/elasticsearch:7.11.1
+          imagePullPolicy: IfNotPresent        
+          env:
+          - name: MY_POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          resources:
+            requests:
+              memory: 1024Mi
+              cpu: 500m
+            limits:
+              memory: 2048Mi
+              cpu: 1500m
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh","-c","touch /tmp/health"]
+          livenessProbe:
+            exec:
+              command: ["test","-e","/tmp/health"]
+            initialDelaySeconds: 5
+            timeoutSeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: outer
+            initialDelaySeconds: 15
+            timeoutSeconds: 5
+            periodSeconds: 20
+          volumeMounts:
+            - name: es-date
+              mountPath: /usr/share/elasticsearch/data
+            - name: es-log
+              mountPath: /usr/share/elasticsearch/logs
+              readOnly: false
+      volumes:
+      - name: es-log
+        hostPath:
+          path: /var/log/k8s-log/es
+  volumeClaimTemplates:
+  - metadata:
+      name: es-date
+      annotations:
+        volume.beta.kubernetes.io/storage-class: "${deployName}-storage"
+    spec:
+      accessModes:
+        - ReadWriteMany
+      storageClassName: ${deployName}-storage
+      resources:
+        requests:
+          storage: 10Gi
+EOF
+```
+
+
+
+​		部署Es-Master
+
+```sh
+# 定义参数
+
+export deployName="es-master"
+export deployNameSpace="default"
+
+cat > ${deployName}-deploy.yaml << EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${deployName}-svc
+  namespace: $deployNameSpace
+  labels:
+    app: es
+spec:
+  type: NodePort
+  ports:
+  - port: 9200
+    targetPort: 9200
+    name: http
+  - port: 9300
+    targetPort: 9300
+    name: tcp
+  selector:
+    app: es
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ${deployName}
+  namespace: $deployNameSpace
+spec:
+  serviceName: ${deployName}-svc
+  replicas: 3
+  selector:
+    matchLabels:
+      app: es
+  template:
+    metadata:
+      name: ${deployName}
+      labels:
+        app: es
+    spec:
+      initContainers:
+        - name: init-sysctl
+          image: busybox
+          command:
+            - sysctl
+            - '-w'
+            - vm.max_map_count=262144
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+      containers:
+        - image: elasticsearch:7.12.0
+          name: ${deployName}
+          resources:
+            limits:
+              cpu: 300m
+              memory: 512Mi
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          env:
+            - name: node.name
+              value: '${HOSTNAME}'
+            - name: cluster.name
+              value: es-cluster
+            - name: network.host
+              value: _site_
+            - name: cluster.initial_master_nodes
+              value: 'es-master-0,es-master-1,es-master-2'
+            - name: discovery.seed_hosts
+              value: es-cluster
+            - name: ES_JAVA_OPTS
+              value: '-Xms128m -Xmx128m'
+          volumeMounts:
+            - name: es-cluster-data
+              mountPath: /usr/share/elasticsearch/data
+  volumeClaimTemplates:
+  - metadata:
+      name: es-cluster-data
+    spec:
+      accessModes:
+        - ReadWriteMany
+      storageClassName: ${deployName}-storage
+      resources:
+        requests:
+          storage: 10Gi
+       
+EOF
+```
 
 
 
@@ -2717,6 +3759,10 @@ boot-k8s-deploy-f86cd775f-rlrlz   1/1     Terminating   0          15h     10.24
 ```
 
 # 辅助
+
+## 快速部署网站
+
+​		https://www.kubebiz.com/KubeBiz
 
 ## 创建TLS证书
 

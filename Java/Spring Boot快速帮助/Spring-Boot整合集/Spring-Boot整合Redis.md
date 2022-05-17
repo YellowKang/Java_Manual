@@ -876,6 +876,312 @@ transportMode: "NIO"
 
 # 通用进阶
 
+## 优雅的缓存方式
+
+​		我们这里使用Redis以及分布式锁方式，并且采用缓存熔断的方式来进行缓存
+
+​		首先创建一个CacheLoadException异常
+
+```java
+/**
+ * @author HuangKang
+ * @date 2022/5/13 10:25 上午
+ * @describe 缓存加载异常
+ */
+public class CacheLoadException extends RuntimeException {
+
+    /**
+     * 默认缓存异常信息
+     */
+    private static final String DEFAULT_CACHE_EXCEPTION_MESSAGE = "Key:%s load cache failure";
+
+    public CacheLoadException() {
+        super();
+    }
+
+    /**
+     * 带消息缓存加载异常
+     *
+     * @param key 异常的Key
+     */
+    public CacheLoadException(String key) {
+        super(String.format(DEFAULT_CACHE_EXCEPTION_MESSAGE,key));
+    }
+
+}
+
+```
+
+​		然后新建一个缓存策略枚举
+
+```java
+/**
+ * @author HuangKang
+ * @date 2022/5/13 10:51 上午
+ * @describe 缓存策略
+ */
+public enum CacheStrategy {
+    /**
+     * 熔断
+     */
+    FUSING,
+    /**
+     * 抛出异常
+     */
+    EXCEPTION
+}
+
+```
+
+​		最后新建一个CacheUtil，需要引入lombok，fastjson，以及redisson，可以自行修改
+
+```java
+
+import com.alibaba.fastjson.JSON;
+import com.test.boot.utils.demo.redis.exception.CacheLoadException;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.stereotype.Component;
+
+import java.time.Duration;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @author HuangKang
+ * @date 2022/5/13 9:47 上午
+ * @describe Redis缓存工具
+ */
+@Component
+public class RedisCacheUtil {
+
+    /**
+     * 锁前缀
+     */
+    private static final String LOCK_PREFIX = "lock_key:";
+
+    /**
+     * 默认缓存空值
+     */
+    private static final String DEFAULT_CACHE_NULL_VALUE = "{}";
+
+    /**
+     * Redisson连接
+     */
+    private final RedissonClient redissonClient;
+
+    /**
+     * RedisOperations接口
+     */
+    private final RedisOperations<String, String> redisOperations;
+
+    /**
+     * 默认缓存时间（30分钟）
+     */
+    private static final Duration DEFAULT_CACHE_TIME = Duration.ofMinutes(30);
+
+    /**
+     * 默认缓存try lock时间（30秒）
+     */
+    private static final Duration DEFAULT_CACHE_LOCK_TIME = Duration.ofSeconds(30);
+
+
+    @Autowired
+    public RedisCacheUtil(RedissonClient redissonClient, RedisOperations<String, String> redisOperations) {
+        this.redissonClient = redissonClient;
+        this.redisOperations = redisOperations;
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, T defaultVal) {
+        return getAndLoadCache(key, cacheLoader, tClass, DEFAULT_CACHE_TIME, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.FUSING, defaultVal);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime, Duration cacheLockTime, T defaultVal) {
+        return getAndLoadCache(key, cacheLoader, tClass, cacheTime, cacheLockTime, CacheStrategy.FUSING, defaultVal);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass) {
+        return getAndLoadCache(key, cacheLoader, tClass, DEFAULT_CACHE_TIME);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime) {
+        return getAndLoadCache(key, cacheLoader, tClass, cacheTime, DEFAULT_CACHE_LOCK_TIME);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime, Duration cacheLockTime) {
+        // 默认异常策略
+        return getAndLoadCache(key, cacheLoader, tClass, cacheTime, cacheLockTime, CacheStrategy.EXCEPTION, null);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime, Duration cacheLockTime, CacheStrategy strategy) {
+        return getAndLoadCache(key, cacheLoader, tClass, cacheTime, cacheLockTime, strategy, null);
+    }
+
+    /**
+     * 获取并且加载缓存
+     *
+     * @param key           缓存Key
+     * @param cacheLoader   缓存加载器
+     * @param tClass        缓存以及返回类型
+     * @param cacheTime     缓存时间
+     * @param cacheLockTime 缓存获取锁时间
+     * @param defaultVal    默认值
+     * @param <T>           泛型
+     * @return 缓存数据
+     */
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime, Duration cacheLockTime, CacheStrategy strategy, T defaultVal) {
+        // 获取缓存字符串
+        CacheBody cacheBody = getCacheStr(key, strategy);
+        T data = null;
+        // 如果没有缓存,并且获取Redis数据成功
+        if (cacheBody.cacheStr == null && !cacheBody.failure) {
+            // 创建Redis锁Key
+            String lockKey = LOCK_PREFIX + key;
+            RLock rLock = redissonClient.getLock(lockKey);
+            try {
+                // 使用TryLock获取
+                boolean getLock = rLock.tryLock(cacheLockTime.getSeconds(), TimeUnit.SECONDS);
+                // 获取锁失败，执行策略
+                if (!getLock) {
+                    // 熔断
+                    if (CacheStrategy.FUSING.equals(strategy)) {
+                        return defaultVal;
+                    }
+                    // 异常
+                    else if (CacheStrategy.EXCEPTION.equals(strategy)) {
+                        throw new CacheLoadException(key);
+                    }
+                }
+                // 重新尝试获取缓存
+                cacheBody = getCacheStr(key, strategy);
+                if (cacheBody.cacheStr == null && !cacheBody.failure) {
+                    // 还是没有获取到则加载数据(是否考虑load失败的情况的默认值)
+                    data = cacheLoader.loadData();
+                    // 设置缓存
+                    if (data != null) {
+                        setCacheStr(key, data, cacheTime);
+                    } else {
+                        setCacheStr(key, DEFAULT_CACHE_NULL_VALUE, cacheTime);
+                    }
+                    return data;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                // 如果锁被当前线程持有
+                if (rLock.isHeldByCurrentThread()) {
+                    // 删除锁
+                    rLock.unlock();
+                }
+            }
+        }
+        // 处理缓存前数据还是为空的情况
+        if (DEFAULT_CACHE_NULL_VALUE.equals(cacheBody.cacheStr)) {
+            return null;
+        }
+        if (cacheBody.cacheStr != null) {
+            data = JSON.parseObject(cacheBody.cacheStr, tClass);
+        }
+        if (cacheBody.getFailure() && CacheStrategy.FUSING.equals(strategy)) {
+            return defaultVal;
+        }
+        return data;
+    }
+
+    /**
+     * 获取缓存String
+     *
+     * @param key 缓存Key
+     * @return Redis缓存的数据
+     */
+    public CacheBody getCacheStr(String key, CacheStrategy strategy) {
+        CacheBody cacheBody = new CacheBody();
+        cacheBody.failure = false;
+        try {
+            cacheBody.cacheStr = redisOperations.opsForValue().get(key);
+        } catch (Exception e) {
+            // 如果策略为异常重新抛出
+            if (CacheStrategy.EXCEPTION.equals(strategy)) {
+                throw e;
+            }
+            // 否则标记异常
+            else {
+                cacheBody.failure = true;
+            }
+        }
+        return cacheBody;
+    }
+
+    /**
+     * 设置缓存字符串
+     *
+     * @param key       缓存Key
+     * @param cacheData 缓存数据
+     * @param cacheTime 缓存时间
+     */
+    public void setCacheStr(String key, Object cacheData, Duration cacheTime) {
+        redisOperations.opsForValue().set(key, JSON.toJSONString(cacheData), cacheTime);
+    }
+
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    class CacheBody {
+        /**
+         * 缓存字符串
+         */
+        private String cacheStr;
+
+        /**
+         * 是否Redis获取失败（查询异常，Redis崩溃等等）
+         */
+        private Boolean failure;
+
+    }
+
+    public interface CacheLoader<T> {
+
+        /**
+         * 加载数据
+         * @return 缓存加载前的
+         */
+        T loadData();
+    }
+
+}
+
+```
+
+​		使用方式
+
+```java
+        Boolean ex = false;
+				// 带熔断机制，以及默认值
+        if (ex) {
+            return redisCacheUtil.getAndLoadCache(key, () -> {
+                System.out.println("load cache:" + key);
+                Demo demo = JSON.parseObject(jsonValue, Demo.class);
+                return demo;
+            }, Demo.class, new Demo("ex", "ex"));
+
+        }
+				// 不带熔断的直接异常
+				else {
+            return redisCacheUtil.getAndLoadCache(key, () -> {
+                System.out.println("load cache:" + key);
+                Demo demo = JSON.parseObject(jsonValue, Demo.class);
+                return demo;
+            }, Demo.class);
+        }
+```
+
+
+
 ## RedisTemplate序列化问题
 
 ​		RedisTemplate默认采用JDK序列化骂我们如果想要修改，我们可以通过配置类修改他的序列化方式。

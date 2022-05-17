@@ -49,12 +49,7 @@ mkdir -p /docker/redis/{data,conf}
 首先编辑配置文件，注意我此处设置了密码，请修改为自己的密码
 
 ```sh
-vim /docker/redis/conf/redis.conf
-
-退出后授予权限，因为配置文件执行需要权限
-chmod 777 /docker/redis/conf/redis.conf
------------------------------------------------------
-
+cat > /docker/redis/conf/redis.conf << EOF
 # Redis默认不是以守护进程的方式运行，可以通过该配置项修改，使用yes启用守护进程
 daemonize no
 
@@ -131,6 +126,9 @@ appendfilename appendonly.aof
 #always：表示每次更新操作后手动调用fsync()将数据写到磁盘（慢，安全） 
 #everysec：表示每秒同步一次（折衷，默认值）
 appendfsync everysec
+EOF
+
+chmod 777 /docker/redis/conf/redis.conf
 ```
 
 然后我们启动redis,首先我们运行以后台启动
@@ -145,13 +143,43 @@ appendfsync everysec
 
 redis镜像 使用redis-server启动，并且指定配置文件，然后持久化
 
+​		一键启动
+
 ```sh
+
+
+
 docker run -d \
 --name redis \
 -p 16371:6379 \
 -v /docker/redis/conf/redis.conf:/etc/redis/redis.conf \
 -v /docker/redis/data:/data \
 redis:5.0.5 redis-server /etc/redis/redis.conf --appendonly yes
+```
+
+​		Compose方式启动
+
+```sh
+# 新建Compose文件
+cat > /docker/redis/docker-compose.yaml << EOF
+version: '3.4'
+services:
+  redis:
+    container_name: redis       # 指定容器的名称
+    image: redis:5.0.5     # 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: redis
+    ports:
+      - 16371:6379
+    privileged: true
+    command: redis-server /etc/redis/redis.conf --appendonly yes
+    volumes: 
+      - /docker/redis/conf/redis.conf:/etc/redis/redis.conf
+      - /docker/redis/data:/data
+EOF
+
+# 启动
+docker-compose up -d
 ```
 
 ### 集群版
