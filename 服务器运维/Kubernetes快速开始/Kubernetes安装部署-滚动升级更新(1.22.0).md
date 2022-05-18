@@ -2786,18 +2786,19 @@ echo "https://$domainName/nacos/"
 
 ## 部署ELK
 
-
+### 部署Es-Master节点
 
 ```sh
 # 定义参数
-export deployPath="~/k8s/deploy/elk/es"
+export deployPath=~/k8s/deploy/elk/es
 # 创建目录
 mkdir -p $deployPath && cd $deployPath
 
-# 定义参数
+# 定义参数，部署的名称，以及命名空间
 export deployName="es-master"
 export deployNameSpace="default"
 
+# 创建一个rbac有权限StorageClass动态操作pv以及pvc（用于动态创建磁盘目录）
 cat > ${deployName}-rbac.yaml << EOF
 ---
 apiVersion: v1
@@ -2846,11 +2847,14 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 EOF
 
+# 应用
+kubectl apply -f ${deployName}-rbac.yaml
 
-
+# 定义nfs的地址以及Path，以及镜像（不同版本的k8s对应不同的镜像）
 export nfsHost="192.168.100.13"
 export nfsPath="/data/nfs/es"
-
+export deployImage="easzlab/nfs-subdir-external-provisioner:v4.0.1"
+# 创建一个nfs-provisioner动态操作pv以及pvc（用于动态创建磁盘目录）
 cat > ${deployName}-storage.yaml << EOF
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -2882,7 +2886,7 @@ spec:
       serviceAccount: ${deployName}-storage
       containers:
         - name: ${deployName}-provisioner
-          image: easzlab/nfs-subdir-external-provisioner:v4.0.1
+          image: $deployImage
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: nfs-client-root
@@ -2900,127 +2904,72 @@ spec:
             server: $nfsHost
             path: $nfsPath
 EOF
-```
+# 应用
+kubectl apply -f ${deployName}-storage.yaml
 
+# 定义Service参数
+export svcName="es-svc"
+export app="es7"
 
-
-
-
-```sh
-cat > ${deployName}-pvc.yaml << EOF
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: es
-provisioner: kubernetes.io/gce-pd
-parameters:
-  type: pd-ssd
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: ${deployName}-pv
-spec:
-  capacity:
-    storage: $nfsSize
-  accessModes:
-    - ReadWriteMany
-  storageClassName: es
-  nfs:
-    server: $nfsHost
-    path: $nfsPath
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: ${deployName}-pvc
-spec:
-  accessModes:
-    - ReadWriteMany
-  storageClassName: es
-  resources:
-    requests:
-      storage: 10Gi
-EOF
-```
-
-
-
-```sh
-# 定义NFS信息
-export nfsHost="192.168.100.13"
-export nfsPath="/data/nfs/es"
-export nfsSize="30Gi"
-
-cat > ${deployName}-pvc.yaml << EOF
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: ${deployName}-pv
-spec:
-  capacity:
-    storage: $nfsSize
-  accessModes:
-    - ReadWriteMany
-  storageClassName: "${deployName}-storage"
-  nfs:
-    server: $nfsHost
-    path: $nfsPath
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: ${deployName}-pvc
-spec:
-  accessModes:
-    - ReadWriteMany
-  storageClassName: ${deployName}-storage
-  resources:
-    requests:
-      storage: $nfsSize
-EOF
-```
-
-
-
-```sh
-
-
-cat > ${deployName}-deploy.yaml << EOF
+# 创建Service(注意NodePort是否需要以及后期修改等等情况)
+cat > $svcName.yaml << EOF
 apiVersion: v1
 kind: Service
 metadata:
-  name: ${deployName}-svc
+  name: $svcName
   namespace: $deployNameSpace
   labels:
-    app: es
+    app: $app
 spec:
   type: NodePort
   ports:
   - port: 9200
     targetPort: 9200
     name: http
+    nodePort: 9200
   - port: 9300
     targetPort: 9300
     name: tcp
+    nodePort: 9300
   selector:
-    app: es
----
+    app: $app
+EOF
+# 然后应用
+kubectl apply -f  $svcName.yaml
+
+
+
+# 定义deploy参数
+export deployImage="elasticsearch:7.17.0"
+export app="es7"
+export clusterName="${app}-cluster"
+# 初始化节点信息，用于集群第一次启动的初始化
+# 名称取 ${deployName}-[0-n]节点数.${svcName} 下面以三个master节点示例
+# 示例  "es-master-0.es-master-svc,es-master-1.es-master-svc,es-master-2.es-master-svc"
+export masterNodes="${deployName}-0.${svcName},${deployName}-1.${svcName},${deployName}-2.${svcName}"
+
+# 集群节点发现，所有的节点都可以放进去，第一次就把所有的Master放进去后面可以自己修改
+export seedHosts=$masterNodes
+
+# 创建应用
+# !!! 注意 ${HOSTNAME} 需要改回去，不需要引用，否则会变成主机名 ${HOSTNAME}.es-svc
+# !!! affinity 如果机器不够6台则会启动失败亲和度问题，每台只能部署一个节点，删除掉该节点即可
+cat > ${deployName}-deploy.yaml << EOF
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: ${deployName}
   namespace: $deployNameSpace
 spec:
-  serviceName: ${deployName}-svc
+  serviceName: $svcName
   replicas: 3
   selector:
     matchLabels:
-      app: es
+      app: $app
   template:
     metadata:
       labels:
-        app: es
+        app: $app
     spec:
       affinity:
         podAntiAffinity:
@@ -3030,124 +2979,8 @@ spec:
                   - key: "app"
                     operator: In
                     values:
-                      - es
+                      - $app
               topologyKey: "kubernetes.io/hostname"
-      initContainers:
-      - name: increase-vm-max-map
-        image: busybox
-        command: ["sysctl", "-w", "vm.max_map_count=262144"]
-        securityContext:
-          privileged: true
-      - name: increase-fd-ulimit
-        image: busybox
-        command: ["sh", "-c", "ulimit -n 65536"]
-        securityContext:
-          privileged: true
-      terminationGracePeriodSeconds: 60
-      containers:
-        - name: ${deployName}
-          image: elasticsearch/elasticsearch:7.11.1
-          imagePullPolicy: IfNotPresent        
-          env:
-          - name: MY_POD_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          resources:
-            requests:
-              memory: 1024Mi
-              cpu: 500m
-            limits:
-              memory: 2048Mi
-              cpu: 1500m
-          lifecycle:
-            postStart:
-              exec:
-                command: ["/bin/sh","-c","touch /tmp/health"]
-          livenessProbe:
-            exec:
-              command: ["test","-e","/tmp/health"]
-            initialDelaySeconds: 5
-            timeoutSeconds: 5
-            periodSeconds: 10
-          readinessProbe:
-            tcpSocket:
-              port: outer
-            initialDelaySeconds: 15
-            timeoutSeconds: 5
-            periodSeconds: 20
-          volumeMounts:
-            - name: es-date
-              mountPath: /usr/share/elasticsearch/data
-            - name: es-log
-              mountPath: /usr/share/elasticsearch/logs
-              readOnly: false
-      volumes:
-      - name: es-log
-        hostPath:
-          path: /var/log/k8s-log/es
-  volumeClaimTemplates:
-  - metadata:
-      name: es-date
-      annotations:
-        volume.beta.kubernetes.io/storage-class: "${deployName}-storage"
-    spec:
-      accessModes:
-        - ReadWriteMany
-      storageClassName: ${deployName}-storage
-      resources:
-        requests:
-          storage: 10Gi
-EOF
-```
-
-
-
-​		部署Es-Master
-
-```sh
-# 定义参数
-
-export deployName="es-master"
-export deployNameSpace="default"
-
-cat > ${deployName}-deploy.yaml << EOF
-apiVersion: v1
-kind: Service
-metadata:
-  name: ${deployName}-svc
-  namespace: $deployNameSpace
-  labels:
-    app: es
-spec:
-  type: NodePort
-  ports:
-  - port: 9200
-    targetPort: 9200
-    name: http
-  - port: 9300
-    targetPort: 9300
-    name: tcp
-  selector:
-    app: es
----
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: ${deployName}
-  namespace: $deployNameSpace
-spec:
-  serviceName: ${deployName}-svc
-  replicas: 3
-  selector:
-    matchLabels:
-      app: es
-  template:
-    metadata:
-      name: ${deployName}
-      labels:
-        app: es
-    spec:
       initContainers:
         - name: init-sysctl
           image: busybox
@@ -3159,34 +2992,39 @@ spec:
           securityContext:
             privileged: true
       containers:
-        - image: elasticsearch:7.12.0
-          name: ${deployName}
+        - name: ${deployName}
+          image: ${deployImage}
+          imagePullPolicy: IfNotPresent
           resources:
-            limits:
-              cpu: 300m
-              memory: 512Mi
             requests:
-              cpu: 200m
               memory: 256Mi
+              cpu: 128m
+            limits:
+              memory: 512Mi
+              cpu: 256m
           env:
             - name: node.name
-              value: '${HOSTNAME}'
+              value: "${HOSTNAME}.${svcName}"
             - name: cluster.name
-              value: es-cluster
-            - name: network.host
-              value: _site_
+              value: $clusterName
             - name: cluster.initial_master_nodes
-              value: 'es-master-0,es-master-1,es-master-2'
+              value: $masterNodes
             - name: discovery.seed_hosts
-              value: es-cluster
+              value: $seedHosts
             - name: ES_JAVA_OPTS
               value: '-Xms128m -Xmx128m'
+            - name: node.master
+              value: 'true'
+            - name: node.data
+              value: 'true'
+            - name: network.host
+              value: '0.0.0.0'
           volumeMounts:
-            - name: es-cluster-data
+            - name: es-date
               mountPath: /usr/share/elasticsearch/data
   volumeClaimTemplates:
   - metadata:
-      name: es-cluster-data
+      name: es-date
     spec:
       accessModes:
         - ReadWriteMany
@@ -3194,11 +3032,357 @@ spec:
       resources:
         requests:
           storage: 10Gi
-       
+EOF
+
+kubectl apply -f ${deployName}-deploy.yaml
+```
+
+### 部署Es-Data
+
+```sh
+# 定义参数
+export deployPath=~/k8s/deploy/elk/es
+# 创建目录
+mkdir -p $deployPath && cd $deployPath
+
+# 定义参数，部署的名称，以及命名空间
+export deployName="es-data"
+export deployNameSpace="default"
+
+# 创建一个rbac有权限StorageClass动态操作pv以及pvc（用于动态创建磁盘目录）
+cat > ${deployName}-rbac.yaml << EOF
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ${deployName}-storage
+  namespace: $deployNameSpace
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+   name: ${deployName}-storage
+   namespace: $deployNameSpace
+rules:
+   -  apiGroups: [""]
+      resources: ["persistentvolumes"]
+      verbs: ["get", "list", "watch", "create", "delete"]
+   -  apiGroups: [""]
+      resources: ["persistentvolumeclaims"]
+      verbs: ["get", "list", "watch", "update", "delete"]
+   -  apiGroups: ["storage.k8s.io"]
+      resources: ["storageclasses"]
+      verbs: ["get", "list", "watch"]
+   -  apiGroups: [""]
+      resources: ["events"]
+      verbs: ["watch", "create", "update", "patch"]
+   -  apiGroups: [""]
+      resources: ["services", "endpoints"]
+      verbs: ["get","create","list", "watch","update"]
+   -  apiGroups: ["extensions"]
+      resources: ["podsecuritypolicies"]
+      resourceNames: ["${deployName}-storage"]
+      verbs: ["use"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ${deployName}-storage-bind
+subjects:
+  - kind: ServiceAccount
+    name: ${deployName}-storage
+    namespace: $deployNameSpace
+roleRef:
+  kind: ClusterRole
+  name: ${deployName}-storage
+  apiGroup: rbac.authorization.k8s.io
+EOF
+
+# 应用
+kubectl apply -f ${deployName}-rbac.yaml
+
+# 定义nfs的地址以及Path，以及镜像（不同版本的k8s对应不同的镜像）
+export nfsHost="192.168.100.12"
+export nfsPath="/data/nfs/es"
+export deployImage="easzlab/nfs-subdir-external-provisioner:v4.0.1"
+# 创建一个nfs-provisioner动态操作pv以及pvc（用于动态创建磁盘目录）
+cat > ${deployName}-storage.yaml << EOF
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ${deployName}-storage
+  namespace: $deployNameSpace
+provisioner: ${deployName}/nfs
+parameters:
+  archiveOnDelete: "true"
+reclaimPolicy: Retain
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${deployName}-provisioner
+  namespace: $deployNameSpace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${deployName}-provisioner
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ${deployName}-provisioner
+    spec:
+      serviceAccount: ${deployName}-storage
+      containers:
+        - name: ${deployName}-provisioner
+          image: $deployImage
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: nfs-client-root
+              mountPath:  /persistentvolumes
+          env:
+            - name: PROVISIONER_NAME
+              value: ${deployName}/nfs
+            - name: NFS_SERVER
+              value: $nfsHost
+            - name: NFS_PATH
+              value: $nfsPath
+      volumes:
+        - name: nfs-client-root
+          nfs:
+            server: $nfsHost
+            path: $nfsPath
+EOF
+# 应用
+kubectl apply -f ${deployName}-storage.yaml
+
+# 部署Es-Data,这里需要设置Master的部署名称
+# 定义deploy参数
+export deployImage="elasticsearch:7.17.0"
+export app="es7"
+export clusterName="${app}-cluster"
+export masterDeployName="es-master"
+# 初始化节点信息，用于集群第一次启动的初始化
+# 名称取 ${deployName}-[0-n]节点数.${svcName} 下面以三个master节点示例
+# 示例  "es-master-0.es-master-svc,es-master-1.es-master-svc,es-master-2.es-master-svc"
+export masterNodes="${masterDeployName}-0.${svcName},${masterDeployName}-1.${svcName},${masterDeployName}-2.${svcName}"
+
+# 集群节点发现，所有的节点都可以放进去，第一次就把所有的Master放进去后面可以自己修改
+export seedHosts=$masterNodes
+
+# 创建应用
+# !!! 注意 ${HOSTNAME} 需要改回去，不需要引用，否则会变成主机名 ${HOSTNAME}.es-svc
+# !!! affinity 如果机器不够6台则会启动失败亲和度问题，每台只能部署一个节点，删除掉该节点即可
+cat > ${deployName}-deploy.yaml << EOF
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ${deployName}
+  namespace: $deployNameSpace
+spec:
+  serviceName: $svcName
+  replicas: 3
+  selector:
+    matchLabels:
+      app: $app
+  template:
+    metadata:
+      labels:
+        app: $app
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values:
+                      - $app
+              topologyKey: "kubernetes.io/hostname"
+      initContainers:
+        - name: init-sysctl
+          image: busybox
+          command:
+            - sysctl
+            - '-w'
+            - vm.max_map_count=262144
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+      containers:
+        - name: ${deployName}
+          image: ${deployImage}
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 128m
+            limits:
+              memory: 512Mi
+              cpu: 256m
+          env:
+            - name: node.name
+              value: "${HOSTNAME}.${svcName}"
+            - name: cluster.name
+              value: $clusterName
+            - name: cluster.initial_master_nodes
+              value: $masterNodes
+            - name: discovery.seed_hosts
+              value: $seedHosts
+            - name: ES_JAVA_OPTS
+              value: '-Xms128m -Xmx128m'
+            - name: node.master
+              value: 'true'
+            - name: node.data
+              value: 'true'
+            - name: network.host
+              value: '0.0.0.0'
+          volumeMounts:
+            - name: es-date
+              mountPath: /usr/share/elasticsearch/data
+  volumeClaimTemplates:
+  - metadata:
+      name: es-date
+    spec:
+      accessModes:
+        - ReadWriteMany
+      storageClassName: ${deployName}-storage
+      resources:
+        requests:
+          storage: 10Gi
+EOF
+
+kubectl apply -f ${deployName}-deploy.yaml
+```
+
+### 部署Kibana
+
+```sh
+# 定义参数，部署的名称，以及命名空间
+export deployName="kibana"
+export deployNameSpace="default"
+export deployImage="kibana:7.17.0"
+# 可以直接指定es的Service地址
+export esHost="http://es-svc:9200"
+
+
+cat > ${deployName}-deploy.yaml << EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: $deployName
+  namespace: $deployNameSpace
+  labels:
+    app: kibana
+spec:
+  type: NodePort
+  ports:
+  - port: 5601
+    targetPort: 5601
+    name: http
+    nodePort: 5601
+  type: NodePort
+  selector:
+    app: kibana
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $deployName
+  namespace: $deployNameSpace
+  labels:
+    app: kibana
+spec:
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+      - name: kibana
+        image: $deployImage
+        resources:
+          limits:
+            cpu: 256m
+          requests:
+            cpu: 256m
+        env:
+        - name: ELASTICSEARCH_HOSTS
+          value: $esHost
+        ports:
+        - containerPort: 5601
 EOF
 ```
 
+### ELK-Ingress
 
+```sh
+# 配置参数
+export domainName="elk.bigkang.club"
+export domainPath=~/root/k8s/tls
+export tlsNameSpace="default"
+export ingressService="kibana"
+export ingressServicePort="5601"
+
+
+# 前置准备删除原来的证书以及Ingress
+kubectl delete secret $domainName-tls-secret 
+kubectl delete ingress $domainName-ingress
+kubectl delete secret $domainName-tls-secret --namespace=$tlsNameSpace
+kubectl delete ingress $domainName-ingress --namespace=$tlsNameSpace
+
+# 使用什么方式生成SSL证书
+
+
+# 创建tls证书
+kubectl create secret tls $domainName-tls-secret --namespace=$tlsNameSpace --cert=$domainName.pem --key=$domainName.key --dry-run=client -o yaml > $domainName-secret.yaml
+
+kubectl apply -f $domainName-secret.yaml
+
+
+# 创建Ingress的yaml文件
+cat > $domainName-ingress.yaml << EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: $domainName-ingress
+  namespace: $tlsNameSpace
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+       access_log /var/log/nginx/test.example.com.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/test.example.com.error.log;
+spec:
+  tls:
+    - hosts:
+      - $domainName
+      secretName: $domainName-tls-secret
+  ingressClassName: nginx
+  rules:
+    - host: $domainName
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: $ingressService
+              port:
+                number: $ingressServicePort
+EOF
+
+# 启动Ingress
+kubectl apply -f $domainName-ingress.yaml
+```
 
 ## 安装Helm
 
