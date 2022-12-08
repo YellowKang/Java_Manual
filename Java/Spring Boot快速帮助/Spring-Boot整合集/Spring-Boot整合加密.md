@@ -1,4 +1,6 @@
-# 首先我们引入依赖
+# 配置文件加密
+
+## 引入依赖
 
 ```xml
         <dependency>
@@ -8,7 +10,7 @@
         </dependency>
 ```
 
-# 然后编写配置文件
+## 然后编写配置文件
 
 ```properties
 jasypt:
@@ -16,7 +18,7 @@ jasypt:
     password: bigkang
 ```
 
-# 然后编写一个控制器
+## 然后编写一个控制器
 
 ```java
 import org.jasypt.encryption.StringEncryptor;
@@ -77,3 +79,22 @@ spring:
 ```
 
 启动项目即可
+
+# 接口加密
+
+## 引入依赖
+
+```xml
+<dependency>
+    <groupId>cn.licoy</groupId>
+    <artifactId>encrypt-body-spring-boot-starter</artifactId>
+    <version>1.2.3</version>
+</dependency>
+```
+
+## 编写配置文件
+
+```
+
+```
+

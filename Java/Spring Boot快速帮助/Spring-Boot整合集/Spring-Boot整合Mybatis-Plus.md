@@ -720,6 +720,83 @@ mybatis-plus:
     </select>
 ```
 
+## 结果集封装List
+
+```sql
+# 有如下SQL，根据消息类型，查询需要告警的用户， 用户消息表 '关联' 用户表 '关联' 用户免打扰时间表
+    SELECT
+      tpu.username as username,
+      tpu.userPhone as userPhone,
+      tpu.batchId as batchId,
+      tput.weekday as weekday,
+      tput.startTime as startTime
+    FROM
+      (
+        SELECT
+          *
+        FROM
+          t_push_user_message
+        WHERE
+          delFlag = 0
+          AND messageCode = #{messageCode}
+      ) tpum
+    LEFT JOIN (SELECT * FROM t_push_user WHERE delFlag = 0) tpu ON tpu.pushUserId = tpum.pushUserId
+    LEFT JOIN (SELECT * FROM t_push_user_time WHERE delFlag = 0) tput ON tpu.pushUserId = tput.pushUserId
+    
+# 返回结果如下，查询到两个用户通知信息 而且属于一个团队
+李孟	16600075711	3	2	02:00:00
+李孟	16600075711	3	2	03:00:00
+李孟	16600075711	3	2	04:00:00
+李孟	16600075711	3	2	10:00:00
+
+臧亮	18665833218	3	1	00:00:00
+臧亮	18665833218	3	1	01:00:00
+臧亮	18665833218	3	1	02:00:00
+臧亮	18665833218	3	1	03:00:00
+臧亮	18665833218	3	1	04:00:00
+
+# 我们需要把他封装成如下结构（注意！！！！不能使用公共静态类，只能拆开，结果集映射会报错）
+
+		@ApiModelProperty("团队ID")
+    private Integer batchId;
+
+    private List<PushUser> pushUsers;
+    {
+    	    @ApiModelProperty("用户名称")
+    			private String username;
+
+    			@ApiModelProperty("用户手机号")
+    			private String userPhone;
+
+    			@ApiModelProperty("免打扰时间")
+    			private List<PushUserTime> notDisturbTimes;
+    			{
+              @ApiModelProperty("周日类型 1：周一到周五  2：周六日")
+              private String weekday;
+
+              @ApiModelProperty("免打扰时间")
+              private String startTime;
+    			}
+    }
+    
+# 封装成一个两层的树结构，后续根据团队规则进行告警通知
+# 我们需要自定义resultMap，标签如下
+  <resultMap id="PushUserTimeVo" type="com.lpv.api.bean.user.PushUserTimeVo" >
+    <result column="batchId" property="batchId" jdbcType="INTEGER" />
+
+    <collection property="pushUsers" ofType="com.lpv.api.bean.user.PushUser">
+      <result column="username" property="username" jdbcType="VARCHAR"  />
+      <result column="userPhone" property="userPhone" jdbcType="VARCHAR"  />
+      <collection property="notDisturbTimes" ofType="com.lpv.api.bean.user.PushUserTime">
+        <result column="weekday" property="weekday" jdbcType="VARCHAR"  />
+        <result column="startTime" property="startTime" jdbcType="VARCHAR"  />
+      </collection>
+    </collection>
+  </resultMap>
+```
+
+
+
 ## 树结构查询
 
 ### 循环查询方式

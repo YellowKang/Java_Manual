@@ -353,7 +353,7 @@ public class LoginController {
 
 Knife4j功能更加强大，同时页面更加美观
 
-将swagger依赖替换为knife4j
+将swagger依赖替换为knife4j 官方文档地址：[点击进入](https://doc.xiaominfo.com/docs/quick-start)
 
 ## 引入依赖
 

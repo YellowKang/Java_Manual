@@ -72,15 +72,84 @@ State					状态
 info					执行的命令详情
 ```
 
+# MySQL锁信息
+
+## 锁的属性
+
+
+
+- ​			**共享锁（读锁）**:  共享锁（share lock）简称S锁，当一个事务给数据加上S锁，就只能继续加S锁不能继续加X锁了，直到S锁释放才可以加X锁，共享锁主要是为了支持并发的数据读取，读取时不支持修改避免重复读。
+
+
+
+- ​			**排他锁（写锁）**:  排他锁（exclusive lock）简称X锁，当一个事务给数据加上X锁时，除自己以外不能再为数据加任何锁，直到锁释放后才可以加锁，X锁主要是为了不允许其他人同时修改，也不允许其他人读取，避免了出现脏数据和脏读的问题。
+
+
+
+## 锁的粒度
+
+
+
+- ​			**行锁（line lock）**:  行锁是指上锁的时候锁住的是表的某一行或多行记录，其他事务访问同一张表时，只有**被锁住的记录不能访问**，其他的记录可正常访问，特点:粒度小，加锁比表锁麻烦，不容易冲突，相比表锁支持的并发要高。
+
+
+
+- ​			**表锁（table lock）**:  表锁是指上锁的时候**锁住的是整个表**，当下一个事务访问该表的时候，必须等前一个事务释放了锁才能进行对表进行访问;特点:粒度大，加锁简单，容易冲突。
+
+
+
+- ​			**页锁**:  页级锁是MysQL中锁定粒度介于行级锁和表级锁中间的一种锁．表级锁速度快，但冲突多，行级冲突少，但速度慢。所以取了折衷的页级，一次锁定相邻的一组记录。特点:开销和加锁时间界于表锁和行锁之间，会出现死锁;锁定粒度界于表锁和行锁之间，并发度一般。
+
+
+
+- ​			**记录锁（Record lock）**:  记录锁也属于行锁中的一种，只不过记录锁的范围只是表中的某一条记录，记录锁是说事务在加锁后锁住的只是表的某一条记录，加了记录锁之后数据可以避免数据在查询的时候被修改的重复读问题，也避免了在修改的事务未提交前被其他事务读取的脏读问题。
+
+
+
+- ​			**间隙锁**:  是属于行锁的一种，间隙锁是在事务加锁后其锁住的是表记录的某一个区间，当表的相邻ID之间出现空隙则会形成一个区间，遵循左开右闭原则。范围查询并且查询未命中记录，查询条件必须命中索引、间隙锁只会出现在REPEATABLE_READ(重复读)的事务级别中。
+
+
+
+- ​			**临键锁（Next-Key lock）**:  也属于行锁的一种，并且它是INNODB的行锁默认算法，总结来说它就是记录锁和间隙锁的组合，临键锁会把查询出来的记录锁住，同时也会把该范围查询内的所有间隙空间也会锁住
+  再之它会把相邻的下一个区间也会锁住。
+
+
+
+- ​			**意向锁**:  
+
+​								意向共享锁( IS 锁)：事务想要获得一张表中某几行的共享锁
+
+​								意向排他锁( IX 锁)：事务想要获得一张表中某几行的排他锁
+
+​								比如：事务1在表1上加了S锁后，事务2想要更改某行记录，需要添加IX锁，由于不兼容，所以需要等待S锁释放；如果事务1在表1上加了IS锁，事务2添加的IX锁与IS锁兼容，就可以操作，这就实现了更细粒度的加锁。
+
+
+
+- ​			**插入意向锁（Insert Intention）**:  插入意向锁是在插入一行记录操作之前设置的一种间隙锁，这个锁释放了一种插入方式的信号，亦即多个事务在相同的索引间隙插入时如果不是插入间隙中相同的位置就不需要互相等待。假设有索引值4、7，几个不同的事务准备插入5、6，每个锁都在获得插入行的独占锁之前用插入意向锁各自锁住了4、7之间的间隙，但是不阻塞对方因为插入行不冲突。
+
+
+
+# 超时SQL
+
+```sql
+# 查询当前用户连接以及执行sql
+show processlist;
+
+# kill卡死进程
+kill QUERY 177;
+```
+
+
+
 # MySQL连接被拒接锁ip
 
-同样当我们遇到最大连接数以后，很大几率会导致另一个问题，那么就是异常连接太多，导致mysql将我们的ip给锁了，那么解决这个问题我们可以使用如下命令刷新
+​		同样当我们遇到最大连接数以后，很大几率会导致另一个问题，那么就是异常连接太多，导致mysql将我们的ip给锁了，那么解决这个问题我们可以使用如下命令刷新
 
 ```mssql
 flush hosts
 ```
 
-并且在配置文件中添加如下配置
+​		并且在配置文件中添加如下配置
 
 ```mssql
 max_connect_errors=1000
@@ -118,6 +187,121 @@ SELECT * FROM information_schema.innodb_trx;
 ```mssql
 kill id
 ```
+
+# MySQL死锁
+
+​		定位问题
+
+```sql
+# 使用命令查看innodb最新状态
+show engine innodb status;
+
+# 找到到 LATEST DETECTED DEADLOCK 死锁信息
+
+# ----- 死锁标识检测最新的死锁情况
+------------------------
+LATEST DETECTED DEADLOCK
+------------------------
+
+# 时间
+2022-09-20 14:48:23 0x7f4b4efdf700
+# (1) TRANSACTION 表示事务1
+*** (1) TRANSACTION:
+# 3095187285 事务ID
+TRANSACTION 3095187285, ACTIVE 13 sec fetching rows
+mysql tables in use 2, locked 2
+LOCK WAIT 445 lock struct(s), heap size 57552, 11842 row lock(s)
+MySQL thread id 319219, OS thread handle 139957427492608, query id 11935989908 172.17.127.39 vehicle_damage Sending data
+UPDATE meituan_case_info m  LEFT JOIN
+        (
+        SELECT
+        meituanCaseNo AS caseNo,
+        COUNT(1) AS num
+        FROM
+        meituan_case_risk_tips
+        WHERE
+        STATUS   <   2
+        AND stage =1
+        GROUP BY
+        meituanCaseNo
+        ) t  ON m.meituanCaseNo = t.caseNo
+
+        SET   m.reportRiskNo  =(case when  t.num IS NOT NULL then t.num ELSE 0 end)
+        WHERE 	m.delFlag = 0
+# 等待锁授予
+*** (1) WAITING FOR THIS LOCK TO BE GRANTED:
+RECORD LOCKS space id 1857 page no 896 n bits 320 index meituan of table `vehicle_damage_analyzer`.`meituan_case_risk_tips` trx id 3095187285 lock mode S locks rec but not gap waiting
+Record lock, heap no 225 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 19; hex 31343932313138313332313739393535373239; asc 1492118132179955729;;
+ 1: len 30; hex e5bbb6e8bf9fe68aa5e6a188e697b6e995bfe8b685e8bf8720323420e5b0; asc                          24   ; (total 34 bytes);
+ 2: len 4; hex 00010d01; asc     ;;
+
+# (2) TRANSACTION 表示事务2
+*** (2) TRANSACTION:
+# 3095185913 事务ID
+TRANSACTION 3095185913, ACTIVE 16 sec starting index read
+mysql tables in use 1, locked 1
+235 lock struct(s), heap size 24784, 605 row lock(s), undo log entries 481
+MySQL thread id 325389, OS thread handle 139961424541440, query id 11936033974 172.17.177.254 vehicle_damage updating
+update meituan_case_risk_tips
+    set jobNo = '***'
+    where meituanCaseNo = '****' and riskTip = '****'
+# 持有S锁
+*** (2) HOLDS THE LOCK(S):
+RECORD LOCKS space id 1857 page no 896 n bits 320 index meituan of table `vehicle_damage_analyzer`.`meituan_case_risk_tips` trx id 3095185913 lock_mode X locks rec but not gap
+Record lock, heap no 225 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 19; hex 31343932313138313332313739393535373239; asc 1492118132179955729;;
+ 1: len 30; hex e5bbb6e8bf9fe68aa5e6a188e697b6e995bfe8b685e8bf8720323420e5b0; asc                          24   ; (total 34 bytes);
+ 2: len 4; hex 00010d01; asc     ;;
+
+Record lock, heap no 226 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 19; hex 31343932313138313332313739393535373239; asc 1492118132179955729;;
+ 1: len 21; hex e8afa5e6a188e4bbb6e69d90e69699e4b88de585a8; asc                      ;;
+ 2: len 4; hex 00010d03; asc     ;;
+
+Record lock, heap no 227 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 19; hex 31343932313138313332313739393535373239; asc 1492118132179955729;;
+ 1: len 27; hex e8afa5e794b5e8af9de7b4afe8aea1e68aa5e6a188332e30e6aca1; asc                      3.0   ;;
+ 2: len 4; hex 00010d02; asc     ;;
+
+Record lock, heap no 228 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 19; hex 31343932313138313332313739393535373239; asc 1492118132179955729;;
+ 1: len 18; hex e8afa5e9aa91e6898be697a0e9a9bee785a7; asc                   ;;
+ 2: len 4; hex 00010d04; asc     ;;
+
+Record lock, heap no 229 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 19; hex 31343932313138313332313739393535373239; asc 1492118132179955729;;
+ 1: len 30; hex e8afa5e9aa91e6898be69cace5b9b4e5baa6e7b4afe8aea1e587bae999a9; asc                               ; (total 36 bytes);
+ 2: len 4; hex 00010d00; asc     ;;
+
+Record lock, heap no 247 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 19; hex 31343932313138313332313739393535373239; asc 1492118132179955729;;
+ 1: len 30; hex e8afa5e993b6e8a18ce8b4a6e688b7e7b4afe8aea1e8b594e6acbe33e6ac; asc                            3  ; (total 31 bytes);
+ 2: len 4; hex 0001578a; asc   W ;;
+
+# 等待锁授予
+*** (2) WAITING FOR THIS LOCK TO BE GRANTED:
+RECORD LOCKS space id 1857 page no 2114 n bits 320 index meituan of table `vehicle_damage_analyzer`.`meituan_case_risk_tips` trx id 3095185913 lock_mode X locks rec but not gap waiting
+Record lock, heap no 32 PHYSICAL RECORD: n_fields 3; compact format; info bits 0
+ 0: len 19; hex 31343838383531333738303833333332313135; asc 1488851378083332115;;
+ 1: len 30; hex e5bbb6e8bf9fe68aa5e6a188e697b6e995bfe8b685e8bf8720323420e5b0; asc                          24   ; (total 34 bytes);
+ 2: len 4; hex 0000f4db; asc     ;;
+
+# 回滚事务1
+*** WE ROLL BACK TRANSACTION (1)
+
+
+# 找到事务1的SQL代码进行修改优化
+
+# 死锁原因参考博客
+https://www.cnblogs.com/hanease/p/15955245.html
+
+information_schema.INNODB_TRX
+information_schema.LOCKS
+information_schema.INNODB_LOCK_WAITS
+```
+
+
 
 # MySQL设置
 

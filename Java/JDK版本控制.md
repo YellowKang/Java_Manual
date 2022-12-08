@@ -64,7 +64,7 @@ jenv versions
 ​		将JDK进行解压然后添加目录
 
 ```shell
-jenv add /System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home
+jenv add /Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home
 ```
 
 ### 版本控制

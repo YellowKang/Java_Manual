@@ -1,4 +1,4 @@
-​		中文官网地址：[点击进入](https://kubernetes.io/zh/)
+		中文官网地址：[点击进入](https://kubernetes.io/zh/)
 
 # 资源
 
@@ -333,6 +333,91 @@ kubectl get pv
 
 # 状态Available未绑定PersistentVolumeClaim
 ```
+
+## 标签
+
+​		官方地址：[点击进入](https://kubernetes.io/zh-cn/docs/concepts/overview/working-with-objects/labels/)
+
+​		**标签（Labels）** 是附加到 Kubernetes 对象（比如 Pod）上的键值对。 标签旨在用于指定对用户有意义且相关的对象的标识属性，但不直接对核心系统有语义含义。 标签可以用于组织和选择对象的子集。标签可以在创建时附加到对象，随后可以随时添加和修改。 每个对象都可以定义一组键/值标签。每个键对于给定对象必须是唯一的。
+
+​		**标签**是键值对。有效的标签键有两个段：可选的前缀和名称，用斜杠（`/`）分隔。 名称段是必需的，必须小于等于 63 个字符，以字母数字字符（`[a-z0-9A-Z]`）开头和结尾， 带有破折号（`-`），下划线（`_`），点（ `.`）和之间的字母数字。 前缀是可选的。如果指定，前缀必须是 DNS 子域：由点（`.`）分隔的一系列 DNS 标签，总共不超过 253 个字符， 后跟斜杠（`/`）。
+
+​		如果省略前缀，则假定标签键对用户是私有的。 向最终用户对象添加标签的自动系统组件（例如 `kube-scheduler`、`kube-controller-manager`、 `kube-apiserver`、`kubectl` 或其他第三方自动化工具）必须指定前缀。
+
+​		`kubernetes.io/` 和 `k8s.io/` 前缀是为 Kubernetes 核心组件[保留的](https://kubernetes.io/zh-cn/docs/reference/labels-annotations-taints/)。
+
+​		例如，这是一个有 `environment: production` 和 `app: nginx` 标签的 Pod 配置文件:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: label-demo
+  labels:
+    environment: production
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80
+```
+
+​		Node选择器
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cuda-test
+spec:
+  containers:
+    - name: cuda-test
+      image: "registry.k8s.io/cuda-vector-add:v0.1"
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+  nodeSelector:
+    accelerator: nvidia-tesla-p100
+```
+
+​		比较新的资源，例如 [`Job`](https://kubernetes.io/zh-cn/docs/concepts/workloads/controllers/job/)、 [`Deployment`](https://kubernetes.io/zh-cn/docs/concepts/workloads/controllers/deployment/)、 [`ReplicaSet`](https://kubernetes.io/zh-cn/docs/concepts/workloads/controllers/replicaset/) 和 [`DaemonSet`](https://kubernetes.io/zh-cn/docs/concepts/workloads/controllers/daemonset/)， 也支持**基于集合的**需求。
+
+```properties
+selector:
+  matchLabels:
+    component: redis
+  matchExpressions:
+    - {key: tier, operator: In, values: [cache]}
+    - {key: environment, operator: NotIn, values: [dev]}
+```
+
+## CronJobs
+
+
+
+## DaemonSet
+
+
+
+## Deployment
+
+
+
+## Job
+
+
+
+## ReplicaSet
+
+
+
+## ReplicationController
+
+
+
+## StatefulSet
 
 
 

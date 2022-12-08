@@ -516,3 +516,29 @@ docker run --name run -di bigkang/jdk8:alpine
 docker exec -it run sh
 ```
 
+
+
+
+
+# 基础系统镜像构建
+
+## Ubuntu
+
+```sh
+cat > Dockerfile << EOF
+# 基础镜像
+FROM ubuntu:16.04
+# 更新源
+RUN apt-get update
+
+# 安装软件
+RUN apt-get install -y vim wget  inetutils-ping
+EOF
+
+# 构建镜像
+docker build -t ubuntu-modle .
+
+# 命令窗口交互进入容器
+docker run --rm --name ubuntu  -it ubuntu-modle  /bin/bash
+```
+

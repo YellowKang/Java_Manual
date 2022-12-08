@@ -1,25 +1,25 @@
-基础环境
+# 基础环境
 
-​		3台服务器，Kubernetes版本：1.22.0
+​		3台服务器，Kubernetes版本：1.25.0
 
 ​		11为master，12 ，13为node节点
 
-| 主机名  |       IP       |             系统              |
-| :-----: | :------------: | :---------------------------: |
-| master1 | 192.168.100.11 | CentOS Linux release 8.3.2011 |
-|  node1  | 192.168.100.12 | CentOS Linux release 8.3.2011 |
-|  node2  | 192.168.100.13 | CentOS Linux release 8.3.2011 |
+|  主机名  |       IP       |           系统           |
+| :------: | :------------: | :----------------------: |
+| server01 | 192.168.100.11 | CentOS Linux release 7.8 |
+| server02 | 192.168.100.12 | CentOS Linux release 7.8 |
+| server03 | 192.168.100.13 | CentOS Linux release 7.8 |
 
 # 前置准备
 
 ​		修改主机名
 
-​		服务器为华为云耀，三台主机名分别修改
+​		三台主机名分别修改
 
 ```
-hostnamectl set-hostname master1
-hostnamectl set-hostname node1
-hostnamectl set-hostname node2
+hostnamectl set-hostname server01
+hostnamectl set-hostname server02
+hostnamectl set-hostname server03
 ```
 
 ​		关闭防火墙
@@ -43,51 +43,43 @@ swapoff -a && sed -i 's/.*swap.*/#&/' /etc/fstab
 ​		修改hosts文件
 
 ```sh
-echo "192.168.100.11 master1
-192.168.100.12 node1
-192.168.100.13 node2
+echo "192.168.100.11 server01
+192.168.100.12 server02
+192.168.100.13 server03
 199.232.4.133 raw.githubusercontent.com" >> /etc/hosts
 ```
 
 ​		配置免密
 
 ```sh
-# 生成秘钥，每台服务器都要执行，一直回车即可
-ssh-keygen -t rsa
-ssh-keygen -t rsa -N '' -f id_rsa -q
+# 生成秘钥
+ssh-keygen -t rsa -N '' -f ~/.ssh/id_rsa -q
 
 # 回到master
 # 查看自己的公钥并且复制到/root/.ssh/authorized_keys
 cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys
 
-# 复制node1和2的公钥到自己服务器，输入密码复制过来
-mkdir ~/ssh-pub/
-scp node1:/root/.ssh/id_rsa.pub  ~/ssh-pub/node1.pub
-scp node2:/root/.ssh/id_rsa.pub  ~/ssh-pub/node2.pub
+# 复制server02和3的公钥到自己服务器，输入密码复制过来
+mkdir -p ~/ssh-pub/
+scp server02:/root/.ssh/id_rsa.pub  ~/ssh-pub/server02.pub
+scp server03:/root/.ssh/id_rsa.pub  ~/ssh-pub/server03.pub
 # 将公钥添加到免密key中
-cat ~/ssh-pub/node1.pub >> /root/.ssh/authorized_keys && cat ~/ssh-pub/node2.pub >> /root/.ssh/authorized_keys
+cat ~/ssh-pub/server02.pub >> /root/.ssh/authorized_keys && cat ~/ssh-pub/server03.pub >> /root/.ssh/authorized_keys
+
 # 查看免密
 cat /root/.ssh/authorized_keys
 
 # 将免密公钥文件复制到其他服务器
-scp /root/.ssh/authorized_keys node1:/root/.ssh/authorized_keys
-scp /root/.ssh/authorized_keys node2:/root/.ssh/authorized_keys
+scp /root/.ssh/authorized_keys server02:/root/.ssh/authorized_keys
+scp /root/.ssh/authorized_keys server03:/root/.ssh/authorized_keys
 
 # 测试ssh是否免密
-ssh node1
+ssh server02
 ```
 
 ​		将桥接的IPv4流量传递到iptables的链,以及内核优化(所有节点)
 
-```
-
-```
-
-
-
 ```sh
-modprobe br_netfilter
-modprobe ip_conntrack
 cat > /etc/sysctl.d/k8s.conf << EOF
 br_netfilter
 net.bridge.bridge-nf-call-iptables=1
@@ -105,13 +97,93 @@ net.ipv6.conf.all.disable_ipv6=1
 net.netfilter.nf_conntrack_max=2310720
 EOF
 sysctl -p /etc/sysctl.d/k8s.conf
+rm -rf /etc/sysctl.d/k8s.conf
 ```
 
-​		设置Docker配置文件（所有节点）
+# 容器运行时（选择一种即可）
+
+​		**说明：** 自 1.24 版起，Dockershim 已从 Kubernetes 项目中移除。阅读 [Dockershim 移除的常见问题](https://kubernetes.io/zh-cn/dockershim)了解更多详情。
+
+​		你需要在集群内每个节点上安装一个 [容器运行时](https://kubernetes.io/zh-cn/docs/setup/production-environment/container-runtimes) 以使 Pod 可以运行在上面。本文概述了所涉及的内容并描述了与节点设置相关的任务。
+
+​		Kubernetes 1.25 要求你使用符合[容器运行时接口](https://kubernetes.io/zh-cn/docs/concepts/overview/components/#container-runtime)（CRI）的运行时。
+
+​		有关详细信息，请参阅 [CRI 版本支持](https://kubernetes.io/zh-cn/docs/setup/production-environment/container-runtimes/#cri-versions)。 本页简要介绍在 Kubernetes 中几个常见的容器运行时的用法。
+
+- [containerd](https://kubernetes.io/zh-cn/docs/setup/production-environment/container-runtimes/#containerd)
+- [CRI-O](https://kubernetes.io/zh-cn/docs/setup/production-environment/container-runtimes/#cri-o)
+- [Docker Engine（Docker引擎）](https://kubernetes.io/zh-cn/docs/setup/production-environment/container-runtimes/#docker)
+- [Mirantis Container Runtime（商用容器运行时，Docker 企业版）](https://kubernetes.io/zh-cn/docs/setup/production-environment/container-runtimes/#mcr)
+
+​		简单的来说常用的容器运行时环境有如上4个,我们需要选择一个作为我们的K8s的容器运行时环境。
+
+​		下面只演示containerd以及CRI-O
+
+## containerd
+
+```sh
+
+# 安装必要的一些系统工具
+yum install -y yum-utils device-mapper-persistent-data lvm2
+# 添加软件源信息
+yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+yum install containerd -y
+
+# 初始化默认配置
+containerd config default | tee /etc/containerd/config.toml
+
+# 修改持久化目录
+sed -i "s#root = \"/var/lib/containerd\"#root = \"/data/containerd\"#g" /etc/containerd/config.toml
+# 修改containerd配置更改cgroup
+sed -i "s#SystemdCgroup\ \=\ false#SystemdCgroup\ \=\ true#g" /etc/containerd/config.toml
+# 修改镜像源
+sed -i "s#registry.k8s.io#registry.aliyuncs.com/google_containers#g"  /etc/containerd/config.toml
+
+# 修改镜像加速信息
+sed -i "s#config_path = \"\"#config_path = \"/etc/containerd/certs.d\"#g"  /etc/containerd/config.toml
+# 创建目录
+mkdir /etc/containerd/certs.d/docker.io -pv
+
+# 配置加速地址
+cat > /etc/containerd/certs.d/docker.io/hosts.toml << EOF
+server = "https://docker.io"
+[host."https://ldlov75k.mirror.aliyuncs.com"]
+  capabilities = ["pull", "resolve"]
+EOF
+
+
+# 配置crictl
+cat <<EOF | tee /etc/crictl.yaml
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 10
+debug: false
+EOF
+systemctl daemon-reload
+systemctl restart containerd
+systemctl enable containerd
+```
+
+## CRI-O
+
+​		安装CRI-O
+
+```sh
+
+export OS=CentOS_7
+export VERSION=1.17
+
+curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/$OS/devel:/kubic:/libcontainers:/stable.repo
+curl -L -o /etc/yum.repos.d/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable:/cri-o:/$VERSION/$OS/devel:kubic:libcontainers:stable:cri-o:$VERSION.repo
+yum install cri-o
+```
+
+## cri-docker
 
 ```sh
 # 设置Docker加速
 sudo mkdir -p /etc/docker
+sudo mkdir -p /data/docker
 sudo tee /etc/docker/daemon.json <<-'EOF'
 {
   "registry-mirrors": ["https://ldlov75k.mirror.aliyuncs.com"],
@@ -122,43 +194,34 @@ sudo tee /etc/docker/daemon.json <<-'EOF'
     "max-file": "3"
   },
   "exec-opts": ["native.cgroupdriver=systemd"],
-  "storage-driver": "overlay2",
-  "insecure-registries" : ["hub.bigkang.k8s"]
+  "storage-driver": "overlay2"
 }
 EOF
-
-
-# 注释如下
-  "registry-mirrors": 镜像仓库加速
-  "graph": docker数据存储路径
-  "log-driver": 日志驱动
-  "log-opts": {
-    "max-size": 日志文件大小
-    "max-file": 日志文件最大数量
-  },
-  "exec-opts": 执行配置
-  "storage-driver": 存储驱动
-  "storage-opts": 存储驱动设置
-  "insecure-registries" : docker仓库设置（镜像仓库为共有可以pull，docker仓库可以自己push上传，这里域名一会搭建Harbor）
-```
-
-​		安装启动Docker(所有节点)
-
-```sh
-# wget https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo -O /etc/yum.repos.d/docker-ce.repo
-# 替换Yum源
-cd /etc/yum.repos.d/
-mv CentOS-Linux-BaseOS.repo CentOS-Linux-BaseOS.repo.bak
-wget -O CentOS-Linux-BaseOS.repo http://mirrors.aliyun.com/repo/Centos-8.repo
 
 # 安装Docker指定版本
 sudo yum install -y yum-utils device-mapper-persistent-data lvm2
 sudo yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo 
-
-sudo yum install docker-ce-20.10.6  -y
+sudo yum install docker-ce-20.10.9  -y
 docker --version
 systemctl daemon-reload && systemctl start docker && systemctl restart docker  && systemctl enable docker
+
+# 下载cri-docker
+wget https://github.com/Mirantis/cri-dockerd/releases/download/v0.2.6/cri-dockerd-0.2.6-3.el7.x86_64.rpm
+rpm -ivh cri-dockerd-0.2.6-3.el7.x86_64.rpm
+systemctl enable cri-docker
+
+
+# 修改service
+sed -i "s#ExecStart=/usr/bin/cri-dockerd --container-runtime-endpoint fd://#ExecStart=/usr/bin/cri-dockerd --network-plugin=cni --pod-infra-container-image=registry.aliyuncs.com/google_containers/pause:3.8 --container-runtime-endpoint fd://#g"  /usr/lib/systemd/system/cri-docker.service
 ```
+
+
+
+# 开始安装
+
+## K8s安装
+
+### kubeadm安装K8s
 
 ​		设置K8s阿里云镜像加速（所有节点）
 
@@ -174,28 +237,15 @@ gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors
 EOF
 ```
 
-​		安装K8s命令补全
-
-```sh
-yum -y install bash-completion
-source /usr/share/bash-completion/bash_completion
-source <(kubectl completion bash)
-echo "source <(kubectl completion bash)" >> ~/.bashrc
-```
-
-# 开始安装
-
-## K8s安装
-
-### kubeadm安装K8s
-
 ​		安装kubeadm，kubelet和kubectl，指定版本（所有节点）
 
 ```sh
-# CentOs8 k8s yum加速
-sudo curl -o /etc/yum.repos.d/CentOS-Base.repo curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-vault-8.5.2111.repo
+# 查看linux版本
+cat /etc/redhat-release
+# CentOs7 k8s yum加速
+sudo curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo
 
-export kubeletVersion="1.22.0"
+export kubeletVersion="1.25.0"
 yum install -y kubelet-$kubeletVersion kubeadm-$kubeletVersion kubectl-$kubeletVersion
 ```
 
@@ -205,35 +255,36 @@ yum install -y kubelet-$kubeletVersion kubeadm-$kubeletVersion kubectl-$kubeletV
 systemctl enable kubelet
 ```
 
+​		安装K8s命令补全
+
+```sh
+yum -y install bash-completion
+source /usr/share/bash-completion/bash_completion
+source <(kubectl completion bash)
+echo "source <(kubectl completion bash)" >> ~/.bashrc
+```
+
 ​		然后初始化master，这里选择11作为master，只在11上执行
 
 ```sh
-# 修改IP以及 K8s版本
-cat > /var/lib/kubelet/config.yaml << EOF
-apiVersion: kubeadm.k8s.io/v1beta2
-kind: InitConfiguration
-localAPIEndpoint:
-  advertiseAddress: 192.168.100.11
-  bindPort: 6443
-nodeRegistration:
-  taints:
-  - effect: PreferNoSchedule
-    key: node-role.kubernetes.io/master
----
-apiVersion: kubeadm.k8s.io/v1beta2
-imageRepository: registry.aliyuncs.com/google_containers
-kind: ClusterConfiguration
-kubernetesVersion: v1.22.0
-networking:
-  podSubnet: 10.244.0.0/16
-EOF
+# 创建默认配置文件
+kubeadm config print init-defaults > /data/k8s-init-defaults.yaml
+
 
 # 写入环境变量
 echo "export KUBECONFIG=/etc/kubernetes/admin.conf" >> /etc/profile
 source  /etc/profile
 
-# K8s Master 初始化
-kubeadm init --config /var/lib/kubelet/config.yaml --ignore-preflight-errors=Swap 
+
+# 进行初始化，注意192.168.100.11 和192.169.1.0/16  这里不能使用192.168.1.0/16否则后续会导致分配网络出现问题，导致Node和master节点无法通信
+# --cri-socket (根据上方的containerd 和 cri-o 和 cri-docker选择其一)
+kubeadm init --kubernetes-version=v1.25.4 \
+--image-repository=registry.aliyuncs.com/google_containers \
+--pod-network-cidr=192.169.0.0/16 \
+--service-cidr=192.170.0.0/16 \
+--apiserver-advertise-address=192.168.100.11 \
+--cri-socket=unix:///var/run/cri-dockerd.sock \
+--ignore-preflight-errors=Swap
 ```
 
 ​		然后会看到一堆日志，最后会看到如下日志
@@ -278,852 +329,9 @@ Run 'kubectl get nodes' on the control-plane to see this node join the cluster.
 
 ```sh
 kubectl get nodes
+
+journalctl -xe | grep kubelet
 ```
-
-### rancher2安装k8s
-
-​		一键运行
-
-```sh
-docker run -d \
---name rancher2-server \
---restart=unless-stopped \
---privileged=true \
--p 80:80 \
--p 443:443 \
--v /data/rancher2/rancher:/var/lib/rancher \
--v /data/rancher2/log/auditlog:/var/log/auditlog \
--e CATTLE_SYSTEM_CATALOG=bundled \
--e AUDIT_LEVEL=3 \
-rancher/rancher
-```
-
-​		初始化用户名密码，然后新增集群添加节点即可
-
-```
-docker stop rancher2-server
-docker rm rancher2-server
-```
-
-
-
-
-
-```
-kubectl create secret tls tomcat-ingress-secret --cert=root.crt --key=root.key
-```
-
-
-
-
-
-```properties
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  name: ingress-tomcat
-  namespace: default
-  annotations: 
-    kubernetes.io/ingress.class: "nginx"
-spec:
-  tls: 
-  - hosts:
-    - tomcat.bigkang.k8s
-    secretName: tomcat-ingress-secret
-  rules: 
-  - host: tomcat.bigkang.k8s
-    http: 
-      paths: 
-      - path: 
-        backend: 
-          serviceName: tomcat
-          servicePort: 8080
-```
-
-### 二进制安装k8s（未完善）
-
-#### 生成证书
-
-​		更新yum源
-
-```sh
-yum -y install wget && wget -O /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo && yum -y install epel-release 
-```
-
-​		下载cfssl证书管理工具，生成证书使用
-
-```sh
-##获取证书管理工具
-wget https://pkg.cfssl.org/R1.2/cfssl_linux-amd64
-wget https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64
-wget https://pkg.cfssl.org/R1.2/cfssl-certinfo_linux-amd64
-##添加看执行权限并放进可执行目录
-chmod +x cfssl_linux-amd64 cfssljson_linux-amd64 cfssl-certinfo_linux-amd64
-mv cfssl_linux-amd64 /usr/local/bin/cfssl
-mv cfssljson_linux-amd64 /usr/local/bin/cfssljson
-mv cfssl-certinfo_linux-amd64 /usr/bin/cfssl-certinfo
-```
-
-​		创建存放证书的目录
-
-```sh
-mkdir -p ~/tls/{etcd,k8s} 
-```
-
-##### 生成etcd证书
-
-```sh
-cd ~/tls/etcd
-```
-
-​		自签ca，csr配置文件
-
-```sh
-cat > ca-config.json << EOF
-{
-  "signing": {
-    "default": {
-      "expiry": "87600h"
-    },
-    "profiles": {
-      "www": {
-         "expiry": "87600h",
-         "usages": [
-            "signing",
-            "key encipherment",
-            "server auth",
-            "client auth"
-        ]
-      }
-    }
-  }
-}
-EOF
-
-cat > ca-csr.json << EOF
-{
-    "CN": "etcd CA",
-    "key": {
-        "algo": "rsa",
-        "size": 2048
-    },
-    "names": [
-        {
-            "C": "CN",
-            "L": "Beijing",
-            "ST": "Beijing"
-        }
-    ]
-}
-EOF
-```
-
-​		生成ca证书
-
-```sh
-cfssl gencert -initca ca-csr.json | cfssljson -bare ca -
-```
-
-​		新增server https证书
-
-​		此处注意hosts尽量多写几个备用服务器防止通信问题
-
-```properties
-cat > server-csr.json << EOF
-{
-    "CN": "etcd",
-    "hosts": [
-        "127.0.0.1",
-        "192.168.1.12",
-        "192.168.1.28",
-        "192.168.1.115"
-    ],
-    "key": {
-        "algo": "rsa",
-        "size": 2048
-    },
-    "names": [
-        {
-            "C": "CN",
-            "L": "BeiJing",
-            "ST": "BeiJing"
-        }
-    ]
-}
-EOF
-```
-
-​		签发server证书
-
-```sh
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=www server-csr.json | cfssljson -bare server
-```
-
-##### 生成k8s证书
-
-```sh
-cd ~/tls/k8s
-```
-
-​		创建ca,csr配置
-
-```properties
-cat > ca-config.json << EOF
-{
-  "signing": {
-    "default": {
-      "expiry": "87600h"
-    },
-    "profiles": {
-      "kubernetes": {
-         "expiry": "87600h",
-         "usages": [
-            "signing",
-            "key encipherment",
-            "server auth",
-            "client auth"
-        ]
-      }
-    }
-  }
-}
-EOF
-cat > ca-csr.json << EOF
-{
-    "CN": "kubernetes",
-    "key": {
-        "algo": "rsa",
-        "size": 2048
-    },
-    "names": [
-        {
-            "C": "CN",
-            "L": "Beijing",
-            "ST": "Beijing",
-            "O": "k8s",
-            "OU": "System"
-        }
-    ]
-}
-EOF
-```
-
-​		生成Ca证书
-
-```sh
-cfssl gencert -initca ca-csr.json | cfssljson -bare ca -
-```
-
-​		使用Ca证书自签HTTPS证书，多放入几个IP方便扩容容灾等预留IP
-
-```properties
-cat > server-csr.json << EOF
-{
-    "CN":"kubernetes",
-    "hosts":[
-    		"10.0.0.1",
-    		"127.0.0.1",
-        "192.168.1.1",
-        "192.168.1.12",
-        "192.168.1.28",
-        "192.168.1.115",
-        "192.168.1.66",
-        "192.168.1.67",
-        "kubernetes",
-        "kubernetes.default",
-        "kubernetes.default.svc",
-        "kubernetes.default.svc.cluster",
-        "kubernetes.default.svc.cluster.local"
-    ],
-    "key":{
-        "algo":"rsa",
-        "size":2048
-    },
-    "names":[
-        {
-            "C":"CN",
-            "L":"BeiJing",
-            "ST":"BeiJing",
-            "O":"k8s",
-            "OU":"System"
-        }
-    ]
-}
-EOF
-```
-
-​		生成证书
-
-```sh
-cfssl gencert -ca=ca.pem -ca-key=ca-key.pem -config=ca-config.json -profile=kubernetes server-csr.json | cfssljson -bare server
-```
-
-
-
-#### 部署ETCD集群
-
-​		创建挂载目录
-
-```sh
-# 每台都执行
-cd 
-mkdir -p /data/etcd/{bin,cfg,ssl,data} 
-```
-
-​		下载ETCD
-
-​		此处采用加速地址
-
-```sh
-# 每台执行，或者单台执行后CP
-wget https://github.91chifun.workers.dev//https://github.com/etcd-io/etcd/releases/download/v3.4.9/etcd-v3.4.9-linux-amd64.tar.gz 
-tar xf etcd-v3.4.9-linux-amd64.tar.gz
-mv etcd-v3.4.9-linux-amd64/etcd* /data/etcd/bin/
-```
-
-​		
-
-| 主机名  |      IP       |
-| :-----: | :-----------: |
-| yunyao1 | 192.168.1.12  |
-| yunyao2 | 192.168.1.28  |
-| yunyao3 | 192.168.1.115 |
-
-​		根据当前3台主机搭建ETCD集群，分别为
-
-- ​				etcd-yunyao1
-- ​				etcd-yunyao2
-- ​				etcd-yunyao3
-
-​		配置ETCD配置文件
-
-```sh
-# 每台单独执行
-# yunyao1节点
-cat > /data/etcd/cfg/etcd.conf << EOF
-#[Member]
-ETCD_NAME="etcd-1"
-ETCD_DATA_DIR="/data/etcd/data/default.etcd"
-ETCD_LISTEN_PEER_URLS="https://192.168.1.12:2380"
-ETCD_LISTEN_CLIENT_URLS="https://192.168.1.12:2379"
-#[Clustering]
-ETCD_INITIAL_ADVERTISE_PEER_URLS="https://192.168.1.12:2380"
-ETCD_ADVERTISE_CLIENT_URLS="https://192.168.1.12:2379"
-ETCD_INITIAL_CLUSTER="etcd-1=https://192.168.1.12:2380,etcd-2=https://192.168.1.28:2380,etcd-3=https://192.168.1.115:2380"
-ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
-ETCD_INITIAL_CLUSTER_STATE="new"
-EOF
-
-# yunyao2节点
-cat > /data/etcd/cfg/etcd.conf << EOF
-#[Member]
-ETCD_NAME="etcd-2"
-ETCD_DATA_DIR="/data/etcd/data/default.etcd"
-ETCD_LISTEN_PEER_URLS="https://192.168.1.28:2380"
-ETCD_LISTEN_CLIENT_URLS="https://192.168.1.28:2379"
-#[Clustering]
-ETCD_INITIAL_ADVERTISE_PEER_URLS="https://192.168.1.28:2380"
-ETCD_ADVERTISE_CLIENT_URLS="https://192.168.1.28:2379"
-ETCD_INITIAL_CLUSTER="etcd-1=https://192.168.1.12:2380,etcd-2=https://192.168.1.28:2380,etcd-3=https://192.168.1.115:2380"
-ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
-ETCD_INITIAL_CLUSTER_STATE="new"
-EOF
-
-# yunyao3节点
-cat > /data/etcd/cfg/etcd.conf << EOF
-#[Member]
-ETCD_NAME="etcd-3"
-ETCD_DATA_DIR="/data/etcd/data/default.etcd"
-ETCD_LISTEN_PEER_URLS="https://192.168.1.115:2380"
-ETCD_LISTEN_CLIENT_URLS="https://192.168.1.115:2379"
-#[Clustering]
-ETCD_INITIAL_ADVERTISE_PEER_URLS="https://192.168.1.115:2380"
-ETCD_ADVERTISE_CLIENT_URLS="https://192.168.1.115:2379"
-ETCD_INITIAL_CLUSTER="etcd-1=https://192.168.1.12:2380,etcd-2=https://192.168.1.28:2380,etcd-3=https://192.168.1.115:2380"
-ETCD_INITIAL_CLUSTER_TOKEN="etcd-cluster"
-ETCD_INITIAL_CLUSTER_STATE="new"
-EOF
-```
-
-​			配置文件信息如下：
-
-```properties
-ETCD_NAME																	etcd节点名称，每个节点不一样
-ETCD_DATA_DIR															etcd数据目录（存储目录）
-ETCD_LISTEN_PEER_URLS											etcd监听地址
-ETCD_LISTEN_CLIENT_URLS 									etcd客户端地址
-ETCD_INITIAL_ADVERTISE_PEER_URLS					etcd通信地址（与监听一致即可）
-ETCD_ADVERTISE_CLIENT_URLS								etcd客户端通信地址（与客户端地址一致即可）
-ETCD_INITIAL_CLUSTER											etcd集群连接地址（节点名=地址:端口号,逗号分割）
-ETCD_INITIAL_CLUSTER_TOKEN								etcd集群token
-ETCD_INITIAL_CLUSTER_STATE								etcd 集群状态
-```
-
-​		然后给每一台服务器ETCD编写启动管理文件
-
-```sh
-cat > /usr/lib/systemd/system/etcd.service << EOF
-[Unit]
-Description=Etcd Server
-After=network.target
-After=network-online.target
-Wants=network-online.target
-[Service]
-Type=notify
-EnvironmentFile=/data/etcd/cfg/etcd.conf
-ExecStart=/data/etcd/bin/etcd \
---cert-file=/data/etcd/ssl/server.pem \
---key-file=/data/etcd/ssl/server-key.pem \
---peer-cert-file=/data/etcd/ssl/server.pem \
---peer-key-file=/data/etcd/ssl/server-key.pem \
---trusted-ca-file=/data/etcd/ssl/ca.pem \
---peer-trusted-ca-file=/data/etcd/ssl/ca.pem \
---logger=zap
-Restart=on-failure
-LimitNOFILE=65536
-[Install]
-WantedBy=multi-user.target
-EOF
-```
-
-​		复制证书
-
-```sh
-cp -i ~/tls/etcd/*pem /data/etcd/ssl
-# 将证书复制到其他节点
-scp ~/tls/etcd/*pem yunyao2:/data/etcd/ssl
-scp ~/tls/etcd/*pem yunyao3:/data/etcd/ssl
-```
-
-​		启动ETCD集群
-
-```sh
-systemctl daemon-reload && systemctl enable etcd && systemctl start etcd
-```
-
-​		验证etcd是否部署成功
-
-```sh
-ETCDCTL_API=3 /data/etcd/bin/etcdctl --cacert=/data/etcd/ssl/ca.pem --cert=/data/etcd/ssl/server.pem --key=/data/etcd/ssl/server-key.pem --endpoints="https://192.168.1.12:2379,https://192.168.1.28:2379,https://192.168.1.115:2379" endpoint health
-```
-
-
-
-#### 安装K8s
-
-##### 		下载k8s
-
-```sh
-# 进入当前用户目录
-cd ~
-
-# 下载k8s包
-wget  https://dl.k8s.io/v1.18.3/kubernetes-server-linux-amd64.tar.gz
-
-# 创建数据目录
-mkdir -p /data/kubernetes/{bin,cfg,ssl,logs} 
-
-# 解压
-tar zxvf kubernetes-server-linux-amd64.tar.gz
-
-# 进入目录
-cd kubernetes/server/bin
-
-# 复制命令
-cp kube-apiserver kube-scheduler kube-controller-manager /data/kubernetes/bin
-
-# 复制kubectl
-cp kubectl /usr/bin/
-
-# 复制证书
-cp ~/tls/k8s/* /data/kubernetes/ssl
-
-
-# 简洁版一键执行
-cd ~
-wget  https://dl.k8s.io/v1.18.3/kubernetes-server-linux-amd64.tar.gz
-mkdir -p /data/kubernetes/{bin,cfg,ssl,logs} 
-tar zxvf kubernetes-server-linux-amd64.tar.gz
-cd kubernetes/server/bin
-cp kube-apiserver kube-scheduler kube-controller-manager /data/kubernetes/bin
-cp kubectl /usr/bin/
-cp ~/tls/k8s/* /data/kubernetes/ssl
-```
-
-##### 部署kube-apiserver
-
-​		kube-apiserver部署在主控节点上，我们采用一主两节点方式
-
-​		Master为192.168.1.12		
-
-```sh
-# 创建kube-apiserver配置文件
-cat > /data/kubernetes/cfg/kube-apiserver.conf << EOF
-KUBE_APISERVER_OPTS="--logtostderr=false \\
---v=4 \\
---log-dir=/data/kubernetes/logs \\
---etcd-servers=https://192.168.1.12:2379,https://192.168.1.28:2379,https://192.168.1.115:2379 \\
---bind-address=192.168.1.12 \\
---secure-port=6443 \\
---advertise-address=192.168.1.12 \\
---allow-privileged=true \\
---service-cluster-ip-range=10.0.0.0/24 \\
---enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,ResourceQuota,NodeRestriction \\
---authorization-mode=RBAC,Node \\
---enable-bootstrap-token-auth=true \\
---token-auth-file=/data/kubernetes/cfg/token.csv \\
---service-node-port-range=30000-32767 \\
---kubelet-client-certificate=/data/kubernetes/ssl/server.pem \\
---kubelet-client-key=/data/kubernetes/ssl/server-key.pem \\
---tls-cert-file=/data/kubernetes/ssl/server.pem  \\
---tls-private-key-file=/data/kubernetes/ssl/server-key.pem \\
---client-ca-file=/data/kubernetes/ssl/ca.pem \\
---service-account-key-file=/data/kubernetes/ssl/ca-key.pem \\
---etcd-cafile=/data/etcd/ssl/ca.pem \\
---etcd-certfile=/data/etcd/ssl/server.pem \\
---etcd-keyfile=/data/etcd/ssl/server-key.pem \\
---audit-log-maxage=30 \\
---audit-log-maxbackup=3 \\
---audit-log-maxsize=100 \\
---audit-log-path=/data/kubernetes/logs/k8s-audit.log"
-EOF
-
-#参数详解:
-#    –logtostderr：启用日志
-#    —v：日志等级
-#    –log-dir：日志目录
-#    –etcd-servers：etcd集群地址
-#    –bind-address：监听地址
-#    –secure-port：https安全端口
-#    –advertise-address：集群通告地址
-#    –allow-privileged：启用授权
-#    –service-cluster-ip-range：Service虚拟IP地址段
-#    –enable-admission-plugins：准入控制模块
-#    –authorization-mode：认证授权，启用RBAC授权和节点自管理
-#    –enable-bootstrap-token-auth：启用TLS bootstrap机制
-#    –token-auth-file：bootstrap token文件
-#    –service-node-port-range：Service nodeport类型默认分配端口范围
-#    –kubelet-client-xxx：apiserver访问kubelet客户端证书
-#    –tls-xxx-file：apiserver https证书
-#    –etcd-xxxfile：连接Etcd集群证书
-#    –audit-log-xxx：审计日志
-
-
-# 创建token
-cat > /data/kubernetes/cfg/token.csv << EOF
-b1dc586d69159ff4e3ef7efa9db60e48,10001,"system:node-bootstrapper"
-EOF
-# 自行生成token
-# head -c 16 /dev/urandom | od -An -t x | tr -d ' '
-# 格式：token，用户名，UID，用户组
-
-
-# 创建api-server服务
-cat > /usr/lib/systemd/system/kube-apiserver.service << EOF
-[Unit]
-Description=Kubernetes API Server
-Documentation=https://github.com/kubernetes/kubernetes
-[Service]
-EnvironmentFile=/data/kubernetes/cfg/kube-apiserver.conf
-ExecStart=/data/kubernetes/bin/kube-apiserver \$KUBE_APISERVER_OPTS
-Restart=on-failure
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 重新加载systemctl，启动服务，开机自启
-systemctl daemon-reload && systemctl start kube-apiserver && systemctl enable kube-apiserver
-
-# 授权kubelet-bootstrap用户允许请求证书
-kubectl create clusterrolebinding kubelet-bootstrap \
---clusterrole=system:node-bootstrapper \
---user=kubelet-bootstrap
-```
-
-##### 部署kube-controller-manager
-
-​		kube-controller-manager部署在主控节点上，我们采用一主两节点方式
-
-​		Master为192.168.1.12		
-
-```sh
-# 创建kube-controller-manager配置文件
-cat > /data/kubernetes/cfg/kube-controller-manager.conf << EOF
-KUBE_CONTROLLER_MANAGER_OPTS="--logtostderr=false \\
---v=4 \\
---log-dir=/data/kubernetes/logs \\
---leader-elect=true \\
---master=127.0.0.1:8080 \\
---bind-address=127.0.0.1 \\
---allocate-node-cidrs=true \\
---cluster-cidr=10.244.0.0/16 \\
---service-cluster-ip-range=10.0.0.0/24 \\
---cluster-signing-cert-file=/data/kubernetes/ssl/ca.pem \\
---cluster-signing-key-file=/data/kubernetes/ssl/ca-key.pem  \\
---root-ca-file=/data/kubernetes/ssl/ca.pem \\
---service-account-private-key-file=/data/kubernetes/ssl/ca-key.pem \\
---experimental-cluster-signing-duration=87600h0m0s"
-EOF
-
-# –master：通过本地非安全本地端口8080连接apiserver。
-# –leader-elect：当该组件启动多个时，自动选举（HA）
-# –cluster-signing-cert-file/–cluster-signing-key-file：自动为kubelet颁发证书的CA，与apiserver保持一致
-
-# 创建controller-manager服务
-cat > /usr/lib/systemd/system/kube-controller-manager.service << EOF
-[Unit]
-Description=Kubernetes Controller Manager
-Documentation=https://github.com/kubernetes/kubernetes
-[Service]
-EnvironmentFile=/data/kubernetes/cfg/kube-controller-manager.conf
-ExecStart=/data/kubernetes/bin/kube-controller-manager \$KUBE_CONTROLLER_MANAGER_OPTS
-Restart=on-failure
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 重新加载systemctl，启动服务，开机自启
-systemctl daemon-reload && systemctl start kube-controller-manager && systemctl enable kube-controller-manager
-```
-
-##### 部署kube-scheduler
-
-​		kube-scheduler部署在主控节点上，我们采用一主两节点方式
-
-​		Master为192.168.1.12		
-
-```sh
-# 创建kube-scheduler配置文件
-cat > /data/kubernetes/cfg/kube-scheduler.conf << EOF
-KUBE_SCHEDULER_OPTS="--logtostderr=false \
---v=2 \
---log-dir=/data/kubernetes/logs \
---leader-elect \
---master=127.0.0.1:8080 \
---bind-address=127.0.0.1"
-EOF
-
-# –master：通过本地非安全本地端口8080连接apiserver。
-# –leader-elect：当该组件启动多个时，自动选举（HA）
-
-# 创建kube-scheduler服务
-cat > /usr/lib/systemd/system/kube-scheduler.service << EOF
-[Unit]
-Description=Kubernetes Scheduler
-Documentation=https://github.com/kubernetes/kubernetes
-[Service]
-EnvironmentFile=/data/kubernetes/cfg/kube-scheduler.conf
-ExecStart=/data/kubernetes/bin/kube-scheduler \$KUBE_SCHEDULER_OPTS
-Restart=on-failure
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 重新加载systemctl，启动服务，开机自启
-systemctl daemon-reload && systemctl start kube-scheduler && systemctl enable kube-scheduler
-```
-
-​		获取状态
-
-```sh
-kubectl get cs
-```
-
-​		返回如下状态即可
-
-```sh
-controller-manager   Healthy   ok                  
-scheduler            Healthy   ok                  
-etcd-2               Healthy   {"health":"true"}   
-etcd-0               Healthy   {"health":"true"}   
-etcd-1               Healthy   {"health":"true"}   
-```
-
-##### 部署kubelet（未完成）
-
-​		kubelet部署在工作节点上，我们采用一主两节点方式
-
-​		Node为192.168.1.28 以及 192.168.1.115
-
-​		创建目录
-
-```sh
-# 分别在两个节点上创建目录
-mkdir -p /data/kubernetes/{bin,cfg,ssl,logs} 
-```
-
-```sh
-# yunyao1
-# 从Master复制可执行文件	
-cd ~/kubernetes/server/bin
-scp kubelet kube-proxy yunyao2:/data/kubernetes/bin
-scp kubelet kube-proxy yunyao3:/data/kubernetes/bin  
-
-# 从Master复制证书
-scp /data/kubernetes/ssl/* yunyao2:/data/kubernetes/ssl
-scp /data/kubernetes/ssl/* yunyao3:/data/kubernetes/ssl  
-```
-
-​		创建配置文件(Master节点中执行)
-
-```sh
-# Master创建配置文件
-cat > /data/kubernetes/cfg/kubelet.conf << EOF
-KUBELET_OPTS="--logtostderr=false \\
---v=2 \\
---log-dir=/data/kubernetes/logs \\
---hostname-override=${HOSTNAME} \\
---network-plugin=cni \\
---kubeconfig=/data/kubernetes/cfg/kubelet.kubeconfig \\
---experimental-bootstrap-kubeconfig=/data/kubernetes/cfg/bootstrap.kubeconfig \\
---config=/data/kubernetes/cfg/kubelet-config.yml \\
---cert-dir=/data/kubernetes/ssl \\
---image-pull-progress-deadline=15m \\
---pod-infra-container-image=registry.cn-hangzhou.aliyuncs.com/google_containers/pause-amd64:3.1"
-EOF
-
-
-
-# 配置如下
-#    –hostname-override：显示名称，集群中唯一
-#    –network-plugin：启用CNI
-#    –kubeconfig：空路径，会自动生成，后面用于连接apiserver
-#    –bootstrap-kubeconfig：首次启动向apiserver申请证书
-#    –config：配置参数文件
-#    –cert-dir：kubelet证书生成目录
-#    –pod-infra-container-image：管理Pod网络容器的镜像
-
-# 创建配置参数Yaml文件
-cat > /data/kubernetes/cfg/kubelet-config.yml << EOF
-kind: KubeletConfiguration
-apiVersion: kubelet.config.k8s.io/v1beta1
-address: 0.0.0.0
-port: 10250
-readOnlyPort: 10255
-cgroupDriver: cgroupfs
-clusterDNS:
-- 10.0.0.2
-clusterDomain: cluster.local 
-failSwapOn: false
-authentication:
-  anonymous:
-    enabled: false
-  webhook:
-    cacheTTL: 2m0s
-    enabled: true
-  x509:
-    clientCAFile: /data/kubernetes/ssl/ca.pem 
-authorization:
-  mode: Webhook
-  webhook:
-    cacheAuthorizedTTL: 5m0s
-    cacheUnauthorizedTTL: 30s
-evictionHard:
-  imagefs.available: 15%
-  memory.available: 100Mi
-  nodefs.available: 10%
-  nodefs.inodesFree: 5%
-maxOpenFiles: 1000000
-maxPods: 110
-EOF
-
-# 生成bootstrap.kubeconfig
-# 设置环境变量
-# apiserver IP:PORT
-KUBE_APISERVER="https://192.168.1.12:6443"
-# 与token.csv里保持一致
-TOKEN="b1dc586d69159ff4e3ef7efa9db60e48"
-# 生成 kubelet bootstrap kubeconfig 配置文件
-kubectl config set-cluster kubernetes \
-  --certificate-authority=/data/kubernetes/ssl/ca.pem \
-  --embed-certs=true \
-  --server=${KUBE_APISERVER} \
-  --kubeconfig=/data/kubernetes/cfg/bootstrap.kubeconfig
-
-kubectl config set-credentials "kubelet-bootstrap" \
-  --token=${TOKEN} \
-  --kubeconfig=/data/kubernetes/cfg/bootstrap.kubeconfig
-  
-kubectl config set-context default \
-  --cluster=kubernetes \
-  --user="kubelet-bootstrap" \
-  --kubeconfig=/data/kubernetes/cfg/bootstrap.kubeconfig
-  
-# 创建自动批准相关 CSR 请求的 ClusterRole
-kubectl create clusterrolebinding  kubelet-bootstrap \
---clusterrole=system:node-bootstrapper \
---user=kubelet-bootstrap
-
-# 创建目录存放文件
-cat > /data/kubernetes/cfg/tls-instructs-csr.yaml << EOF
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: system:certificates.k8s.io:certificatesigningrequests:selfnodeserver
-rules:
-- apiGroups: ["certificates.k8s.io"]
-  resources: ["certificatesigningrequests/selfnodeserver"]
-  verbs: ["create"]
-EOF
-# 部署
-kubectl apply -f /data/kubernetes/cfg/tls-instructs-csr.yaml
-
-# 自动批准 kubelet-bootstrap 用户 TLS bootstrapping 首次申请证书的 CSR 请求
-kubectl create clusterrolebinding node-client-auto-approve-csr \
---clusterrole=system:certificates.k8s.io:certificatesigningrequests:nodeclient \
---user=kubelet-bootstrap
-
-# 自动批准 system:nodes 组用户更新 kubelet 自身与 apiserver 通讯证书的 CSR 请求
-kubectl create clusterrolebinding node-client-auto-renew-crt \
---clusterrole=system:certificates.k8s.io:certificatesigningrequests:selfnodeclient \
---group=system:nodes
-
-# 自动批准 system:nodes 组用户更新 kubelet 10250 api 端口证书的 CSR 请求
-kubectl create clusterrolebinding node-server-auto-renew-crt \
---clusterrole=system:certificates.k8s.io:certificatesigningrequests:selfnodeserver \
---group=system:nodes
-
-# 复制配置文件到Node节点中
-scp kubelet.conf bootstrap.kubeconfig kubelet-config.yml kubelet.conf yunyao2:/data/kubernetes/cfg/
-scp kubelet.conf bootstrap.kubeconfig kubelet-config.yml kubelet.conf yunyao3:/data/kubernetes/cfg/
-```
-
-​			两个节点创建服务
-
-```sh
-cat > /usr/lib/systemd/system/kubelet.service << EOF
-[Unit]
-Description=Kubernetes Kubelet
-After=docker.service
-[Service]
-EnvironmentFile=/data/kubernetes/cfg/kubelet.conf
-ExecStart=/data/kubernetes/bin/kubelet \$KUBELET_OPTS
-Restart=on-failure
-LimitNOFILE=65536
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 设置环境变量
-# apiserver IP:PORT
-KUBE_APISERVER="https://192.168.1.12:6443"
-# 与token.csv里保持一致
-TOKEN="b1dc586d69159ff4e3ef7efa9db60e48"
-# 重新加载systemctl，启动服务，开机自启
-systemctl daemon-reload && systemctl start kubelet && systemctl enable kubelet
-```
-
-​		
-
-
-
-
-
-```
-journalctl -xefu kubelet
-```
-
-
 
 ## 安装CNI网络插件（选择其一即可）
 
@@ -1209,10 +417,10 @@ kubectl get pods -n kube-system | grep calico
 # calico-node-rrq5g                          1/1     Running   0             13m
 
 # 查看Node 此时应该都为 Ready
-kubectl get nodes
-# qingyun01   Ready   control-plane,master   10m     v1.22.0
-# qingyun02   Ready   <none>                 4m57s   v1.22.0
-# qingyun03   Ready   <none>                 4m      v1.22.0
+kubectl get nodes -o wide
+server01   Ready    control-plane   2m31s   v1.25.0   192.168.100.11   <none>        CentOS Linux 7 (Core)   3.10.0-1127.19.1.el7.x86_64   containerd://1.6.10
+server02   Ready    <none>          117s    v1.25.0   192.168.100.12   <none>        CentOS Linux 7 (Core)   3.10.0-1127.19.1.el7.x86_64   containerd://1.6.10
+server03   Ready    <none>          116s    v1.25.0   192.168.100.13   <none>        CentOS Linux 7 (Core)   3.10.0-1127.19.1.el7.x86_64   containerd://1.6.10
 ```
 
 #### 问题汇总
@@ -1271,7 +479,7 @@ kubectl apply -f calico.yaml
 
 ​		我们在Master控制节点安装
 
-​		这里1.22兼容的版本是（没有兼容取最新）  [v2.4.0](https://github.com/kubernetes/dashboard/releases/tag/v2.4.0)
+​		这里1.25兼容的版本是（没有兼容取最新）  [v2.7.0](https://github.com/kubernetes/dashboard/releases/tag/v2.7.0)
 
 ​		执行如下命令
 
@@ -1280,11 +488,11 @@ kubectl apply -f calico.yaml
 export k8sDashboardPath="/root/k8s-dashboard"
 mkdir -p $k8sDashboardPath && cd $k8sDashboardPath
 # 下载部署文件
-wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.4.0/aio/deploy/recommended.yaml -O deploy.yaml
+wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml -O deploy.yaml
 
 # 添加宿主机端口号30000
 sed -i '/targetPort: 8443/a\      nodePort: 30000' deploy.yaml
-# 设置新增类型为NodePort，全局搜/8443
+# 设置新增类型为NodePort，全局搜/30000
 vim deploy.yaml
 
 --------------
@@ -1300,6 +508,7 @@ spec:
       targetPort: 8443
 --------------
 
+
 # 启动dashboard
 kubectl apply -f deploy.yaml
 
@@ -1314,45 +523,6 @@ kubectl -n kubernetes-dashboard get svc
 ```sh
 kubectl -n kubernetes-dashboard get pods
 kubectl -n kubernetes-dashboard get svc 
-
-# 查看是否有http证书
-kubectl get secret kubernetes-dashboard-certs -n kubernetes-dashboard
-```
-
-​		！！如果没有则自己生成，如果有则不需要,基本不需要
-
-```sh
-# 创建目录，2.0需要使用https进行访问，所以我们生成一个证书（假的）否则无法访问
-mkdir -p ~/k8s-dashboard/tls && cd ~/k8s-dashboard/tls
-
-# 生成证书
-openssl genrsa -out ca.key 2048
-openssl req -new -x509 -key ca.key -out ca.crt -days 3650 -subj "/C=CN/ST=shanghai/L=jingan/O=dev/OU=island/CN=*.onebean.net"
-openssl genrsa -out dashboard.key 2048 &&\
-openssl req -new -sha256 -key dashboard.key -out dashboard.csr -subj "/C=CN/ST=shanghai/L=jingan/O=dev/OU=island/CN=k8s.onebean.net" &&\
-cat >  dashboard.cnf  <<EOF
-extensions = san
-[san]
-keyUsage = digitalSignature
-extendedKeyUsage = clientAuth,serverAuth
-subjectKeyIdentifier = hash
-authorityKeyIdentifier = keyid,issuer
-subjectAltName = DNS:k8s.onebean.net
-EOF
-openssl x509 -req -sha256 -days 3650 -in dashboard.csr -out dashboard.crt -CA ca.crt -CAkey ca.key -CAcreateserial -extfile dashboard.cnf
-
-# 如果有删除
-kubectl delete secret kubernetes-dashboard-certs -n kubernetes-dashboard
-kubectl get secret kubernetes-dashboard-certs -n kubernetes-dashboard
-# 然后创建
-kubectl create secret generic kubernetes-dashboard-certs --from-file="/root/ca/dashboard.crt,/root/ca/dashboard.key" -n kubernetes-dashboard
-kubectl get secret kubernetes-dashboard-certs -n kubernetes-dashboard -o yaml
-
-# 然后重启kubernetes-dashboard
-# 查询出kubernetes-dashboard名字
-kubectl  get pods -n kubernetes-dashboard
-# 根据名字以及组重启
-kubectl get pod kubernetes-dashboard-7f99b75bf4-kkfbk -n kubernetes-dashboard -o yaml |  kubectl replace --force -f -
 ```
 
 ​		我们访问浏览器
@@ -1400,6 +570,10 @@ subjects:
 EOF
 ```
 
+​		参考：https://github.com/kubernetes/dashboard/blob/v2.7.0/docs/user/access-control/creating-sample-user.md
+
+​		
+
 ​		现在，我们需要找到可用于登录的令牌。执行以下命令：
 
 ```sh
@@ -1430,14 +604,17 @@ token:      eyJhbGciOiJSUzI1NiIsImtpZCI6IkU0d05VUWx1Vm5oU3ZtTHQ2ZENHZGtIa1FnRmhT
 
 ```
 
-
-
 ```sh
 # 将token写入文件,查询最后一行
 kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') | grep token | tail -n 1 | awk '{print $2}'  > /root/k8s/k8s-dashboard-token
 ```
 
+​		已经更新使用
 
+```sh
+# 创建Token
+kubectl -n kubernetes-dashboard create token admin-user
+```
 
 ​		复制token进入https://192.168.100.11:30000/ 输入Token登陆成功
 
@@ -1488,17 +665,14 @@ kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboar
 export ingressNginxPath="/root/ingress-nginx"
 # 创建挂载目录
 mkdir -p $ingressNginxPath && cd $ingressNginxPath
-# 下载
-# wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/cloud/deploy.yaml -O deploy.yaml
+# 下载(这里采用裸机集群)
+wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.5.1/deploy/static/provider/baremetal/deploy.yaml -O deploy.yaml
 
-wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/baremetal/deploy.yaml -O deploy.yaml
 
 # 修改镜像为阿里云加速镜像否则无法创建拉取
 # 将 k8s.gcr.io/ingress-nginx/controller 替换为 registry.aliyuncs.com/google_containers/nginx-ingress-controller
-sed -i "s#k8s.gcr.io/ingress-nginx/controller#registry.aliyuncs.com/google_containers/nginx-ingress-controller#g" deploy.yaml
-sed -i "s#k8s.gcr.io/ingress-nginx/kube-webhook-certgen#registry.aliyuncs.com/google_containers/kube-webhook-certgen#g" deploy.yaml
-
-
+sed -i "s#registry.k8s.io/ingress-nginx/controller#registry.aliyuncs.com/google_containers/nginx-ingress-controller#g" deploy.yaml
+sed -i "s#registry.k8s.io/ingress-nginx/kube-webhook-certgen#registry.aliyuncs.com/google_containers/kube-webhook-certgen#g" deploy.yaml
 
 # 启动部署
 kubectl apply -f deploy.yaml
@@ -1560,20 +734,20 @@ spec:
 kubectl get pod -A | grep apiserver
 
 # 返回如下
-kube-system            kube-apiserver-qingyun01                    1/1     Running   3 (77m ago)   5h34m
+kube-system            kube-apiserver-server01                    1/1     Running   3 (77m ago)   5h34m
 
 # 我们导出apiserver
 # 指定Yaml下载目录
 export customApiServerPath="/root/apiServer"
 mkdir -p $customApiServerPath
-kubectl get pod kube-apiserver-qingyun01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
+kubectl get pod kube-apiserver-server01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
 
 # 查看是否指定端口，如果有则修改没有则新增
 cat $customApiServerPath/apiserver.yaml | grep service-node-port-rang
 # 添加端口号范围
 sed -i '/kubernetes.default.svc.cluster.local/a\    - --service-node-port-range=80-65535' /etc/kubernetes/manifests/kube-apiserver.yaml
 # 修改完成后自动更新，不需要操作，重新导出一份yaml
-kubectl get pod kube-apiserver-qingyun01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
+kubectl get pod kube-apiserver-server01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
 # 再次检查是否设置成功
 cat $customApiServerPath/apiserver.yaml | grep service-node-port-rang
 # 然后我们定义Ingress的宿主机端口,全局搜 ingress-nginx/templates/controller-service.yaml
@@ -1697,7 +871,7 @@ kubectl get ing -n $tlsNameSpace
 ```sh
 # 定义域名,域名证书地址，证书命名空间，以及Ingress服务
 # 生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
-export domainName="tomcat.bigkang.club"
+export domainName="tomcat.bigkang.vip"
 export domainPath="/root/k8s/tls"
 export tlsNameSpace="default"
 export ingressService="tomcat"
@@ -3401,7 +2575,7 @@ kubectl apply -f $domainName-ingress.yaml
 ```sh
 # 定义Helm参数
 export helmPath="/root/helm"
-export helmVersion="3.7.2"
+export helmVersion="3.10.0"
 
 # 创建安装目录
 mkdir -p $helmPath && cd $helmPath
@@ -4224,7 +3398,7 @@ kubectl cluster-info
 ​		删除旧文件
 
 ```sh
-kubeadm reset
+kubeadm reset -f
 rm -rf /etc/kubernetes/manifests
 systemctl stop kubelet 
 rm -rf /var/lib/etcd/*
@@ -4242,6 +3416,20 @@ rm -rf /var/lib/etcd/*
 ```
 
 # K8s卸载
+
+## 卸载containerd
+
+```sh
+# 卸载软件
+yum remove containerd -y
+
+# 删除数据
+rm -rf /etc/containerd
+
+yum remove device-mapper-persistent-data -y
+
+yum remove crictl-tools -y
+```
 
 ​		卸载后重装
 

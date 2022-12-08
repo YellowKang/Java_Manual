@@ -1,12 +1,14 @@
-# 什么是Liquibase？
+# Liquibase
+
+## 什么是Liquibase？
 
 ​		它具有管理数据库模式脚本的修订的功能。它适用于各种类型的数据库，并支持各种文件格式来定义数据库结构。Liquibase具有从特定点来回滚动更改的能力-使您无需知道什么是在特定数据库实例上运行的最新更改/脚本。
 
 ​		简单的来说，它是帮助我们管理数据库工作流程的工具，我们在开发项目时会不断的去修改表，数据，以及字段。或者新增表，字段等等，Liquibase可以更好地管理我们的数据库的开发流程，并且管理，我们可以直接通过Liquibase的文件，进行数据库的修改等等，类似于JPA的新建实体后自动帮助我们创建表字段等等，并且也能数据回滚，防止操作失误或者其他情况导致同步问题，简单的来说他就是我们在Java开发的过程中的一个数据库管理工具。
 
-# 核心概念
+## 核心概念
 
-## ChangeLog（更变日志）
+### ChangeLog（更变日志）
 
 ​		官方文档中是这样解释的：开发人员将数据库更改存储在其本地开发计算机上的基于文本的文件中，并将其应用于其本地数据库。这些*变更日志*文件存储在源代码管理中，以实现协作。该*更新日志*可以用来更新所有不同的数据库环境，一个团队的用途-从本地开发数据库，测试，分期和生产。可以随意嵌套*Changelog*文件以进行更好的管理。所有Liquibase更改的根都是*changelog*文件。Liquibase使用变更*日志*按顺序列出对数据库所做的所有更改。将其视为分类帐。这是一个包含所有的数据库更改（记录文件*变更**小号*）。Liquibase使用此变更*日志*记录来审核您的数据库并执行尚未应用于数据库的所有更改。
 
@@ -58,25 +60,25 @@ databaseChangeLog:
 
 
 
-## ChangeSet（更变集）
+### ChangeSet（更变集）
 
 ​		官方解释是这样的：变更是变化的单位是Liquibase跟踪的执行。每个changeSet由author，id和filename属性唯一标识。当Liquibase运行时，它会查询该DATABASECHANGELOG表变更为执行被标记，然后执行所有的变更在更改日志尚未被执行的文件。
 
 ​		
 
-## ChangeType（更变类型）
+### ChangeType（更变类型）
 
-## Preconditions（条件）
+### Preconditions（条件）
 
-## Contexts（上下文）
+### Contexts（上下文）
 
-## Labels（标签）
-
-
+### Labels（标签）
 
 
 
-# 引入依赖
+
+
+## 引入依赖
 
 ```xml
         <dependency>
@@ -99,7 +101,7 @@ databaseChangeLog:
         </dependency>
 ```
 
-# 编写配置
+## 编写配置
 
 ```properties
 spring:
@@ -118,11 +120,11 @@ spring:
 
 
 
-# 编写changelog
+## 编写changelog
 
-## 使用YML格式
+### 使用YML格式
 
-### 编写master文件
+#### 编写master文件
 
 ​		master文件就是我们的变换日志的主文件，那么为了更好的阅读性，以及良好的规范我们尽量不要直接在master编写配置，而是采用引入的方式,那么我们首先是采用master引入按月份区分的文件目录，然后月份下面的文件再引入其他的天文件，并且天按每天的操作次序进行排序，如：
 
@@ -170,7 +172,7 @@ databaseChangeLog:
       file: db/changelog/2020/7/2020-07-10-001-init-database.yml
 ```
 
-### 创建数据库表
+#### 创建数据库表
 
 ​		现在我们开始来编辑这个2020-07-10-001-init-database.yml文件
 
@@ -180,9 +182,9 @@ databaseChangeLog:
 
 
 
-## 使用XML格式
+### 使用XML格式
 
-## 使用JSON格式
+### 使用JSON格式
 
 
 
@@ -351,3 +353,5 @@ databaseChangeLog:
               nullable: true
             remarks: 创建时间
 ```
+
+# Flyway
