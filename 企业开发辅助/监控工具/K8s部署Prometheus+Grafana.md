@@ -34,17 +34,14 @@ cd kube-prometheus/manifests
 # 修改k8s源为阿里云加速
 sed -i "s#quay.io/prometheus/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
 sed -i "s#quay.io/brancz/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
-sed -i "s#k8s.gcr.io/prometheus-adapter/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
+sed -i "s#registry.k8s.io/prometheus-adapter/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
 sed -i "s#quay.io/prometheus-operator/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
 sed -i "s#k8s.gcr.io/kube-state-metrics/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
 
 
-sed -i '' "s#quay.io/prometheus/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
-sed -i '' "s#quay.io/brancz/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
-sed -i '' "s#k8s.gcr.io/prometheus-adapter/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
-sed -i '' "s#quay.io/prometheus-operator/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
-sed -i '' "s#k8s.gcr.io/kube-state-metrics/#registry.cn-hangzhou.aliyuncs.com/chenby/#g" *.yaml
-
+# 修改grafana时区
+sed -i "s#UTC#UTC+8#g" grafana-dashboardDefinitions.yaml
+sed -i "s#utc#utc+8#g" grafana-dashboardDefinitions.yaml
 
 # 修改grafana 的端口为nodePort
 sed -i  "/ports:/i\  type: NodePort" grafana-service.yaml
@@ -323,6 +320,8 @@ EOF
 ​		参考博客：https://www.jianshu.com/p/b7d39cf7d499
 
 # 命名空间新增角色（自定义命名空间）
+
+​		
 
 ​		注意如果使用到其他命名空间的资源，需要进行配置，默认prod是没有权限的，需要新建角色提供命名空间资源权限，如果只使用default和monitoring则不需要新增
 
@@ -749,28 +748,55 @@ EOF
 curl http://prometheus-alert-center.monitoring:8080/prometheusalert?type=fs&tpl=prometheus-fs&fsurl=https://open.feishu.cn/open-apis/bot/v2/hook/57746580-772c-4a93-bb44-26c4f252fffe
 ```
 
-# 配置
+# 配置告警
+
+​		修改alertmanager		
+
+```sh
+# 进入部署的prometheus目录
+cd kube-prometheus/manifests
+
+# 编辑 alertmanager-alertmanager.yaml
+vim alertmanager-alertmanager.yaml
+# 修改如下
+spec:
+  image: registry.cn-hangzhou.aliyuncs.com/chenby/alertmanager:v0.24.0
+  nodeSelector:
+    kubernetes.io/os: linux
+  podMetadata:
+    labels:
+      app.kubernetes.io/component: alert-router
+      app.kubernetes.io/instance: main
+      app.kubernetes.io/name: alertmanager
+      app.kubernetes.io/part-of: kube-prometheus
+      app.kubernetes.io/version: 0.24.0
+  replicas: 1
+  # 新增指定config
+  alertmanagerConfigSelector:
+    matchLabels:
+      alertmanagerConfig: main
+```
 
 ## 配置Prometheus-Rule
 
 ```sh
-# 创建告警规则
+# 创建告警规则 注意$labels 会被写入时变成系统变量，建议vim手动添加
 cat > boot-node-endpoint-rule.yaml <<EOF
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   labels:
     prometheus: k8s
-    role: external-machines-rules
+    role: service-down-rules
   name: service-down-rule
   namespace: monitoring
 spec:
   groups:
-    - name: external-machines
+    - name: serviceDown
       rules:
         - alert: ServiceDown
           annotations:
-            description: '命名空间{{ $labels.namespace }}/{{ $labels.job }}任务{{ $labels.instance }} 实例已经下线一分钟了'
+            description: '命名空间{{ $labels.namespace }}/{{ $labels.job }}任务{{ $labels.instance }} 实例已经下线超过一分钟了'
             summary: '实例 {{ $labels.instance }} 下线'
           expr: |
             up == 0
@@ -793,49 +819,269 @@ apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
   labels:
-    alertmanagerConfig: service-down-alert
+    alertmanagerConfig: main
   name: service-down-alert
   namespace: monitoring
 spec:
   route:
-    groupBy: ['external-machines']
+    groupBy: ['job']
     groupWait: 30s
     groupInterval: 5m
-    repeatInterval: 12h
+    repeatInterval: 3h
     receiver: 'webhook'
   receivers:
   - name: 'webhook'
     webhookConfigs:
-    - url: 'http://prometheus-alert-center.monitoring:8080/prometheusalert?type=fs&tpl=prometheus-fs&fsurl=https://open.feishu.cn/open-apis/bot/v2/hook/57746580-772c-4a93-bb44-26c4f252fffe'
+    - url: 'http://prometheus-alert-center.monitoring:8080/prometheusalert?type=fs&tpl=prometheus-fs&fsurl=https://open.feishu.cn/open-apis/bot/v2/hook/577451280-772c-4a33-2b44-26c451ffe'
 EOF
 ```
 
+​		然后删除掉Alertmanager的pod重启新容器即可应用
 
+# 异常问题
 
+​		使用Swagger+prometheus抛出一个文档异常解决方案如下
 
+​		修改配置文件
 
-
-
+```Properties
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
 ```
+
+​		修改Swagger配置类新增如下方法
+
+```java
+	/**
+	 * 增加如下配置可解决Spring Boot 6.x 与Swagger 3.0.0 不兼容问题
+	 **/
+	@Bean
+	public WebMvcEndpointHandlerMapping webEndpointServletHandlerMapping(WebEndpointsSupplier webEndpointsSupplier, ServletEndpointsSupplier servletEndpointsSupplier, ControllerEndpointsSupplier controllerEndpointsSupplier, EndpointMediaTypes endpointMediaTypes, CorsEndpointProperties corsProperties, WebEndpointProperties webEndpointProperties, Environment environment) {
+		List<ExposableEndpoint<?>> allEndpoints = new ArrayList();
+		Collection<ExposableWebEndpoint> webEndpoints = webEndpointsSupplier.getEndpoints();
+		allEndpoints.addAll(webEndpoints);
+		allEndpoints.addAll(servletEndpointsSupplier.getEndpoints());
+		allEndpoints.addAll(controllerEndpointsSupplier.getEndpoints());
+		String basePath = webEndpointProperties.getBasePath();
+		EndpointMapping endpointMapping = new EndpointMapping(basePath);
+		boolean shouldRegisterLinksMapping = this.shouldRegisterLinksMapping(webEndpointProperties, environment, basePath);
+		return new WebMvcEndpointHandlerMapping(endpointMapping, webEndpoints, endpointMediaTypes, corsProperties.toCorsConfiguration(), new EndpointLinksResolver(allEndpoints, basePath), shouldRegisterLinksMapping, null);
+	}
+	private boolean shouldRegisterLinksMapping(WebEndpointProperties webEndpointProperties, Environment environment, String basePath) {
+		return webEndpointProperties.getDiscovery().isEnabled() && (StringUtils.hasText(basePath) || ManagementPortType.get(environment).equals(ManagementPortType.DIFFERENT));
+	}
+```
+
+# 注意事项（发生问题的坑点）
+
+## 无法监控Service
+
+​		发生了无法监控Service，并且在prometheus中也无法看到targets
+
+​		那么有可能是因为监控的服务的命名空间没有权限导致
+
+​		需要从上面的
+
+​	
+
+## 告警无法发送
+
+
+
+
+
+# 快速脚本
+
+## 外部端点监控
+
+```sh
+# 设置变量属性
+export yamlName="jiaanan-api-prod-endpoint"
+export k8sName="jiaanan-api-prd"
+export endNameSpace="prod"
+export k8sLab="app: jiaanan-api-prd"
+export endAddress="172.17.177.255"
+export endPort="8187"
+export endPortName="http"
+export endPath="/manager/actuator/prometheus"
+# 生成K8sYaml脚本
+cat > ./$yamlName.yaml << EOF
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: $k8sName
+  namespace: $endNameSpace
+  labels:
+    $k8sLab
+subsets:
+  - addresses:
+    - ip: $endAddress
+    ports:
+      - name: $endPortName
+        port: $endPort
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: $k8sName
+  namespace: $endNameSpace
+  labels:
+    $k8sLab
+spec:
+  ports:
+    - name: $endPortName
+      port: 80
+      protocol: TCP
+      targetPort: $endPort
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   labels:
-    app: jiaanan-api-{{ .AppStack.envName }}
+    $k8sLab
+  name: $k8sName-monitor
+  namespace: $endNameSpace
+spec:
+  jobLabel: $k8sName
+  endpoints:
+  - interval: 30s # 端点采集频率
+    port: $endPortName        # 采集端口号
+    path: "$endPath" # 采集端点
+  selector:
+    matchLabels:
+      $k8sLab
+EOF
+
+```
+
+## K8s
+
+​		如上是已经跑在K8s中的服务并且已经设置好服务名（注意labels标签，以及servicePort名称）
+
+```sh
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: jiaanan-api-{{ .AppStack.envName }}
+  labels:
+    app: jiaanan-api-{{ .AppStack.envName }}
   namespace: {{ .Values.namespace }}
 spec:
-  jobLabel: jiaanan-api-{{ .AppStack.envName }}
-  endpoints:
-  - port: http
-    path: "/manager/actuator/prometheus"
-    interval: 30s
+  replicas: 2
   selector:
     matchLabels:
       app: jiaanan-api-{{ .AppStack.envName }}
-  namespaceSelector:
-    matchNames:
-    - {{ .Values.namespace }}
+  template:
+    metadata:
+      labels:
+        app: jiaanan-api-{{ .AppStack.envName }}
+    spec:
+      containers:
+        - name: main
+          image: {{ .AppStack.image.backend }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: {{ .AppStack.envName }}
+            - name: JAVA_OPTS
+              value: {{ .Values.javaOpts }}
+            - name: APP_OPTS
+              value: {{ .Values.appOpts }}
+          resources:
+            limits:
+              cpu: {{ .Values.cpuLimit }}
+              memory: {{ .Values.memoryLimit }}
+            requests:
+              cpu: {{ .Values.cpuRequest }}
+              memory: {{ .Values.memoryRequest }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jiaanan-api-{{ .AppStack.envName }}
+  labels:
+    app: jiaanan-api-{{ .AppStack.envName }}
+  namespace: {{ .Values.namespace }}
+spec:
+  selector:
+    app: jiaanan-api-{{ .AppStack.envName }}
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8187
 ```
 
+​		直接部署监控即可
+
+```sh
+# 设置变量属性
+export yamlName="jiaanan-api-test-monitor"
+export k8sName="jiaanan-api-test"
+export endNameSpace="test"
+export k8sLab="app: jiaanan-api-test"
+export endPortName="http"
+export endPath="/manager/actuator/prometheus"
+# 生成K8sYaml脚本
+cat > ./$yamlName.yaml << EOF
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    $k8sLab
+  name: $k8sName
+  namespace: $endNameSpace
+spec:
+  jobLabel: $k8sName
+  endpoints:
+  - port: $endPortName
+    path: "$endPath"
+    interval: 15s
+  selector:
+    matchLabels:
+      $k8sLab
+  namespaceSelector:
+    matchNames:
+    - $endNameSpace
+EOF
+```
+
+## 告警Rule模板
+
+
+
+```sh
+# 设置变量属性
+export yamlName="kafka-exporter-topic-rule"
+export k8sName="kafka-exporter-topic-rule"
+export endNameSpace="monitoring"
+
+export groupName="topicHealthError"
+export alertName="topicHealthError"
+
+# 还需要手动修改描述，自动脚本变量会被覆盖
+cat > ./$yamlName.yaml << EOF
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: $k8sName
+  namespace: $endNameSpace
+spec:
+  groups:
+    - name: $groupName
+      rules:
+        - alert: $alertName
+          annotations:
+            description: "命名空间{{ $labels.namespace }}/{{ $labels.job }}任务{{ $labels.instance }} 实例已经下线超过一分钟了"
+            summary: "命名空间{{ $labels.namespace }}/{{ $labels.job }}任务{{ $labels.instance }} 实例已经下线超过一分钟了"
+          expr: |
+            up == 0
+          for: 1m
+          labels:
+            severity: critical
+            level: '严重'
+EOF
+```

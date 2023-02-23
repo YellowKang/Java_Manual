@@ -330,8 +330,167 @@ public class CustomExceptionHandler {
 ​		注意千万不能配置SpringBoot默认的资源映射器，可以自定义，但不能使用/**，以及默认路径否则会引起一系列的问题
 
 ```
-			registry.addResourceHandler("")
-                .addResourceLocations("");
+   private static final String[] CLASSPATH_RESOURCE_LOCATIONS = {
+            "classpath:/META-INF/resources/", "classpath:/resources/",
+            "classpath:/static/", "classpath:/public/" };
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        if (!registry.hasMappingForPattern("/webjars/**")) {
+            registry.addResourceHandler("/webjars/**").addResourceLocations(
+                    "classpath:/META-INF/resources/webjars/");
+        }
+        if (!registry.hasMappingForPattern("/**")) {
+            registry.addResourceHandler("/**").addResourceLocations(
+                    CLASSPATH_RESOURCE_LOCATIONS);
+        }
+    }
+```
+
+# 统一HTTP响应
+
+
+
+```java
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+
+import java.io.Serializable;
+
+/**
+ * @Author BigKang
+ * @Date 2020/1/14 2:15 PM
+ * @Summarize 统一返回Vo对象
+ */
+@Data
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+public class Result<T> implements Serializable {
+
+    private T data;
+    private Integer code;
+    private String message;
+
+    public Result(T data, Integer code) {
+        this.code = code;
+        this.data = data;
+    }
+
+    public Result(Integer code) {
+        this.code = code;
+    }
+
+    public Result(Integer code, String message) {
+        this.code = code;
+        this.message = message;
+    }
+
+    public static <T> Result<T> result(ResultEnum resultEnum) {
+        return result(null, resultEnum.getCode(), resultEnum.getMsg());
+    }
+    public static <T> Result<T> result(T data, ResultEnum resultEnum) {
+        return result(data, resultEnum.getCode(), resultEnum.getMsg());
+    }
+
+    public static <T> Result<T> result(T data, Integer code, String message) {
+        return new Result<T>(data, code, message);
+    }
+
+    public static <T> Result<T> result(T data, Integer code) {
+        return new <T>Result<T>(data, code);
+    }
+
+    public static <T> Result<T> error(String message) {
+        return new <T>Result<T>(ResultEnum.ERROR.getCode(), message);
+    }
+
+    public static <T> Result<T> error(ResultEnum resultEnum) {
+        return new <T>Result<T>(resultEnum.getCode(), resultEnum.getMsg());
+    }
+
+    public static <T> Result<T> success() {
+        return result(null, ResultEnum.SUCCESS);
+    }
+
+    public static <T> Result<T> success(T data) {
+        return result(data, ResultEnum.SUCCESS);
+    }
+
+}
+```
+
+
+
+```java
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
+/**
+ * @Author BigKang
+ * @Date 2020/6/23 2:15 下午
+ * @Motto 仰天大笑撸码去,我辈岂是蓬蒿人
+ * @Summarize 返回枚举
+ */
+@Getter
+@AllArgsConstructor
+public enum ResultEnum {
+    // 成功
+    SUCCESS(200, "请求成功"),
+
+    // Token令牌异常  30开头
+    TOKEN_PAST(301, "登录超时，请重新登录"),
+    TOKEN_ERROR(302, "非法令牌"),
+
+    // 登录异常        31开头
+    LOGIN_FAILURE(311, "用户名或密码错误"),
+    LOGIN_CODE_ERROR(312, "验证码错误"),
+    REMOTE_ERROR(313, "异地登录"),
+    LOGOUT_CODE_ERROR(314, "登出失败，令牌为空"),
+
+    // 系统异常
+    NO_LOGIN(401,"用户未登录,请先登录"),
+    NO_PERMISSIONS(403,"用户权限不足"),
+    NOT_FOUND(404, "资源不存在"),
+
+
+    // 默认错误
+    ERROR(500, "错误"),
+
+
+
+    // 1000-2000 为sentinel异常 ///////////////////////////////
+
+    SENTINEL_DEGRADE_ERROR(1000, "被降级规则阻挡"),
+    SENTINEL_PARAM_ERROR(1001, "被热点参数规则阻挡"),
+    SENTINEL_SYSTEM_ERROR(1002, "被系统规则阻挡"),
+    SENTINEL_AUTHORITY_ERROR(1003, "被授权规则阻挡"),
+    SENTINEL_ERROR(1999, "Unknown"),
+
+
+    ////////////////2000-3000 为参数校验异常 ///////////////////////////
+
+    HTTP_REQ_PARAM_ERROR(2000, "请求参数非法!"),
+    PARAM_ADDR_ATTACH(2001, "参数附件地址为空,无法发送邮件!"),
+    PARAM_ADDR_ASC(2002, "参数邮件静态资源路径和文件名为空,无法发送邮件!"),
+
+
+    ////////////////////// 3000-4000系统级别错误 ///////////////////////////
+    SYSTEM_REQUEST_METHOD_NOT_SUPPORTED(3000, "请求方法不支持访问方式");
+
+    /**
+     * Code码
+     */
+    private Integer code;
+
+    /**
+     * 返回信息
+     */
+    private String msg;
+}
 ```
 
 
@@ -389,50 +548,176 @@ public class CurrentTokenUserMethodArgumentResolver implements HandlerMethodArgu
 
 # 整合全局异常处理
 
+​		自定义异常
+
+```java
+
+/**
+ * @author HuangKang
+ * @date 2022/10/8 10:54 AM
+ * @describe 自定义系统异常
+ */
+public class CustomSystemException extends RuntimeException {
+
+    public CustomSystemException(String message){
+        super(message);
+    }
+
+    public CustomSystemException(ExceptionEnum exceptionEnum){
+        super(exceptionEnum.getMessage());
+    }
+}
+```
+
+```java
+/**
+ * @author HuangKang
+ * @date 2022/10/8 10:41 AM
+ * @describe 未登录异常
+ */
+public class NotLoginException extends CustomSystemException {
+
+    /**
+     * 未登录异常信息
+     */
+    private static final String MESSAGE = "用户未登录，请登录后访问";
+
+    public NotLoginException() {
+        super(MESSAGE);
+    }
+
+}
+```
+
+```java
+@AllArgsConstructor
+public enum ExceptionEnum {
+    SAVE_DATA_FAILURE("添加数据失败!");
+
+    private String message;
+
+    public String getMessage() {
+        return message;
+    }
+}
+```
+
 ​		新建CustomExceptionHandler，放入能被扫描到的地方，配置异常以及404
 
 ```java
-**
+package com.sigreal.jdsettle.claim.config;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.stereotype.Component;
+import org.springframework.validation.BindException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.servlet.NoHandlerFoundException;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+/**
  * @Author BigKang
  * @Date 2020/1/7 3:11 PM
  * @Summarize 全局异常捕获
  */
-@Component
-@RestControllerAdvice
+@ControllerAdvice
 @Slf4j
+@Component
 public class CustomExceptionHandler {
 
     /**
      * 捕获全局异常并且返回信息
+     *
      * @param request
      * @param response
      * @param e
      * @return
      */
-    @ExceptionHandler(value =Exception.class)
+    @ExceptionHandler(value = Exception.class)
     @ResponseBody
-    public ResultVo exceptionHandler(HttpServletRequest request, HttpServletResponse response, Exception e){
-        for (StackTraceElement element : e.getStackTrace()) {
-            if(element.getClassName().equals("org.springframework.web.method.support.InvocableHandlerMethod")){
-                break;
-            }
-            log.error("异常类：{},异常方法：{},异常行数：{}",element.getClassName(),element.getMethodName(),element.getLineNumber());
+    public Result<Object> exceptionHandler(HttpServletRequest request, HttpServletResponse response, Exception e) {
+        // 自定义的系统异常
+        if (e instanceof CustomSystemException) {
+            // 是否记录日志等处理
+
         }
-        log.error("异常类型：{}，异常信息：{}",e.getClass().getName(),e.getMessage());
-        log.error("异常请求 {} ：{}",request.getMethod(),request.getRequestURI());
-        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        return ResultVo.error(e.getMessage());
+        // 请求参数异常
+        else if (e instanceof HttpMessageNotReadableException) {
+            printErrorLog(request, e);
+            return Result.error(ResultEnum.HTTP_REQ_PARAM_ERROR);
+        }
+        // 其他未定义捕获的异常
+        else {
+            // 捕获后提交到Sentry
+
+            printErrorLog(request, e);
+        }
+        return Result.error(e.getMessage());
     }
-  
+
     /**
      * 404配置相应
+     *
      * @return
      */
     @ExceptionHandler(value = NoHandlerFoundException.class)
     @ResponseBody
-    public ResultVo noHandlerFound(HttpServletResponse response){
+    public Result noHandlerFound(HttpServletResponse response) {
         response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-        return ResultVo.result(HttpServletResponse.SC_NOT_FOUND, Message.NOHANDLER);
+        return Result.result(ResultEnum.NOT_FOUND);
+    }
+
+    /**
+     * 未登录异常配置
+     *
+     * @param response
+     * @return
+     */
+    @ExceptionHandler(value = NotLoginException.class)
+    @ResponseBody
+    public Result notLoginException(HttpServletResponse response) {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return Result.result(ResultEnum.NO_LOGIN);
+    }
+
+
+    private static void printErrorLog(HttpServletRequest request, Exception e) {
+        for (StackTraceElement element : e.getStackTrace()) {
+            if (element.getClassName().equals("org.springframework.web.method.support.InvocableHandlerMethod")) {
+                break;
+            }
+            log.error("异常类：{},异常方法：{},异常行数：{}", element.getClassName(), element.getMethodName(), element.getLineNumber());
+        }
+        log.error("异常类型：{}，异常信息：{}", e.getClass().getName(), e.getMessage());
+        log.error("异常请求 {} ：{}", request.getMethod(), request.getRequestURI());
+    }
+
+
+    /**
+     * 处理参数校验异常
+     * @param exception
+     * @return
+     */
+    @ExceptionHandler({MethodArgumentNotValidException.class,BindException.class})
+    @ResponseBody
+    public Result<String> handleValidException(Exception exception) {
+        StringBuilder msg = new StringBuilder();
+
+        BindingResult br =  ((BindException)exception).getBindingResult();
+
+        for (ObjectError err : br.getAllErrors()) {
+            msg.append(err.getDefaultMessage());
+        }
+        return Result.error(msg.toString());
     }
 
 }

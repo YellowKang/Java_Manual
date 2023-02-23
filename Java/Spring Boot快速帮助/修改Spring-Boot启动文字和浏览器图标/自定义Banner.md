@@ -226,3 +226,18 @@ Cloud AliBaBa版本: ${spring.application.cloudAlibabaVersion}
 ​		然后刷新Maven应用
 
 ​		最后启动SpringBoot项目即可得到如下
+
+## 修改配置文件
+
+```properties
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  application:
+    name: sigreal-xp
+    env: ${spring.profiles.active}
+    version: @version@
+    cloudVersion: @spring.cloud.version@
+    cloudAlibabaVersion: @spring.cloud.alibaba.version@
+```
+

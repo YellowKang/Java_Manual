@@ -214,13 +214,15 @@ List<User> users = testMapper.selectByMap(map);
 @EnableTransactionManagement
 @Configuration
 public class CustomMybatisPlusConfig {
-
+  
     /**
      * 分页插件
      */
     @Bean
-    public PaginationInterceptor paginationInterceptor() {
-        return new PaginationInterceptor();
+    public MybatisPlusInterceptor mybatisPlusInterceptor(){
+        MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+        interceptor.addInnerInterceptor(new PaginationInnerInterceptor());
+        return interceptor;
     }
 
     /**
@@ -948,6 +950,298 @@ public class TreeVoUtil {
             <id column="CITY"/>
         </collection>
     </resultMap>
+```
+
+## 封装通用Page
+
+```java
+
+import com.baomidou.mybatisplus.core.metadata.OrderItem;
+import com.baomidou.mybatisplus.core.toolkit.sql.SqlInjectionUtils;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * @author HuangKang
+ * @date 2023/1/10 1:42 PM
+ * @describe BaseMybaitsPlus分页
+ */
+@Data
+public class BaseMPPage {
+
+    @ApiModelProperty(value = "页码")
+    private Integer page;
+
+    @ApiModelProperty(value = "条数")
+    private Integer size;
+
+    @ApiModelProperty(value = "排序")
+    private List<OrderItem> orders;
+
+    public <T> Page<T> genPage(Class<T> tClass) {
+        return genPage(tClass, null, null, 1000L);
+    }
+
+    public <T> Page<T> genPage(Class<T> tClass, List<String> orderField) {
+        return genPage(tClass, orderField, null, 1000L);
+    }
+
+    public <T> Page<T> genPage(Class<T> tClass, Map<String, String> orderFieldMap) {
+        return genPage(tClass, null, orderFieldMap, 1000L);
+    }
+
+    public <T> Page<T> genPage(Class<T> tClass, List<String> orderField, Map<String, String> orderFieldMap, Long maxSize) {
+        if (page <= 0) {
+            page = 1;
+        }
+        if (size <= 0) {
+            size = 10;
+        }
+
+        // 排序字段封装，校验以及转换
+        if (orders != null && !orders.isEmpty()) {
+            for (OrderItem order : orders) {
+
+                // 实体和数据库Map映射,转换为数据库排序字段
+                if (orderFieldMap != null) {
+                    String dbColumn = orderFieldMap.get(order.getColumn());
+                    if (dbColumn == null) {
+                        throw new CustomSystemException(ExceptionEnum.ORDER_FIELD_ILLEGAL);
+                    }
+                    order.setColumn(dbColumn);
+                }
+
+                // 字段集合，对应实体的数据库字段集合
+                if (orderField != null && !orderField.isEmpty()) {
+                    // 排序字段在其中则抛出异常
+                    if (!orderField.contains(order.getColumn())) {
+                        throw new CustomSystemException(ExceptionEnum.ORDER_FIELD_ILLEGAL);
+                    }
+                }
+                // 防止SQL注入
+                if (SqlInjectionUtils.check(order.getColumn())) {
+                    throw new CustomSystemException(ExceptionEnum.ORDER_FIELD_ILLEGAL);
+                }
+            }
+        }
+        Page<T> of = Page.of(page, size);
+        of.setOrders(orders);
+        of.setMaxLimit(maxSize);
+        return of;
+    }
+
+}
+
+```
+
+​		工具类
+
+```java
+
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
+import io.swagger.annotations.ApiModelProperty;
+import org.springframework.util.StringUtils;
+
+import java.lang.reflect.Field;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * @author HuangKang
+ * @date 2023/1/10 3:17 PM
+ * @describe Mybatis工具类
+ */
+public class MybatisPlusUtil {
+
+    /**
+     * 获取字段和数据库字段Map映射
+     *
+     * @param tClass 数据库实体
+     * @return 实体对应数据库字段
+     */
+    public static Map<String, String> getEntitySQLColumnMap(Class tClass) {
+        Map<String, String> columns = new HashMap<>();
+        Field[] declaredFields = tClass.getDeclaredFields();
+        for (Field declaredField : declaredFields) {
+            declaredField.setAccessible(true);
+            TableField tableField = declaredField.getAnnotation(TableField.class);
+            if (tableField == null) {
+                continue;
+            }
+            String value = tableField.value();
+            if (StringUtils.hasText(value)) {
+                columns.put(declaredField.getName(), value);
+            }
+        }
+
+        return columns;
+    }
+
+
+    /**
+     * 获取实体上数据库字段List
+     *
+     * @param tClass 数据库实体
+     * @return 数据库字段
+     */
+    public static List<String> getEntitySQLColumn(Class tClass) {
+        List<String> columns = new ArrayList<>();
+        Field[] declaredFields = tClass.getDeclaredFields();
+        for (Field declaredField : declaredFields) {
+            declaredField.setAccessible(true);
+            TableField tableField = declaredField.getAnnotation(TableField.class);
+            if (tableField == null) {
+                continue;
+            }
+            String value = tableField.value();
+            if (StringUtils.hasText(value)) {
+                columns.add(value);
+            }
+        }
+
+        return columns;
+    }
+
+
+    public static List<String> getEntityAddColumnSQL(Class tClass) {
+        List<String> columns = new ArrayList<>();
+        String tableName = "t_default_table";
+        if (tClass.getAnnotation(TableName.class) != null) {
+            tableName = ((TableName) tClass.getAnnotation(TableName.class)).value();
+        }
+        Field[] declaredFields = tClass.getDeclaredFields();
+        for (Field declaredField : declaredFields) {
+            declaredField.setAccessible(true);
+            TableField tableField = declaredField.getAnnotation(TableField.class);
+            if (tableField == null) {
+                continue;
+            }
+            String value = tableField.value();
+            if (StringUtils.hasText(value)) {
+                // alter table  t_meituan_sync_log Add column `business_serial_no` varchar(100) CHARACTER SET utf8 COLLATE utf8_bin NULL DEFAULT NULL COMMENT '案件号';
+                StringBuilder addColumnSQL = new StringBuilder();
+
+                addColumnSQL.append("alter table " + tableName);
+                addColumnSQL.append(" add column " + value + "  ");
+
+
+                if (Date.class.equals(declaredField.getType()) || LocalDateTime.class.equals(declaredField.getType())) {
+                    addColumnSQL.append("datetime");
+                } else if (Double.class.equals(declaredField.getType())) {
+                    addColumnSQL.append("decimal(11, 3)");
+                } else if (Integer.class.equals(declaredField.getType())) {
+                    addColumnSQL.append("int(11)");
+                } else if (Boolean.class.equals(declaredField.getType())) {
+                    addColumnSQL.append("tinyint(2)");
+                } else if (Long.class.equals(declaredField.getType())) {
+                    addColumnSQL.append("bigint");
+                } else {
+                    addColumnSQL.append("varchar(255)");
+                    addColumnSQL.append(" CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL");
+                }
+
+
+                ApiModelProperty apiModelProperty = declaredField.getAnnotation(ApiModelProperty.class);
+                if(apiModelProperty != null){
+                    addColumnSQL.append(String.format(" COMMENT '%s'",apiModelProperty.value()));
+                }
+                addColumnSQL.append(";");
+                columns.add(addColumnSQL.toString());
+            }
+        }
+
+        return columns;
+    }
+}
+
+
+```
+
+​		通用简单分页（不需要返回原page一堆字段封装）
+
+```java
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.List;
+
+/**
+ * @author HuangKang
+ * @date 2023/1/10 2:33 PM
+ * @describe 简单分页
+ */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+public class SimplePage<T> {
+
+    @ApiModelProperty(value = "总页码")
+    private Long pages;
+
+    @ApiModelProperty(value = "当前页码")
+    private Long current;
+
+
+    @ApiModelProperty(value = "页码条数")
+    private Long size;
+
+    @ApiModelProperty(value = "总条数")
+    private Long total;
+
+    @ApiModelProperty(value = "列表数据")
+    private List<T> list;
+
+    /**
+     * 获取简单分页
+     * @param pageData 原Page数据
+     * @return 简单分页数据
+     */
+    public static <T> SimplePage<T> genSimplePage(Page<T> pageData) {
+        return new SimplePage(
+                pageData.getPages(),
+                pageData.getCurrent(),
+                pageData.getSize(),
+                pageData.getTotal(),
+                pageData.getRecords());
+    }
+
+}
+
+```
+
+​		分页使用
+
+```java
+        private static Map<String,String> COLUMN_MAP = MybatisPlusUtil.getEntitySQLColumnMap(CaseInfo.class);
+
+        private static Map<String,String> COLUMN_LIST = MybatisPlusUtil.getEntitySQLColumnMap(CaseInfo.class);
+
+
+
+      {
+        	// dto为继承了BaseMPPage的DTO实体
+          Page<CaseInfo> page = dto.genPage(CaseInfo.class,COLUMN_MAP);
+        	// CaseInfo 为实体
+          LambdaQueryWrapper<CaseInfo> queryWrapper = new LambdaQueryWrapper<>();
+
+          Page<CaseInfo> pageData = baseMapper.selectPage(page, queryWrapper);
+        	return SimplePage.genSimplePage(pageData);
+      }
+
+        
 ```
 
 

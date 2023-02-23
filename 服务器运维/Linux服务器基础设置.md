@@ -316,6 +316,8 @@ mount | grep /dev/xvdc
 
 ```
 UUID=d04f7568-91f4-496a-996e-e67cbb337300 /data                       ext4     defaults        0 0
+
+echo "UUID=d04f7568-91f4-496a-996e-e67cbb337300 /data                       ext4     defaults        0 0" >> /etc/fstab
 ```
 
 

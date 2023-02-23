@@ -632,3 +632,22 @@ public class Swagger2Config {
 }
 ```
 
+# 异常
+
+## documentationPluginsBootstrapper
+
+​		发生异常如下：
+
+```
+org.springframework.context.ApplicationContextException: Failed to start bean 'documentationPluginsBootstrapper'; nested exception is java.lang.NullPointerException
+```
+
+​		yaml配置如下即可解决
+
+```yaml
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+```
+

@@ -1244,6 +1244,19 @@ struct __attribute__ ((__packed__)) sdshdr64 {
 };
 ```
 
+## Redis分析工具
+
+​		参考博客
+
+```
+https://blog.csdn.net/weixin_48380416/article/details/123995573
+
+
+rdb -c memory /mnt/data/redis/dump.rdb >  /mnt/data/redis/memory.csv   
+```
+
+
+
 ## RedisObject
 
 ​		我们知道了字典的值实际上是一个虚类型

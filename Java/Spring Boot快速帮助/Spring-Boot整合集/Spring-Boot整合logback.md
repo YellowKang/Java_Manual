@@ -43,7 +43,7 @@ SpringBoot默认就是使用的logback，我们直接添加配置文件即可，
     <!--控制台日志打印格式-->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <filter class="ch.qos.logback.classic.filter.LevelFilter">
-            <level>INFO</level> 
+            <level>INFO</level>
         </filter>
         <encoder>
             <pattern>${log.pattern}</pattern>
@@ -67,7 +67,7 @@ SpringBoot默认就是使用的logback，我们直接添加配置文件即可，
         <!--滚动策略，按照时间滚动 TimeBasedRollingPolicy-->
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!--文件路径,定义了日志的切分方式——把每一天的日志归档到一个文件中,以防止日志填满整个磁盘空间-->
-            <FileNamePattern>${info.path}/info_%d{yyyy-MM-dd}.part_%i.log</FileNamePattern>
+            <FileNamePattern>${info.path}/%d{yyyy-MM-dd}/info.%d{yyyy-MM-dd HH}.%i.log</FileNamePattern>
             <!--只保留最近10天的日志-->
             <maxHistory>${info.history}</maxHistory>
             <!--用来指定日志文件的上限大小，那么到了这个值，就会删除旧的日志-->
@@ -96,7 +96,7 @@ SpringBoot默认就是使用的logback，我们直接添加配置文件即可，
         <!--滚动策略，按照时间滚动 TimeBasedRollingPolicy-->
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!--文件路径,定义了日志的切分方式——把每一天的日志归档到一个文件中,以防止日志填满整个磁盘空间-->
-            <FileNamePattern>${error.path}/error_%d{yyyy-MM-dd}.part_%i.log</FileNamePattern>
+            <FileNamePattern>${error.path}/%d{yyyy-MM-dd}/error.%d{yyyy-MM-dd}.%i.log</FileNamePattern>
             <!--只保留最近90天的日志-->
             <maxHistory>${error.history}</maxHistory>
             <!--用来指定日志文件的上限大小，那么到了这个值，就会删除旧的日志-->
@@ -112,46 +112,16 @@ SpringBoot默认就是使用的logback，我们直接添加配置文件即可，
         </encoder>
     </appender>
 
-    <!--Gray Log配置-->
-    <!--<appender name="GELF" class="de.siegmar.logbackgelf.GelfUdpAppender">-->
-        <!--<graylogHost>114.67.80.169</graylogHost>-->
-        <!--<graylogPort>12201</graylogPort>-->
-        <!--<maxChunkSize>508</maxChunkSize>-->
-        <!--<useCompression>true</useCompression>-->
-        <!--<encoder class="de.siegmar.logbackgelf.GelfEncoder">-->
-            <!--<originHost>localhost</originHost>-->
-            <!--<includeRawMessage>false</includeRawMessage>-->
-            <!--<includeMarker>true</includeMarker>-->
-            <!--<includeMdcData>true</includeMdcData>-->
-            <!--<includeCallerData>false</includeCallerData>-->
-            <!--<includeRootCauseData>false</includeRootCauseData>-->
-            <!--<includeLevelName>false</includeLevelName>-->
-            <!--<shortPatternLayout class="ch.qos.logback.classic.PatternLayout">-->
-                <!--<pattern>%date [%thread] %-5level [%logger{50}] %file:%line - %msg%n</pattern>-->
-            <!--</shortPatternLayout>-->
-            <!--<fullPatternLayout class="ch.qos.logback.classic.PatternLayout">-->
-                <!--<pattern>%date [%thread] %-5level [%logger{50}] %file:%line - %msg%n</pattern>-->
-            <!--</fullPatternLayout>-->
-            <!--<numbersAsString>false</numbersAsString>-->
-            <!--<staticField>app_name:backend</staticField>-->
-            <!--<staticField>os_arch:${os.arch}</staticField>-->
-            <!--<staticField>os_name:${os.name}</staticField>-->
-            <!--<staticField>os_version:${os.version}</staticField>-->
-        <!--</encoder>-->
-    <!--</appender>-->
 
     <root level="info">
-        // 控制台输出
+        <!--控制台输出-->
         <appender-ref ref="CONSOLE" />
 
-        // INFO日志输出
+        <!--INFO日志输出-->
         <appender-ref ref="FILE_INFO" />
 
-        // ERROR日志输出
+        <!--ERROR日志输出-->
         <appender-ref ref="FILE_ERROR" />
-
-        <!--// GRAY LOG输出-->
-        <!--<appender-ref ref="GELF" />-->
     </root>
 
 </configuration>
@@ -164,22 +134,22 @@ SpringBoot默认就是使用的logback，我们直接添加配置文件即可，
 yaml版本
 
 ```properties
-#日志配置路径
+# 日志配置
 log:
   info:
-    path: logs/info #INFO日志路径
-    history: 20 #保留INFO日志天数
-    maxsize: 10GB #INFO日志文件最大大小
-    filesize: 10MB #活动文件大小
-    pattern: '%date [%thread] %-5level [%logger{50}] %file:%line - %msg%n' #INFO日志输出格式
+    path: logs/info # INFO日志路径
+    history: 20 # 保留INFO日志天数
+    maxsize: 10GB # INFO日志文件最大大小
+    filesize: 70MB # 活动文件大小
+    pattern: '%date [%thread] [%X{traceId}] %-5level [%logger{50}] %file:%line - %msg%n' # INFO??????
   error:
-    path: logs/error #ERROR日志路径
-    history: 20 #保留ERROR日志天数
-    maxsize: 10GB #ERROR日志文件最大大小
-    filesize: 10MB #活动文件大小
-    pattern: '%date [%thread] %-5level [%logger{50}] %file:%line - %msg%n' #ERROR日志输出格式
-  pattern: '${CONSOLE_LOG_PATTERN:-%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}' #控制台打印日志格式
-  charset: UTF-8 #编码格式
+    path: logs/error # ERROR日志路径
+    history: 20 # 保留ERROR日志天数
+    maxsize: 10GB # ERROR日志文件最大大小
+    filesize: 70MB # 活动文件大小
+    pattern: '%date [%thread]  [%X{traceId}] %-5level [%logger{50}] %file:%line - %msg%n' # ERROR??????
+  pattern: '${CONSOLE_LOG_PATTERN:%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} [%X{traceId}] %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:%wEx}}'# 控制台打印日志格式
+  charset: UTF-8 # 编码格式
 ```
 
 properties版本

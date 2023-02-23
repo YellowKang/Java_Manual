@@ -447,7 +447,9 @@ public class CustomWebMvcConfig  implements WebMvcConfigurer {
 2021-04-23 16:21:13,929 INFO  [3d9e051ceafe4e59bce8aa6ac2972fda] [http-nio-8080-exec-1] [c.k.t.k.c.TestK8sController:37] 测试日志
 ```
 
+​		丢失则参考如下
 
+​		https://mp.weixin.qq.com/s/cLuKjbQsfCYk92SPUm0gaw
 
 # SpringBoot+Logback
 

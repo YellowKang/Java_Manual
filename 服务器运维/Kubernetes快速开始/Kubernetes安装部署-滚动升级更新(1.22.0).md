@@ -1966,6 +1966,104 @@ EOF
 
 ```
 
+#### ingress模板
+
+​		不带证书http
+
+```sh
+# 部署路径，域名，命名空间，service名称，service端口
+export dpPath="/root/k8s/tls"
+export domainName="tomcat.bigkang.club"
+export dpNameSpace="default"
+export ingressService="tomcat"
+export ingressServicePort="8080"
+
+# 创建目录
+mkdir -p $dpPath && cd $dpPath
+
+# 创建Ingress的yaml文件
+cat > $domainName-ingress.yaml << EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: $domainName-ingress
+  namespace: $dpNameSpace
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+       access_log /var/log/nginx/$domainName.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/$domainName.error.log;
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: $domainName
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: $ingressService
+              port:
+                number: $ingressServicePort
+EOF
+```
+
+​		带证书https
+
+```sh
+# 部署路径，域名，命名空间，service名称，service端口
+export dpPath="/root/k8s/tls"
+export domainName="tomcat.bigkang.club"
+export dpNameSpace="default"
+export ingressService="tomcat"
+export ingressServicePort="8080"
+
+# 创建目录
+mkdir -p $dpPath && cd $dpPath
+
+# 创建Ingress的yaml文件
+cat > $domainName-ingress.yaml << EOF
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: $domainName-ingress
+  namespace: $dpNameSpace
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/secure-backends: "true"
+    nginx.ingress.kubernetes.io/enable-access-log: "true"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+       access_log /var/log/nginx/$domainName.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/$domainName.error.log;
+spec:
+  tls:
+    - hosts:
+      - $domainName
+      secretName: $domainName-tls-secret
+  ingressClassName: nginx
+  rules:
+    - host: $domainName
+      http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: $ingressService
+              port:
+                number: $ingressServicePort
+EOF
+```
+
+
+
+
+
 ## 部署Nacos
 
 ### 单机版本

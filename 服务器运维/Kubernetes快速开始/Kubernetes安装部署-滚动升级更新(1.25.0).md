@@ -45,8 +45,7 @@ swapoff -a && sed -i 's/.*swap.*/#&/' /etc/fstab
 ```sh
 echo "192.168.100.11 server01
 192.168.100.12 server02
-192.168.100.13 server03
-199.232.4.133 raw.githubusercontent.com" >> /etc/hosts
+192.168.100.13 server03" >> /etc/hosts
 ```
 
 ​		配置免密
@@ -80,8 +79,14 @@ ssh server02
 ​		将桥接的IPv4流量传递到iptables的链,以及内核优化(所有节点)
 
 ```sh
-cat > /etc/sysctl.d/k8s.conf << EOF
+cat <<EOF | sudo tee /etc/modules-load.d/k8s.conf
+overlay
 br_netfilter
+EOF
+
+sudo modprobe overlay
+sudo modprobe br_netfilter
+cat > /etc/sysctl.d/k8s.conf << EOF
 net.bridge.bridge-nf-call-iptables=1
 net.bridge.bridge-nf-call-ip6tables=1
 net.ipv4.ip_forward=1
@@ -96,8 +101,7 @@ fs.nr_open=52706963
 net.ipv6.conf.all.disable_ipv6=1
 net.netfilter.nf_conntrack_max=2310720
 EOF
-sysctl -p /etc/sysctl.d/k8s.conf
-rm -rf /etc/sysctl.d/k8s.conf
+sudo sysctl --system
 ```
 
 # 容器运行时（选择一种即可）
@@ -209,10 +213,12 @@ systemctl daemon-reload && systemctl start docker && systemctl restart docker  &
 wget https://github.com/Mirantis/cri-dockerd/releases/download/v0.2.6/cri-dockerd-0.2.6-3.el7.x86_64.rpm
 rpm -ivh cri-dockerd-0.2.6-3.el7.x86_64.rpm
 systemctl enable cri-docker
-
-
 # 修改service
 sed -i "s#ExecStart=/usr/bin/cri-dockerd --container-runtime-endpoint fd://#ExecStart=/usr/bin/cri-dockerd --network-plugin=cni --pod-infra-container-image=registry.aliyuncs.com/google_containers/pause:3.8 --container-runtime-endpoint fd://#g"  /usr/lib/systemd/system/cri-docker.service
+
+# 启动
+systemctl daemon-reload
+systemctl restart cri-docker
 ```
 
 
@@ -245,7 +251,7 @@ cat /etc/redhat-release
 # CentOs7 k8s yum加速
 sudo curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo
 
-export kubeletVersion="1.25.0"
+export kubeletVersion="1.25.4"
 yum install -y kubelet-$kubeletVersion kubeadm-$kubeletVersion kubectl-$kubeletVersion
 ```
 
@@ -283,8 +289,7 @@ kubeadm init --kubernetes-version=v1.25.4 \
 --pod-network-cidr=192.169.0.0/16 \
 --service-cidr=192.170.0.0/16 \
 --apiserver-advertise-address=192.168.100.11 \
---cri-socket=unix:///var/run/cri-dockerd.sock \
---ignore-preflight-errors=Swap
+--cri-socket=unix:///var/run/cri-dockerd.sock
 ```
 
 ​		然后会看到一堆日志，最后会看到如下日志
@@ -312,7 +317,9 @@ sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 ```sh
 kubeadm join 192.168.1.12:6443 --token zlnr9w.dqfek2soaf2rdvuk \
-    --discovery-token-ca-cert-hash sha256:b3fa2aad9cc73989117bb2215647f7c65b91540a21a380b6e5ab1fb4963f318b
+    --discovery-token-ca-cert-hash --cri-socket unix:///var/run/cri-dockerd.sock
+    
+ sha256:b3fa2aad9cc73989117bb2215647f7c65b91540a21a380b6e5ab1fb4963f318b
 ```
 
 ​		完成之后会出现如下日志
@@ -395,14 +402,15 @@ kubectl get pods -n kube-system | grep kube-flannel
 export calicoPath="/root/calico"
 mkdir -p $calicoPath && cd $calicoPath
 # 最新版本
-wget https://docs.projectcalico.org/manifests/calico.yaml -O calico.yaml
+wget https://docs.projectcalico.org/manifests/calico.yaml -O calico.yaml --no-check-certificate
 
 # 查看Node 此时应该都为 NotReady
 kubectl get nodes
-# qingyun01   NotReady   control-plane,master   10m     v1.22.0
-# qingyun02   NotReady   <none>                 4m57s   v1.22.0
-# qingyun03   NotReady   <none>                 4m      v1.22.0
-# 如果使用 192.168.0.0/16 作为Pod网络范围
+# NAME       STATUS     ROLES           AGE     VERSION
+# server01   NotReady   control-plane   2m27s   v1.25.4
+# server02   NotReady   <none>          85s     v1.25.4
+# server03   NotReady   <none>          25s     v1.25.4
+
 
 # 使用calico.yaml
 kubectl apply -f calico.yaml
@@ -469,6 +477,37 @@ kubectl apply -f calico.yaml
 
 ​			对于那些寻求功能丰富的网络、同时希望不要增加大量复杂性或管理难度的人来说，Weave是一个很好的选择。它设置起来相对容易，提供了许多内置和自动配置的功能，并且可以在其他解决方案可能出现故障的场景下提供智能路由。网状拓扑结构确实会限制可以合理容纳的网络的大小，不过对于大多数用户来说，这也不是一个大问题。此外，Weave也提供收费的技术支持，可以为企业用户提供故障排除等等技术服务。
 
+## k8s设置以及修改
+
+​		将端口号限制修改
+
+```sh
+# 如果想使用80 以及 443,那我们需要修改默认NodePort端口范围（不太推荐，不想使用443 以及 80可以略过）
+kubectl get pod -A | grep apiserver
+
+# 返回如下
+kube-system            kube-apiserver-server01                    1/1     Running   3 (77m ago)   5h34m
+
+# 我们导出apiserver
+# 指定Yaml下载目录
+export customApiServerPath="/root/apiServer"
+mkdir -p $customApiServerPath
+kubectl get pod kube-apiserver-server01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
+
+# 查看是否指定端口，如果有则修改没有则新增
+cat $customApiServerPath/apiserver.yaml | grep service-node-port-rang
+# 添加端口号范围
+sed -i '/kubernetes.default.svc.cluster.local/a\    - --service-node-port-range=80-65535' /etc/kubernetes/manifests/kube-apiserver.yaml
+
+
+# 修改完成后自动更新，不需要操作(稍等api-server重启)，重新导出一份yaml
+kubectl get pod kube-apiserver-server01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
+# 再次检查是否设置成功
+cat $customApiServerPath/apiserver.yaml | grep service-node-port-rang
+```
+
+
+
 ## 安装监控工具
 
 ​		官方地址：[点击进入](https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/)
@@ -487,7 +526,7 @@ kubectl apply -f calico.yaml
 # 指定下载目录
 export k8sDashboardPath="/root/k8s-dashboard"
 mkdir -p $k8sDashboardPath && cd $k8sDashboardPath
-# 下载部署文件
+# 下载部署文件（网络问题可能下载失败，重试几次即可）
 wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml -O deploy.yaml
 
 # 添加宿主机端口号30000
@@ -570,21 +609,9 @@ subjects:
 EOF
 ```
 
-​		参考：https://github.com/kubernetes/dashboard/blob/v2.7.0/docs/user/access-control/creating-sample-user.md
-
-​		
+​		参考：https://github.com/kubernetes/dashboard/blob/v2.7.0/docs/user/access-control/creating-sample-user.md		
 
 ​		现在，我们需要找到可用于登录的令牌。执行以下命令：
-
-```sh
-# 对于Bash：
-	
-	kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}')
-
-# 对于Powershell：
-		
-	kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | sls admin-user | ForEach-Object { $_ -Split '\s+' } | Select -First 1)
-```
 
 ​		我们使用Bash
 
@@ -595,25 +622,18 @@ kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboar
 
 ​		返回如下日志：
 
-```
-Data
-====
-ca.crt:     1025 bytes
-namespace:  20 bytes
-token:      eyJhbGciOiJSUzI1NiIsImtpZCI6IkU0d05VUWx1Vm5oU3ZtTHQ2ZENHZGtIa1FnRmhTZ244aVN1UU1lVl9kNEkifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlcm5ldGVzLWRhc2hib2FyZCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJhZG1pbi11c2VyLXRva2VuLTQ2ODhwIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQubmFtZSI6ImFkbWluLXVzZXIiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC51aWQiOiI5M2QzMWVlZi00ZGJiLTQyM2EtYTI4ZS1jODVhYTUxMzE0YjkiLCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZXJuZXRlcy1kYXNoYm9hcmQ6YWRtaW4tdXNlciJ9.sFa68JLEirDHEkn9N6bKEZuAVMci1qJlnyHbjYd3wdz94zPtnJzaY6QUkyRKt9hQQYZoxKrRaH5Bzt7WE-X2GxeuHzbWWE1lO5DAsoIhDD9wSKpF-3z386JY5iUEWpe2oHDtetM34okmMxRcfe3HKwzGTr2YZ3S-fuwUOTlww64tdFgCcdeyDDa1Bg0TxwCGDbzZMoU_4cWlMX-nENyWHvpzJwyWi13HaJ1spEDbYR8rorBu-i6KIhyHVT4OYXIy93qoAbs7g9zHwMTdvneRW9mpCCfvU00FuKVdCP9kfj7xDbLg7tdVLmL1rqVJ2DbvDmtHE037-hnbGkzrasZuQg
-
-```
-
-```sh
-# 将token写入文件,查询最后一行
-kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') | grep token | tail -n 1 | awk '{print $2}'  > /root/k8s/k8s-dashboard-token
-```
-
 ​		已经更新使用
 
 ```sh
-# 创建Token
+# 创建脚本
+cat > ~/getK8sToken.sh << EOF
+#!/bin/bash
 kubectl -n kubernetes-dashboard create token admin-user
+EOF
+# 创建权限
+chmod 777 ~/getK8sToken.sh
+# 获取TOken
+sh ~/getK8sToken.sh
 ```
 
 ​		复制token进入https://192.168.100.11:30000/ 输入Token登陆成功
@@ -674,6 +694,11 @@ wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.5.
 sed -i "s#registry.k8s.io/ingress-nginx/controller#registry.aliyuncs.com/google_containers/nginx-ingress-controller#g" deploy.yaml
 sed -i "s#registry.k8s.io/ingress-nginx/kube-webhook-certgen#registry.aliyuncs.com/google_containers/kube-webhook-certgen#g" deploy.yaml
 
+
+# 添加tcp以及udp代理
+sed -i '/--validating-webhook=:8443/a\        - --tcp-services-configmap=$(POD_NAMESPACE)/tcp-services' deploy.yaml
+sed -i '/--validating-webhook=:8443/a\        - --udp-services-configmap=$(POD_NAMESPACE)/udp-services' deploy.yaml
+
 # 启动部署
 kubectl apply -f deploy.yaml
 
@@ -730,26 +755,7 @@ spec:
 ​		修改端口（可以不修改）
 
 ```sh
-# 如果想使用80 以及 443,那我们需要修改默认NodePort端口范围（不太推荐，不想使用443 以及 80可以略过）
-kubectl get pod -A | grep apiserver
 
-# 返回如下
-kube-system            kube-apiserver-server01                    1/1     Running   3 (77m ago)   5h34m
-
-# 我们导出apiserver
-# 指定Yaml下载目录
-export customApiServerPath="/root/apiServer"
-mkdir -p $customApiServerPath
-kubectl get pod kube-apiserver-server01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
-
-# 查看是否指定端口，如果有则修改没有则新增
-cat $customApiServerPath/apiserver.yaml | grep service-node-port-rang
-# 添加端口号范围
-sed -i '/kubernetes.default.svc.cluster.local/a\    - --service-node-port-range=80-65535' /etc/kubernetes/manifests/kube-apiserver.yaml
-# 修改完成后自动更新，不需要操作，重新导出一份yaml
-kubectl get pod kube-apiserver-server01 -n kube-system -o yaml > $customApiServerPath/apiserver.yaml
-# 再次检查是否设置成功
-cat $customApiServerPath/apiserver.yaml | grep service-node-port-rang
 # 然后我们定义Ingress的宿主机端口,全局搜 ingress-nginx/templates/controller-service.yaml
 vim deploy.yaml
 -------------
@@ -953,7 +959,7 @@ kubectl apply -f $domainName-secret.yaml
 # 修改hosts 访问域名
 echo "192.168.100.11 $domainName"
 
-# 创建Ingress的yaml文件
+# 创建Ingress的yaml文件,如果不想用证书则直接干掉tls节点，直接使用http
 cat > $domainName-ingress.yaml << EOF
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -966,8 +972,8 @@ metadata:
     nginx.ingress.kubernetes.io/secure-backends: "true"
     nginx.ingress.kubernetes.io/enable-access-log: "true"
     nginx.ingress.kubernetes.io/configuration-snippet: |
-       access_log /var/log/nginx/test.example.com.access.log upstreaminfo if=$loggable;
-       error_log  /var/log/nginx/test.example.com.error.log;
+       access_log /var/log/nginx/$domainName.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/$domainName.error.log;
 spec:
   tls:
     - hosts:
@@ -1257,57 +1263,85 @@ kubectl apply -f deploy/nacos/nacos-pvc-nfs.yaml
 
 ​		mysql持久化pvc
 
+​		创建部署目录
+
 ```sh
-cat >  nacos-mysql-pvc.yaml  <<EOF
+# 创建部署目录
+mkdir ~/deploy/nacos && cd ~/deploy/nacos
+
+# 定义参数, nfs地址、fns路径、pv大小，pvc大小，部署命名空间
+export nfsHost="192.168.100.11"
+export nfsPath="/data/nfs/nacos-mysql"
+export pvSize="20Gi"
+export pvcSize="10Gi"
+export pvcNameSpace="default"
+export pvName="nacos-mysql"
+
+
+cat > $pvName-storage.yaml  <<EOF
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: nacos-mysql-pv
+  name: $pvName-pv
+  labels:
+    name: $pvName
 spec:
   capacity:
-    storage: 20Gi
+    storage: $pvSize
   accessModes:
     - ReadWriteMany
   storageClassName: nfs
   nfs:
-    server: 192.168.100.11
-    path: /data/nfs/nacos-mysql
+    server: $nfsHost
+    path: $nfsPath
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: nacos-mysql-pvc
+  name: $pvName-pvc
+  namespace: $pvcNameSpace
+  labels:
+    name: $pvName
 spec:
   accessModes:
     - ReadWriteMany
   resources:
     requests:
-      storage: 10Gi
+      storage: $pvcSize
   storageClassName: nfs
 EOF
-kubectl apply -f nacos-mysql-pvc.yaml 
-```
 
-​		mysql部署
+kubectl apply -f $pvName-storage.yaml
 
-```sh
-cat >  nacos-mysql.yaml  <<EOF
+# 查看pv pvc是否正常
+kubectl get pv | grep $pvName
+kubectl get pvc -n $pvcNameSpace | grep $pvName
+
+
+# 部署mysql
+export mysqlName="nacos-mysql"
+export rootPass="bigkang"
+export mysqlVersion="8.0.16"
+
+# 创建部署脚本
+cat > $mysqlName-server.yaml  <<EOF
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: nacos-mysql
+  name: $mysqlName
+  namespace: $pvcNameSpace
   labels:
-    name: nacos-mysql
+    name: $mysqlName
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        name: nacos-mysql
+        name: $mysqlName
     spec:
       containers:
-      - name: nacos-mysql
-        image: nacos/nacos-mysql:8.0.16
+      - name: $mysqlName
+        image: nacos/nacos-mysql:$mysqlVersion
         ports:
         - containerPort: 3306
         volumeMounts:
@@ -1315,7 +1349,7 @@ spec:
           mountPath: /var/lib/mysql
         env:
         - name: MYSQL_ROOT_PASSWORD
-          value: "bigkang"
+          value: "$rootPass"
         - name: MYSQL_DATABASE
           value: "nacos_devtest"
         - name: MYSQL_USER
@@ -1325,42 +1359,49 @@ spec:
       volumes:
       - name: mysql-data
         persistentVolumeClaim:
-          claimName: nacos-mysql-pvc
+          claimName: $pvName-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: nacos-mysql
+  name: $mysqlName
+  namespace: $pvcNameSpace
   labels:
-    name: nacos-mysql
+    name: $mysqlName
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
   - port: 3306
     protocol: TCP
-    nodePort: 63306
     targetPort: 3306
   selector:
-    name: nacos-mysql
+    name: $mysqlName
 EOF
 
+kubectl apply -f $mysqlName-server.yaml 
 
-kubectl apply -f nacos-mysql.yaml
+# 查看mysql是否正常
+kubectl get pod | grep $mysqlName
+kubectl get svc -n $pvcNameSpace | grep $mysqlName
 ```
 
 ​		部署Nacos
 
 ```sh
 # 定义参数
-export mysqlHost="nacos-mysql"
-export clusterIp="nacos-0.nacos-headless.default.svc.cluster.local:8848 nacos-1.nacos-headless.default.svc.cluster.local:8848 nacos-2.nacos-headless.default.svc.cluster.local:8848"
+export mysqlNamespace="$pvcNameSpace"
+export mysqlHost="$mysqlName.$mysqlNamespace"
+export dpNamespace="nacos"
 
-cat >  nacos-deploy.yaml  <<EOF
+export clusterIp="nacos-0.nacos-headless.$dpNamespace.svc.cluster.local:8848 nacos-1.nacos-headless.$dpNamespace.svc.cluster.local:8848 nacos-2.nacos-headless.$dpNamespace.svc.cluster.local:8848"
+
+cat > nacos-deploy.yaml  <<EOF
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: nacos-headless
+  namespace: $dpNamespace
   labels:
     app: nacos
   annotations:
@@ -1388,6 +1429,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nacos-cm
+  namespace: $dpNamespace
 data:
   mysql.service.host: "${mysqlHost}"
   mysql.db.name: "nacos_devtest"
@@ -1399,6 +1441,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nacos
+  namespace: $dpNamespace
 spec:
   serviceName: nacos-headless
   replicas: 3
@@ -1628,9 +1671,9 @@ kubectl apply -f nacos-pvc.yaml
 ```sh
 # 定义域名,域名证书地址，证书命名空间，以及Ingress服务
 # 生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
-export domainName="nacos.bigkang.club"
+export domainName="nacos.bigkang.vip"
 export domainPath="/root/k8s/tls"
-export tlsNameSpace="default"
+export tlsNameSpace="nacos"
 export ingressService="nacos-headless"
 export ingressServicePort="8848"
 
@@ -1681,8 +1724,8 @@ metadata:
     nginx.ingress.kubernetes.io/secure-backends: "true"
     nginx.ingress.kubernetes.io/enable-access-log: "true"
     nginx.ingress.kubernetes.io/configuration-snippet: |
-       access_log /var/log/nginx/test.example.com.access.log upstreaminfo if=$loggable;
-       error_log  /var/log/nginx/test.example.com.error.log;
+       access_log /var/log/nginx/$domainName.access.log upstreaminfo if=$loggable;
+       error_log  /var/log/nginx/$domainName.error.log;
 spec:
   tls:
     - hosts:
@@ -1865,91 +1908,39 @@ spec:
 EOF
 ```
 
-​		使用Ingress
+### ingress-mysql
+
+​			需要完成ingress搭建，并且配置tcp和udp代理才可以代理
 
 ```sh
-# 定义域名,域名证书地址，证书命名空间，以及Ingress服务
-# 生成证书 -subj 【ST（城市）L（地区）O（组织名）OU（组织单位）CN（域名）】
-export domainName="mysql.bigkang.club"
-export domainPath="/root/k8s/tls"
-export tlsNameSpace="default"
-export ingressService="mysql-svc"
-export ingressServicePort="3306"
+# 查看是否有tcp代理
+# 导出文件
+kubectl  get cm -n ingress-nginx tcp-services -o yaml > ingress-tcp-services.yaml
 
-# 前置准备删除原来的证书以及Ingress
-kubectl delete secret $domainName-tls-secret 
-kubectl delete ingress $domainName-ingress
-kubectl delete secret $domainName-tls-secret --namespace=$tlsNameSpace
-kubectl delete ingress $domainName-ingress --namespace=$tlsNameSpace
-
-# 创建目录
-mkdir -p $domainPath/$domainName && cd $domainPath/$domainName
-
-
-# 初始化证书
-# 生成私钥(KEY)
-openssl genrsa -out $domainName.key 4096
-openssl req -x509 -new -nodes -key $domainName.key -subj "/CN=$domainName" -days 36500 -out $domainName.crt
-openssl req -new -sha256 \
-    -key $domainName.key \
-    -subj "/C=CN/ST=Beijing/L=Beijing/O=UnitedStack/OU=Devops/CN=$domainName" \
-    -reqexts SAN \
-    -config <(cat /etc/pki/tls/openssl.cnf \
-        <(printf "[SAN]\nsubjectAltName=DNS:$domainName")) \
-    -out $domainName.csr
-openssl req -text -in $domainName.csr
-openssl x509 -req -days 365000 \
-    -in $domainName.csr -CA $domainName.crt -CAkey $domainName.key -CAcreateserial \
-    -extfile <(printf "subjectAltName=DNS:$domainName") \
-    -out $domainName.pem
-    
-# 创建tls证书
-kubectl create secret tls $domainName-tls-secret --namespace=$tlsNameSpace --cert=$domainName.pem --key=$domainName.key --dry-run=client -o yaml > $domainName-secret.yaml
-kubectl apply -f $domainName-secret.yaml
-
-# 修改hosts 访问域名
-echo "192.168.100.11 $domainName"
-
-# 创建Ingress的yaml文件
-cat > $domainName-ingress.yaml << EOF
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+# 如果没有则新建，如果有进行修改
+# 规则 	代理端口号: "命名空间/服务名:端口"
+cat >  ingress-tcp-services.yaml  <<EOF
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: $domainName-ingress
-  namespace: $tlsNameSpace
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/secure-backends: "true"
-    nginx.ingress.kubernetes.io/enable-access-log: "true"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-       access_log /var/log/nginx/test.example.com.access.log upstreaminfo if=$loggable;
-       error_log  /var/log/nginx/test.example.com.error.log;
-spec:
-  tls:
-    - hosts:
-      - $domainName
-      secretName: $domainName-tls-secret
-  ingressClassName: nginx
-  rules:
-    - host: $domainName
-      http:
-        paths:
-        - path: /
-          pathType: Prefix
-          backend:
-            service:
-              name: $ingressService
-              port:
-                number: $ingressServicePort
+  name: tcp-services
+  namespace: ingress-nginx
+data:
+  33306: "default/nacos-mysql:3306"
 EOF
 
-# 启动Ingress
-kubectl apply -f $domainName-ingress.yaml
+# 执行
+kubectl apply -f ingress-tcp-services.yaml
+
+# 然后修改ingress，nodePort新增33306,使用31306代理到33306的mysql上
 
 
-# 访问如下
-echo "https://$domainName/nacos/"
+  - name: tcp-33306
+    port: 31306
+    protocol: TCP
+    targetPort: 33306
+    nodePort: 31306
+
 ```
 
 
@@ -3271,6 +3262,7 @@ systemctl enable nfs-server.service
 vim /etc/exports
 # 写入如下
 # /data/nfs/nacos *(insecure,rw,sync,no_root_squash) (不限制网段)
+# echo "/data/nfs 192.168.100.0/24(insecure,rw,sync,no_root_squash)" >> /etc/exports
 /data/nfs/nacos 192.168.100.0/24(insecure,rw,sync,no_root_squash)
 
 # 参数详解
@@ -3398,10 +3390,11 @@ kubectl cluster-info
 ​		删除旧文件
 
 ```sh
-kubeadm reset -f
+kubeadm reset -f --cri-socket=unix:///var/run/cri-dockerd.sock
 rm -rf /etc/kubernetes/manifests
 systemctl stop kubelet 
 rm -rf /var/lib/etcd/*
+rm -rf /etc/cni/net.d
 ```
 
 ​		重新初始化
