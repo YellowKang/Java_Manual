@@ -493,6 +493,66 @@ public enum ResultEnum {
 }
 ```
 
+# 参数校验
+
+​		引入依赖
+
+```xml
+    		<dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+```
+
+​		DTO参数校验
+
+```java
+    @ApiModelProperty("统筹支付金额")
+    @NotNull(message = "统筹支付金额不能为空")
+    @Min(value = 0,message = "统筹支付金额不能低于0")
+    private Double overallAmount;
+
+    @ApiModelProperty("治疗扣除比例")
+    @Min(value = 0,message = "治疗扣除比例不能低于0")
+    @Max(value = 100,message = "治疗扣除比例不能高于100")
+    @NotNull(message = "治疗扣除比例不能为空")
+    private Integer payRatio;
+```
+
+​		Controller添加校验
+
+```java
+    @ApiOperation(value = "理算材料文件")
+    @PostMapping(value = "/adjustMedicalFile")
+    public ResponseData<AdjustMedicalFileVo> adjustMedicalFile(@RequestBody @Valid MedicalFileListDto medicalFileListDto) {
+        AdjustMedicalFileVo adjustMedicalFileVo = caseMedicalFileService.adjustMedicalFile(medicalFileListDto);
+
+        return ResponseData.success(adjustMedicalFileVo);
+    }
+```
+
+​		记得整合下方全局异常处理
+
+```
+   /**
+     * 处理参数校验异常
+     * @param exception
+     * @return
+     */
+    @ExceptionHandler({MethodArgumentNotValidException.class,BindException.class})
+    @ResponseBody
+    public Result<String> handleValidException(Exception exception) {
+        StringBuilder msg = new StringBuilder();
+
+        BindingResult br =  ((BindException)exception).getBindingResult();
+
+        for (ObjectError err : br.getAllErrors()) {
+            msg.append(err.getDefaultMessage());
+        }
+        return Result.error(msg.toString());
+    }
+```
+
 
 
 # 参数解析器
@@ -749,5 +809,143 @@ echo deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial main restricted uni
 echo deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-updates main restricted universe multiverse>>/etc/apt/sources.list
 echo deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-backports main restricted universe multiverse>>/etc/apt/sources.list
 echo deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-security main restricted universe multiverse>>/etc/apt/sources.list
+```
+
+
+
+
+
+# Git Ignore文件
+
+```bash
+HELP.md
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
++# Created by .ignore support plugin (hsz.mobi)
+### Maven template
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+### JetBrains template
+# Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio and WebStorm
+# Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
+
+# User-specific stuff
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+
+# Sensitive or high-churn files
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+
+# Gradle
+.idea/**/gradle.xml
+.idea/**/libraries
+
+# Gradle and Maven with auto-import
+# When using Gradle or Maven with auto-import, you should exclude module files,
+# since they will be recreated, and may cause churn.  Uncomment if using
+# auto-import.
+# .idea/modules.xml
+# .idea/*.iml
+# .idea/modules
+
+# CMake
+cmake-build-*/
+
+# Mongo Explorer plugin
+.idea/**/mongoSettings.xml
+
+# File-based project format
+*.iws
+
+# IntelliJ
+out/
+
+# mpeltonen/sbt-idea plugin
+.idea_modules/
+
+# JIRA plugin
+atlassian-ide-plugin.xml
+
+# Cursive Clojure plugin
+.idea/replstate.xml
+
+# Crashlytics plugin (for Android Studio and IntelliJ)
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# Editor-based Rest Client
+.idea/httpRequests
+### Java template
+# Compiled class file
+*.class
+
+@ -20,5 +94,14 @@
+*.rar
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+.idea
+**/hs_err_pid*
+
+**/*.iml
+#**/src/test
+**/**/.mvn
+**/mvnw.cmd
+**/mvnw
+.idea
+
+/logs/*
+/**/target
+
 ```
 

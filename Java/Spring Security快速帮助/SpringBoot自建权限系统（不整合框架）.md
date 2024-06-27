@@ -1064,6 +1064,9 @@ CREATE TABLE `t_user_basics_info`  (
   `birthday` datetime NULL DEFAULT NULL COMMENT '生日',
   `signature` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '签名',
   `user_avatar` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '用户头像',
+  `deleted` tinyint(1) NOT NULL COMMENT '逻辑删除（0 正常、1 删除）',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT NULL COMMENT '修改时间',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '用户基础信息' ROW_FORMAT = Dynamic;
 ```
@@ -1078,7 +1081,9 @@ CREATE TABLE `t_user_oauth`  (
   `user_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '用户id',
   `oauth_type` tinyint(2) NOT NULL COMMENT '认证类型，如QQ、微信、微博、等第三方认证类型',
   `oauth_id` int(11) NOT NULL COMMENT '认证ID，如QQ号码、微信openid、微博账号、等第三方认证类型',
+  `deleted` tinyint(1) NOT NULL COMMENT '逻辑删除（0 正常、1 删除）',
   `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT NULL COMMENT '修改时间',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '用户三方认证' ROW_FORMAT = Dynamic;
 ```
@@ -1094,8 +1099,9 @@ CREATE TABLE `t_user_login_device`  (
   `os_name` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '系统名称',
   `os_version` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '系统版本',
   `device_model` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '设备型号',
+  `deleted` tinyint(1) NOT NULL COMMENT '逻辑删除（0 正常、1 删除）',
   `create_time` datetime NOT NULL COMMENT '创建时间',
-  `update_time` datetime NOT NULL COMMENT '修改时间',
+  `update_time` datetime NULL DEFAULT NULL COMMENT '修改时间',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '用户登录设备' ROW_FORMAT = Dynamic;
 ```
@@ -1113,6 +1119,9 @@ CREATE TABLE `t_user_login_log`  (
   `login_ip` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '登录IP',
   `client` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '客户端',
   `client_version` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '客户端版本',
+  `deleted` tinyint(1) NOT NULL COMMENT '逻辑删除（0 正常、1 删除）',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT NULL COMMENT '修改时间',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '用户登录日志' ROW_FORMAT = Dynamic;
 ```
@@ -1123,16 +1132,80 @@ CREATE TABLE `t_user_login_log`  (
 
 ​		角色表
 
+```sql
+
+
+CREATE TABLE `t_role`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '角色ID',
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '角色名称',
+  `enable` tinyint(1) NULL DEFAULT NULL COMMENT '是否启用',
+  `role_desc` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '角色描述',
+  `deleted` tinyint(1) NOT NULL COMMENT '逻辑删除（0 正常、1 删除）',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '角色表' ROW_FORMAT = Dynamic;
+
+
+CREATE TABLE `t_user_to_role`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `role_id` int(11) NOT NULL COMMENT '角色ID',
+  `user_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '用户ID',
+  `deleted` tinyint(1) NOT NULL COMMENT '逻辑删除（0 正常、1 删除）',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '用户角色关系' ROW_FORMAT = Dynamic;
 ```
 
-id（租户ID）
-name（租户名称）
-description（租户描述）
+### 权限表
+
+```sql
+
+CREATE TABLE `t_role_to_menu`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `role_id` int(11) NOT NULL COMMENT '角色ID',
+  `permissions_id` int(11) NOT NULL COMMENT '权限ID',
+  `deleted` tinyint(1) NOT NULL COMMENT '逻辑删除（0 正常、1 删除）',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '角色对应权限关系表' ROW_FORMAT = Dynamic;
 
 
+CREATE TABLE `t_menu`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '菜单主键',
+  `name` varchar(80) NOT NULL COMMENT '权限名称',
+  `parent_id` int(11) NULL DEFAULT NULL COMMENT '父权限ID',
+  `type` tinyint(2) NOT NULL COMMENT '类型（菜单、按钮等）',
+  `interface_path` varchar(120) COMMENT '接口路径（后端）',
+  `routing` varchar(60) COMMENT '路由',
+  `component` varchar(100) COMMENT '组件',
+  `status` tinyint(2) NOT NULL COMMENT '状态（正常、冻结）',
+  `icon` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '图标',
+  `sorted` int(11) NOT NULL DEFAULT 0 COMMENT '排序',
+  `deleted` tinyint(1) NOT NULL COMMENT '逻辑删除（0 正常、1 删除）',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '菜单权限' ROW_FORMAT = Dynamic;
 
+```
 
+### 部门表
 
+```sql
+CREATE TABLE `t_dept`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `name` varchar(60) COMMENT '部门名称',
+  `pid` int(11) COMMENT '父部门ID',
+  `enable` tinyint(1) DEFAULT 1 COMMENT '是否启用（0 停用、1 启用）',
+  `dept_desc` varchar(100) COMMENT '部门描述',
+  `deleted` tinyint(1) NOT NULL COMMENT '逻辑删除（0 正常、1 删除）',
+  `create_time` datetime NOT NULL COMMENT '创建时间',
+  `update_time` datetime NULL DEFAULT NULL COMMENT '修改时间',
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_bin COMMENT = '部门管理' ROW_FORMAT = Dynamic;
 ```
 
 

@@ -632,6 +632,16 @@ public class Swagger2Config {
 }
 ```
 
+# 文件下载
+
+​		controller配置
+
+```java
+    @ApiOperation(value = "下载质检案件", notes = "用户总数", produces = "application/octet-stream")
+```
+
+
+
 # 异常
 
 ## documentationPluginsBootstrapper

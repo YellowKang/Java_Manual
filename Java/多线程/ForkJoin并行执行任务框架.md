@@ -162,8 +162,9 @@ public class RequestJoin extends RecursiveTask<List<RequestMark>> {
             RequestJoin right = new RequestJoin(requestIds.subList(mid, requestIds.size()), threshold);
 
             // 执行left和right，并且join
-            left.fork();
-            List<RequestMark> rightResult = right.compute();
+            invokeAll(left,right);
+ 
+            List<RequestMark> rightResult = right.join();
             List<RequestMark> leftResult = left.join();
 
             // 合并结果集

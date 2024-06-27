@@ -374,3 +374,38 @@ public class TestOSSController {
 更多详细细节可以直接查看阿里云官网Api
 
 <https://help.aliyun.com/product/31815.html?spm=5176.7933691.1309819.6.5bf52a66JNwkh1> 
+
+# Url压缩
+
+​		调用示例使用x-oss-process进行压缩
+
+```java
+        LocalDateTime now = LocalDateTime.now();
+        now = now.plusHours(30L);
+        Map<String,String> map = new HashMap<>();
+        map.put("x-oss-process","image/format,jpg/quality,q_50");
+        String url = ossUtil.generateUrl(caseFileDto.getCaseNo(), now, map);
+```
+
+​		工具类修改请求方式
+
+```java
+   public String generateUrl(String filePath, LocalDateTime expireTime, Map<String, String> queryParam) {
+        OSS client = getClient();
+        try {
+            GeneratePresignedUrlRequest request = new GeneratePresignedUrlRequest(ossProperties.getBucket(), filePath);
+            request.setExpiration(Date.from(expireTime.atZone(ZoneId.systemDefault()).toInstant()));
+            request.setQueryParameter(queryParam);
+            //生成URL
+            URL url = client.generatePresignedUrl(request);
+            return url.toString();
+        } catch (Exception e) {
+            log.error("generateUrl oss object error!");
+            return null;
+        } finally {
+            // 关闭连接
+            client.shutdown();
+        }
+    }
+```
+

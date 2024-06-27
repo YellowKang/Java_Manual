@@ -76,6 +76,252 @@ nohup ./kafka-server-start.sh ../config/server.properties > my.log &
 ./kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning
 ```
 
+
+
+# 集群通用脚本版本
+
+```sh
+# 设置参数一键启动
+# 创建部署以及启动目录
+export deployPath="/root/deploy/kafka+zk"
+mkdir -p $deployPath && cd $deployPath
+
+
+# 服务器配置
+export SERVER_IP="192.168.100.11"
+
+# ZK配置
+export ZOOKEEPER_COMPOSE_FILE="docker-compose-zk.yml"
+export ZOOKEEPER_SERVER_ID=1
+export ZOOKEEPER_SERVER_VERSION=3.6.3
+export ZOOKEEPER_CONF_DIR="./zookeeper/conf"
+export ZOOKEEPER_DATA_DIR="./zookeeper/data"
+export ZOOKEEPER_LOG_DIR="./zookeeper/logs"
+export ZOOKEEPER_SERVER_PORT=2181
+export ZOOKEEPER_COMM_PORT=2888
+export ZOOKEEPER_ELECT_PORT=3888
+export ZOOKEEPER_CONNECT="192.168.100.11:$ZOOKEEPER_SERVER_PORT,192.168.100.12:$ZOOKEEPER_SERVER_PORT,192.168.100.13:$ZOOKEEPER_SERVER_PORT"
+
+# Kafka配置
+export KAFKA_COMPOSE_FILE="docker-compose-kafka.yml"
+export KAFKA_BROKER_ID=1
+export KAFKA_PORT=9092
+export KAFKA_VERSION=3.2.1
+export KAFKA_DATA_DIR="./kafka/data"
+export KAFKA_LOG_DIR="./kafka/logs"
+export KAFKA_LOG_DIR="./kafka/logs"
+
+# 注意集群IP节点 ZK配置
+mkdir -p $ZOOKEEPER_CONF_DIR && mkdir -p $ZOOKEEPER_DATA_DIR && mkdir -p $ZOOKEEPER_LOG_DIR
+cat << EOF > ${ZOOKEEPER_CONF_DIR}/zoo.conf
+tickTime=2000
+dataDir=/data
+dataLogDir=/datalog
+clientPort=$ZOOKEEPER_SERVER_PORT
+initLimit=5
+syncLimit=2
+server.1=192.168.100.11:$ZOOKEEPER_COMM_PORT:$ZOOKEEPER_ELECT_PORT;$ZOOKEEPER_SERVER_PORT
+server.2=192.168.100.12:$ZOOKEEPER_COMM_PORT:$ZOOKEEPER_ELECT_PORT;$ZOOKEEPER_SERVER_PORT
+server.3=192.168.100.13:$ZOOKEEPER_COMM_PORT:$ZOOKEEPER_ELECT_PORT;$ZOOKEEPER_SERVER_PORT
+quorumListenOnAllIPs=true
+EOF
+
+
+# 创建 zk compose 文件
+cat << EOF > ${ZOOKEEPER_COMPOSE_FILE}
+version: '3'
+services:
+  zookeeper:
+    image: zookeeper:$ZOOKEEPER_SERVER_VERSION
+    container_name: zookeeper-$ZOOKEEPER_SERVER_VERSION
+    hostname: $SERVER_IP
+    ports:
+      - "$ZOOKEEPER_SERVER_PORT:$ZOOKEEPER_SERVER_PORT"
+      - "$ZOOKEEPER_COMM_PORT:$ZOOKEEPER_COMM_PORT"
+      - "$ZOOKEEPER_ELECT_PORT:$ZOOKEEPER_ELECT_PORT"
+    environment:
+      ZOO_MY_ID: $ZOOKEEPER_SERVER_ID
+    volumes:
+      - $ZOOKEEPER_DATA_DIR:/data
+      - $ZOOKEEPER_LOG_DIR:/datalog
+      - ${ZOOKEEPER_CONF_DIR}/zoo.conf:/conf/zoo.cfg
+EOF
+
+# 启动zk
+docker-compose -f ${ZOOKEEPER_COMPOSE_FILE} up -d 
+
+# 停止zk
+docker-compose -f ${ZOOKEEPER_COMPOSE_FILE} stop
+
+# 删除zk
+docker-compose -f ${ZOOKEEPER_COMPOSE_FILE} rm -f
+
+
+# 创建 Kafka 文件
+cat << EOF > ${KAFKA_COMPOSE_FILE}
+version: '3'
+services:
+  kafka:
+    image: bitnami/kafka:$KAFKA_VERSION
+    container_name: kafka
+    ports:
+      - "$KAFKA_PORT:$KAFKA_PORT"
+    environment:
+      - KAFKA_BROKER_ID=$KAFKA_BROKER_ID
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=$ZOOKEEPER_CONNECT
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:$KAFKA_PORT
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://$SERVER_IP:$KAFKA_PORT
+      - TZ=Asia/Shanghai
+      - ALLOW_PLAINTEXT_LISTENER=yes
+    volumes:
+      - $KAFKA_DATA_DIR:/bitnami/kafka/data
+      - $KAFKA_LOG_DIR:/bitnami/kafka/logs
+EOF
+
+# 启动kafka
+docker-compose -f ${KAFKA_COMPOSE_FILE} up -d 
+
+# 停止kafka
+docker-compose -f ${KAFKA_COMPOSE_FILE} stop
+
+# 删除kafka
+docker-compose -f ${KAFKA_COMPOSE_FILE} rm -f
+
+# 测试kafka
+docker exec  -it kafka bash
+# 创建Topic
+/opt/kafka/bin/kafka-topics.sh --create --zookeeper 192.168.100.11:2181,192.168.100.12:2181,192.168.100.13:2181 --replication-factor 1 --partitions 1 --topic test-topic-01
+
+# 生产者发送
+
+
+# 消费者消费
+/opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server 192.168.100.11:9092 --topic test-topic-01 --from-beginning
+```
+
+
+
+
+
+# Copy版本
+
+```bash
+# 设置参数一键启动
+# 创建部署以及启动目录
+export deployPath="/root/deploy/kafka+zk-copy"
+mkdir -p $deployPath && cd $deployPath
+
+
+# 服务器配置
+export SERVER_IP="192.168.100.11"
+
+# ZK配置
+export ZOOKEEPER_COMPOSE_FILE="docker-compose-zk.yml"
+export ZOOKEEPER_SERVER_ID=1
+export ZOOKEEPER_CONF_DIR="./zookeeper/conf"
+export ZOOKEEPER_DATA_DIR="./zookeeper/data"
+export ZOOKEEPER_LOG_DIR="./zookeeper/logs"
+export ZOOKEEPER_SERVER_PORT=2181
+export ZOOKEEPER_COMM_PORT=2888
+export ZOOKEEPER_ELECT_PORT=3888
+export ZOOKEEPER_CONNECT="192.168.100.11:$ZOOKEEPER_SERVER_PORT,192.168.100.12:$ZOOKEEPER_SERVER_PORT,192.168.100.13:$ZOOKEEPER_SERVER_PORT"
+
+# Kafka配置
+export KAFKA_COMPOSE_FILE="docker-compose-kafka.yml"
+export KAFKA_BROKER_ID=1
+export KAFKA_PORT=9092
+export KAFKA_DATA_DIR="./kafka/data"
+export KAFKA_LOG_DIR="./kafka/logs"
+export KAFKA_LOG_DIR="./kafka/logs"
+
+# 注意集群IP节点 ZK配置
+mkdir -p $ZOOKEEPER_CONF_DIR && mkdir -p $ZOOKEEPER_DATA_DIR && mkdir -p $ZOOKEEPER_LOG_DIR
+cat << EOF > ${ZOOKEEPER_CONF_DIR}/zoo.conf
+tickTime=2000
+dataDir=/data
+dataLogDir=/datalog
+clientPort=$ZOOKEEPER_SERVER_PORT
+initLimit=5
+syncLimit=2
+server.1=192.168.100.11:$ZOOKEEPER_COMM_PORT:$ZOOKEEPER_ELECT_PORT;$ZOOKEEPER_SERVER_PORT
+server.2=192.168.100.12:$ZOOKEEPER_COMM_PORT:$ZOOKEEPER_ELECT_PORT;$ZOOKEEPER_SERVER_PORT
+server.3=192.168.100.13:$ZOOKEEPER_COMM_PORT:$ZOOKEEPER_ELECT_PORT;$ZOOKEEPER_SERVER_PORT
+quorumListenOnAllIPs=true
+EOF
+
+
+# 创建 zk compose 文件
+cat << EOF > ${ZOOKEEPER_COMPOSE_FILE}
+version: '3'
+services:
+  zookeeper:
+    image: zookeeper:latest
+    container_name: zookeeper
+    hostname: $SERVER_IP
+    ports:
+      - "$ZOOKEEPER_SERVER_PORT:$ZOOKEEPER_SERVER_PORT"
+      - "$ZOOKEEPER_COMM_PORT:2888"
+      - "$ZOOKEEPER_ELECT_PORT:3888"
+    environment:
+      ZOO_MY_ID: $ZOOKEEPER_SERVER_ID
+    volumes:
+      - $ZOOKEEPER_DATA_DIR:/data
+      - $ZOOKEEPER_LOG_DIR:/datalog
+      - ${ZOOKEEPER_CONF_DIR}/zoo.conf:/conf/zoo.cfg
+EOF
+
+# 启动zk
+docker-compose -f ${ZOOKEEPER_COMPOSE_FILE} up -d 
+
+# 停止zk
+docker-compose -f ${ZOOKEEPER_COMPOSE_FILE} stop
+
+# 删除zk
+docker-compose -f ${ZOOKEEPER_COMPOSE_FILE} rm -f
+
+# 测试zk
+docker exec  -it zookeeper bash
+./bin/zkCli.sh -server 192.168.100.11:2182
+
+# 创建 Kafka 文件
+cat << EOF > ${KAFKA_COMPOSE_FILE}
+version: '3'
+services:
+  kafka:
+    image: wurstmeister/kafka:latest
+    container_name: kafka
+    ports:
+      - "$KAFKA_PORT:$KAFKA_PORT"
+    environment:
+      - KAFKA_BROKER_ID=$KAFKA_BROKER_ID
+      - KAFKA_ZOOKEEPER_CONNECT=$ZOOKEEPER_CONNECT
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:$KAFKA_PORT
+      - KAFKA_ADVERTISED_HOST_NAME=$SERVER_IP
+      - KAFKA_ADVERTISED_PORT=$KAFKA_PORT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+    volumes:
+      - $KAFKA_DATA_DIR:/kafka/data
+      - $KAFKA_LOG_DIR:/kafka/logs
+EOF
+
+# 启动kafka
+docker-compose -f ${KAFKA_COMPOSE_FILE} up -d 
+
+# 停止kafka
+docker-compose -f ${KAFKA_COMPOSE_FILE} stop
+
+# 删除kafka
+docker-compose -f ${KAFKA_COMPOSE_FILE} rm -f
+
+
+# 测试kafka
+docker exec  -it zookeeper bash
+./bin/zkCli.sh -server 192.168.100.11:2182
+```
+
+
+
 # Kafka集群以及Zookeeper集群
 
 ### 搭建zk1节点
@@ -622,6 +868,32 @@ docker-compose up -d
 ​		然后启动访问添加集群
 
 ![](https://blog-kang.oss-cn-beijing.aliyuncs.com/1609078719891.png)
+
+
+
+# kafka监控工具Know Streaming
+
+​		延迟消费告警
+
+```
+spec:
+  groups:
+  - name: kafka-consumer-topic-lag
+    rules:
+    - alert: KafkaConsumerTopicLag
+      annotations:
+        description: '{{ $labels.job }} 任务 消费组: {{ $labels.consumerGroup }} topic:
+          {{ $labels.topic }} partitionId: {{ $labels.partitionId }} 消费延迟, 堆积量: {{
+          $value }}'
+        summary: '消费组: {{ $labels.consumerGroup }} topic: {{ $labels.topic }} 消费延迟'
+      expr: |
+        Group_Topic_Partition_Lag > 100000
+      for: 120m
+      labels:
+        level: 严重
+        namespace: monitoring
+        severity: critical
+```
 
 
 

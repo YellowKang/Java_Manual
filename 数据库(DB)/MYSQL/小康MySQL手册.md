@@ -326,6 +326,19 @@ CREATE_OPTIONS																// 在CREATE TABLE语句中包括所有MySQL特性
 TABLE_COMMENT																	// 表注释
 ```
 
+### 查询表所有字段并拼接
+
+​		查询case_quality表所有字段，并且使用逗号拼接
+
+```sql
+SELECT
+	GROUP_CONCAT( tmpTab.COLUMN_NAME ) 
+FROM
+	( SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE table_name = 'case_quality' ) AS tmpTab;
+```
+
+
+
 ## 数据库字段
 
 ​		如何查询数据库字段？
@@ -499,7 +512,7 @@ WHERE
 
 #### 		 全非连接（无关数据）
 
-# 修改函数
+# 修改插入
 
 ## 字符串追加
 
@@ -508,6 +521,349 @@ WHERE
 ```sql
 UPDATE t_point_info SET mine_name=CONCAT('111', mine_name)
 ```
+
+## 合并后插入清洗
+
+​		将两张表数据合并到一张,将一张表数据迁移到另一张零时表中
+
+```sql
+INSERT INTO t_case_agg_tmp (caseClosedTime,totalPayAmount,accidentTime,productType,caseNo,typeId) SELECT
+  oc.`caseClosedTime`  as `caseClosedTime`,
+  oc.`totalPayAmount` AS `totalPayAmount`,
+  oc.`accidentTime` as accidentTime,
+  oc.`productType` as `productType`,
+  oc.`caseNo` as caseNo,
+1 as typeId
+FROM
+  `case_info_data_copy` as oc WHERE `caseClosedTime` != '没有信息' and `caseClosedTime`  != '';
+```
+
+​		合并两张表并且按id顺序进行过滤保留最早的一个ID
+
+```sql
+# 清洗重复数据，以美团案件号为维度
+DELETE FROM
+	 `t_case_agg_tmp`
+WHERE
+	id NOT in (
+  SELECT
+  t.minid 
+  FROM
+  ( SELECT `caseNo`, MIN(id)  AS minid FROM t_case_agg_tmp  GROUP BY `caseNo` ) t 
+  );
+
+```
+
+## 按季度统计分析动态生成表
+
+​		按保险信息统计季度趋势生成到新的表中，往前推11个季度按季度统计
+
+```sql
+set @aggCaseStartDate=STR_TO_DATE(CONCAT(YEAR(NOW()), '-', 
+    CASE 
+      WHEN MONTH(NOW()) BETWEEN 1 AND 3 THEN '01-01'
+      WHEN MONTH(NOW()) BETWEEN 4 AND 6 THEN '04-01'
+      WHEN MONTH(NOW()) BETWEEN 7 AND 9 THEN '07-01'
+      WHEN MONTH(NOW()) BETWEEN 10 AND 12 THEN '10-01'
+    END), '%Y-%m-%d');
+
+
+set @aggCaseEndDate= DATE_ADD(@aggCaseStartDate,interval 3 month);
+
+
+DROP TABLE IF EXISTS agg_case_quarter_tmp;
+
+CREATE TABLE IF NOT EXISTS agg_case_quarter_tmp (
+    出险季度 TEXT,
+    aggCaseQuarter11 TEXT,
+    aggCaseQuarter10 TEXT,
+    aggCaseQuarter9 TEXT,
+    aggCaseQuarter8 TEXT,
+    aggCaseQuarter7 TEXT,
+    aggCaseQuarter6 TEXT,
+    aggCaseQuarter5 TEXT,
+    aggCaseQuarter4 TEXT,
+    aggCaseQuarter3 TEXT,
+    aggCaseQuarter2 TEXT,
+    aggCaseQuarter1 TEXT
+);
+INSERT INTO agg_case_quarter_tmp
+SELECT 
+    '出险季度' as 出险季度,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 31 month),'%Y年%m月') as aggCaseQuarter11,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 28 month),'%Y年%m月') as aggCaseQuarter10,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 25 month),'%Y年%m月') as aggCaseQuarter9,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 22 month),'%Y年%m月') as aggCaseQuarter8,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 19 month),'%Y年%m月') as aggCaseQuarter7,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 16 month),'%Y年%m月') as aggCaseQuarter6,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 13 month),'%Y年%m月') as aggCaseQuarter5,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 10 month),'%Y年%m月') as aggCaseQuarter4,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 7 month),'%Y年%m月') as aggCaseQuarter3,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 4 month),'%Y年%m月') as aggCaseQuarter2,
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 1 month),'%Y年%m月') as aggCaseQuarter1
+
+union all
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 1 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 0 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 0 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+
+union all
+
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 4 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 3 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 3 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+    
+
+union all
+
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 7 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 6 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 6 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+
+union all
+
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 10 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 9 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 9 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+
+union all
+
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 13 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 12 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 12 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+
+union all
+
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 16 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 15 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 15 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+
+union all
+
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 19 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 18 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 18 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+
+union all
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 22 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 21 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 21 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+
+union all
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 25 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 24 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 24 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+
+union all
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 28 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 27 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 27 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime
+
+union all
+
+SELECT
+    DATE_FORMAT(DATE_SUB(@aggCaseEndDate,interval 31 month),'%Y年%m月') as 出险季度,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 30 month),`totalPayAmount`,0)),2) as aggCaseQuarter11,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 27 month),`totalPayAmount`,0)),2) as aggCaseQuarter10,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 24 month),`totalPayAmount`,0)),2) as aggCaseQuarter9,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 21 month),`totalPayAmount`,0)),2) as aggCaseQuarter8,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 18 month),`totalPayAmount`,0)),2) as aggCaseQuarter7,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 15 month),`totalPayAmount`,0)),2) as aggCaseQuarter6,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 12 month),`totalPayAmount`,0)),2) as aggCaseQuarter5,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 9 month),`totalPayAmount`,0)),2) as aggCaseQuarter4,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 6 month),`totalPayAmount`,0)),2) as aggCaseQuarter3,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 3 month),`totalPayAmount`,0)),2) as aggCaseQuarter2,
+    ROUND(SUM(if( `caseClosedTime` < DATE_SUB(@aggCaseEndDate,interval 0 month),`totalPayAmount`,0)),2) as aggCaseQuarter1
+FROM
+    `meituan_case_info`
+WHERE
+    accidentTime >=  DATE_SUB(@aggCaseStartDate,interval 30 month)
+    and accidentTime < DATE_SUB(@aggCaseEndDate,interval 30 month)
+    and `productType` LIKE "%雇主%"
+    and accidentTime < caseClosedTime;
+```
+
+
 
 # 时间统计
 

@@ -201,11 +201,20 @@ htpasswd -c ./passwd bigkang
     }
 ```
 
+# 代理路径冲突
 
-
+```bash
+location ~ ^/manager/(.*)$ {
+    proxy_pass http://server01/manager/$1;
+}
+location ~ ^/system/(.*)$ {
+    proxy_pass http://server02/manager/$1;
+}
 ```
-29420
-0
-34036
+
+# 测试接口时长
+
+```bash
+curl -X POST -H  "Accept:*/*" -H  "Content-Type:application/json" -d "{\"imageUrl\":\"https://blog-kang.oss-cn-beijing.aliyuncs.com/8.png\"}" -w "总时间: %{time_total}s\n名称解析时间: %{time_namelookup}s\n连接时间: %{time_connect}s\nTLS握手时间: %{time_appconnect}s\n等待时间: %{time_starttransfer}s\n数据传输时间: %{time_total}s\nHTTP状态码: %{http_code}\n" http://meituan-idcard-bill-classification-prod.prod/api/meituan/IdCardBillClassification
 ```
 

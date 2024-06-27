@@ -1,15 +1,14 @@
 # 创建挂载文件夹
 
 ```sh
-# 创建文件夹
-mkdir -p /docker/maven-nexus/data
-#创建权限
-chmod /docker/maven-nexus/data
+# 创建挂载文件夹
+export deployDir="/docker/maven-nexus/data"
+mkdir -p $deployDir && chmod -R 777 $deployDir && cd $deployDir && cd ..
 ```
 
 # 运行容器
 
-​		启动容器命令
+## 命令启动
 
 ```sh
 docker run -d \
@@ -17,7 +16,7 @@ docker run -d \
 --restart=always \
 --privileged=true \
 -p 18081:8081 \
--v /docker/maven-nexus/data:/nexus-data \
+-v $deployDir:/nexus-data \
 sonatype/nexus3
 ```
 ​		然后访问8081端口就能看到界面，默认账号为：admin，默认密码为：admin123
@@ -28,6 +27,31 @@ sonatype/nexus3
 # Your admin user password is located in /nexus-data/admin.password on the server.
 docker cp maven-nexus:/nexus-data/admin.password /tmp/nexus.password && cat /tmp/nexus.password
 ```
+
+## Compose启动
+
+```sh
+cat > docker-compose.yaml << EOF
+version: '3.4'
+services:
+  nexus3:
+    container_name: nexus3       # 指定容器的名称
+    image: sonatype/nexus3     # 指定镜像和版本
+    restart: always  # 自动重启
+    hostname: nexus3
+    ports:
+      - 8081:8081
+      - 8082:8082
+      - 8083:8083
+    environment:
+      NEXUS_CONTEXT: nexus
+    privileged: true
+    volumes: 
+      - $deployDir:/nexus-data
+EOF
+```
+
+
 
 # 修改用户名以及密码
 
@@ -175,5 +199,133 @@ http://maven.aliyun.com/nexus/content/groups/public/
 
 ```
 Maven Helper
+```
+
+
+
+
+
+# K8s部署
+
+​		阿里云OSS部署
+
+​		部署PV
+
+```properties
+export pvName="oss-nexus3"
+export pvSize="1000Gi"
+export pvcSize="1000Gi"
+export ossBucket="k8s-storage-nexus3"
+export ossUrl=""
+export ossAkId=""
+export ossAkSecret=""
+
+
+cat > $pvName-storage.yaml << EOF 
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: $pvName-pv
+  labels:
+    app: $pvName
+spec:
+  capacity:
+    storage: $pvSize
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: $name
+  csi:
+    driver: ossplugin.csi.alibabacloud.com
+    volumeHandle: $pvName
+    volumeAttributes:
+      bucket: "$ossBucket"
+      url: "$ossUrl"
+      otherOpts: "-o max_stat_cache_size=0 -o allow_other"
+      akId: "$ossAkId"
+      akSecret: "$ossAkSecret"
+      path: "/"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: $pvName-pvc
+  labels:
+    app: $pvName
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: $pvcSize
+  selector:
+    matchLabels:
+      app: $pvName
+EOF
+```
+
+
+
+```properties
+
+export dpName="nexus3"
+export dpNameSpace="default"
+export dpImage="sonatype/nexus3"
+export pvcName="oss-nexus3-pv-pvc"
+# 创建Tomcat部署的deployment
+cat > $dpName-deployment.yaml << EOF 
+apiVersion: v1
+kind: Service
+metadata:
+  name: $dpName
+  namespace: $dpNameSpace
+spec:
+  selector:
+   app: $dpName
+  ports:
+  - name: http
+    targetPort: 8081
+    port: 8081
+  - name: docker-http
+    targetPort: 5000
+    port: 5000
+  - name: docker-https
+    targetPort: 5001
+    port: 5001
+---
+ 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $dpName
+  namespace: $dpNameSpace
+spec:
+  replicas: 1
+  selector:
+   matchLabels:
+     app: $dpName
+  template:
+   metadata:
+     labels:
+       app: $dpName
+   spec:
+     containers:
+     - name: $dpName
+       image: $dpImage
+       ports:
+       - name: http
+         containerPort: 8081
+       - name: docker-http
+         containerPort: 5000
+       - name: docker-https
+         containerPort: 5001
+       volumeMounts:
+       - name: nexus3-data
+         mountPath: /nexus-data
+     volumes:
+       - name: nexus3-data
+         persistentVolumeClaim:
+           claimName: $pvcName
+EOF
 ```
 

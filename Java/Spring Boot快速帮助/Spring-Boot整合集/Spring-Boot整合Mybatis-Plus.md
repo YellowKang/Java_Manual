@@ -952,6 +952,31 @@ public class TreeVoUtil {
     </resultMap>
 ```
 
+​		list查询
+
+```xml
+				<if test="meituanCaseInfoList != null and meituanCaseInfoList.size()>0">
+            AND meituanCaseNo in (
+            <foreach collection="meituanCaseInfoList" item="item" separator=",">
+                #{item.meituanCaseNo}
+            </foreach>
+            )
+        </if>
+```
+
+## QueryWrapper转Lambda
+
+​		业务代码使用LambdaQueryWrapper，后续进行优化新增权限金额排序不同用户优先展示不同金额案件排序
+
+```java
+        QueryWrapper<CaseInfo> basisQuery = new QueryWrapper<>();
+        basisQuery.select(
+                String.join(",", MybatisPlusUtil.getEntitySQLColumn(CaseInfo.class)) + 
+                        ",if(claim_amount > 5000,1,0)  as sortField");
+        basisQuery.orderByDesc("sortField");
+        LambdaQueryWrapper<CaseInfo> query = basisQuery.lambda();
+```
+
 ## 封装通用Page
 
 ```java
@@ -1038,138 +1063,9 @@ public class BaseMPPage {
 
 ```
 
-​		工具类
-
-```java
-
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableName;
-import io.swagger.annotations.ApiModelProperty;
-import org.springframework.util.StringUtils;
-
-import java.lang.reflect.Field;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-/**
- * @author HuangKang
- * @date 2023/1/10 3:17 PM
- * @describe Mybatis工具类
- */
-public class MybatisPlusUtil {
-
-    /**
-     * 获取字段和数据库字段Map映射
-     *
-     * @param tClass 数据库实体
-     * @return 实体对应数据库字段
-     */
-    public static Map<String, String> getEntitySQLColumnMap(Class tClass) {
-        Map<String, String> columns = new HashMap<>();
-        Field[] declaredFields = tClass.getDeclaredFields();
-        for (Field declaredField : declaredFields) {
-            declaredField.setAccessible(true);
-            TableField tableField = declaredField.getAnnotation(TableField.class);
-            if (tableField == null) {
-                continue;
-            }
-            String value = tableField.value();
-            if (StringUtils.hasText(value)) {
-                columns.put(declaredField.getName(), value);
-            }
-        }
-
-        return columns;
-    }
-
-
-    /**
-     * 获取实体上数据库字段List
-     *
-     * @param tClass 数据库实体
-     * @return 数据库字段
-     */
-    public static List<String> getEntitySQLColumn(Class tClass) {
-        List<String> columns = new ArrayList<>();
-        Field[] declaredFields = tClass.getDeclaredFields();
-        for (Field declaredField : declaredFields) {
-            declaredField.setAccessible(true);
-            TableField tableField = declaredField.getAnnotation(TableField.class);
-            if (tableField == null) {
-                continue;
-            }
-            String value = tableField.value();
-            if (StringUtils.hasText(value)) {
-                columns.add(value);
-            }
-        }
-
-        return columns;
-    }
-
-
-    public static List<String> getEntityAddColumnSQL(Class tClass) {
-        List<String> columns = new ArrayList<>();
-        String tableName = "t_default_table";
-        if (tClass.getAnnotation(TableName.class) != null) {
-            tableName = ((TableName) tClass.getAnnotation(TableName.class)).value();
-        }
-        Field[] declaredFields = tClass.getDeclaredFields();
-        for (Field declaredField : declaredFields) {
-            declaredField.setAccessible(true);
-            TableField tableField = declaredField.getAnnotation(TableField.class);
-            if (tableField == null) {
-                continue;
-            }
-            String value = tableField.value();
-            if (StringUtils.hasText(value)) {
-                // alter table  t_meituan_sync_log Add column `business_serial_no` varchar(100) CHARACTER SET utf8 COLLATE utf8_bin NULL DEFAULT NULL COMMENT '案件号';
-                StringBuilder addColumnSQL = new StringBuilder();
-
-                addColumnSQL.append("alter table " + tableName);
-                addColumnSQL.append(" add column " + value + "  ");
-
-
-                if (Date.class.equals(declaredField.getType()) || LocalDateTime.class.equals(declaredField.getType())) {
-                    addColumnSQL.append("datetime");
-                } else if (Double.class.equals(declaredField.getType())) {
-                    addColumnSQL.append("decimal(11, 3)");
-                } else if (Integer.class.equals(declaredField.getType())) {
-                    addColumnSQL.append("int(11)");
-                } else if (Boolean.class.equals(declaredField.getType())) {
-                    addColumnSQL.append("tinyint(2)");
-                } else if (Long.class.equals(declaredField.getType())) {
-                    addColumnSQL.append("bigint");
-                } else {
-                    addColumnSQL.append("varchar(255)");
-                    addColumnSQL.append(" CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL");
-                }
-
-
-                ApiModelProperty apiModelProperty = declaredField.getAnnotation(ApiModelProperty.class);
-                if(apiModelProperty != null){
-                    addColumnSQL.append(String.format(" COMMENT '%s'",apiModelProperty.value()));
-                }
-                addColumnSQL.append(";");
-                columns.add(addColumnSQL.toString());
-            }
-        }
-
-        return columns;
-    }
-}
-
-
-```
-
 ​		通用简单分页（不需要返回原page一堆字段封装）
 
 ```java
-
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
@@ -1222,7 +1118,7 @@ public class SimplePage<T> {
 
 ```
 
-​		分页使用
+​		分页使用，使用下方工具类
 
 ```java
         private static Map<String,String> COLUMN_MAP = MybatisPlusUtil.getEntitySQLColumnMap(CaseInfo.class);
@@ -1244,7 +1140,464 @@ public class SimplePage<T> {
         
 ```
 
+## 工具类
 
+```java
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.util.StringUtils;
+
+import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * @author HuangKang
+ * @date 2023/1/10 3:17 PM
+ * @describe MybatisPlus工具类
+ */
+public class MybatisPlusUtil {
+    private static final String DEFAULT_TABLE_NAME = "t_default_table";
+
+    private static final SimpleDateFormat DATE_TIME_FORMATTER = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter LOCAL_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DecimalFormat DECIMAL_FORMAT = new DecimalFormat("#.############");
+
+    /**
+     * 数据库类型映射Mapping
+     */
+    private static final Map<Class<?>, String> TYPE_MAPPING = new HashMap<>();
+
+    static {
+        TYPE_MAPPING.put(Date.class, "datetime");
+        TYPE_MAPPING.put(LocalDateTime.class, "datetime");
+        TYPE_MAPPING.put(BigDecimal.class, "decimal(11,2)");
+        TYPE_MAPPING.put(Double.class, "double(11,2)");
+        TYPE_MAPPING.put(Float.class, "float(11,2)");
+        TYPE_MAPPING.put(Long.class, "bigint");
+        TYPE_MAPPING.put(String.class, "varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL");
+        TYPE_MAPPING.put(Integer.class, "int(11)");
+        TYPE_MAPPING.put(Boolean.class, "tinyint(2) DEFAULT 0");
+    }
+
+    /**
+     * 获取表名
+     *
+     * @param tClass Class类
+     * @return 表名
+     */
+    public static <T> String getTableName(Class<T> tClass) {
+        TableName annotation = tClass.getAnnotation(TableName.class);
+        if (annotation != null) {
+            return annotation.value();
+        }
+        return DEFAULT_TABLE_NAME;
+    }
+
+    /**
+     * 获取字段和数据库字段Map映射
+     *
+     * @param tClass 数据库实体
+     * @return 实体对应数据库字段
+     */
+    public static <T> Map<String, String> getEntitySQLColumnMap(Class<T> tClass) {
+        Map<String, String> columns = new HashMap<>();
+        Field[] declaredFields = tClass.getDeclaredFields();
+        for (Field declaredField : declaredFields) {
+            declaredField.setAccessible(true);
+            TableField tableField = declaredField.getAnnotation(TableField.class);
+            if (tableField == null) {
+                columns.put(declaredField.getName(), declaredField.getName());
+                continue;
+            }
+            String value = tableField.value();
+            if (StringUtils.hasText(value)) {
+                columns.put(declaredField.getName(), value);
+            }
+        }
+
+        return columns;
+    }
+
+
+    /**
+     * 获取实体上数据库字段List
+     *
+     * @param tClass 数据库实体
+     * @return 数据库字段
+     */
+    public static <T> List<String> getEntitySQLColumn(Class<T> tClass) {
+        List<String> columns = new ArrayList<>();
+        Field[] declaredFields = tClass.getDeclaredFields();
+        for (Field declaredField : declaredFields) {
+            declaredField.setAccessible(true);
+            TableField tableField = declaredField.getAnnotation(TableField.class);
+            if (tableField == null) {
+                continue;
+            }
+            String value = tableField.value();
+            if (StringUtils.hasText(value)) {
+                columns.add(value);
+            }
+        }
+
+        return columns;
+    }
+
+
+    /**
+     * 获取实体上数据库字段List
+     *
+     * @param tClass 数据库实体
+     * @return 数据库字段
+     */
+    public static <T> List<String> getEntityAddColumnSQL(Class<T> tClass) {
+        List<String> columns = new ArrayList<>();
+        String tableName = getTableName(tClass);
+        Field[] declaredFields = tClass.getDeclaredFields();
+        for (Field declaredField : declaredFields) {
+            declaredField.setAccessible(true);
+            TableField tableField = declaredField.getAnnotation(TableField.class);
+            if (tableField == null) {
+                continue;
+            }
+            String value = tableField.value();
+            if (StringUtils.hasText(value)) {
+                StringBuilder addColumnSQL = new StringBuilder();
+                String sqlLine = String.format("alter table %s add column %s ", tableName, value);
+
+                // 添加字段
+                addColumnSQL.append(sqlLine);
+                String sqlType = TYPE_MAPPING.get(declaredField.getType());
+                if (sqlType == null) {
+                    sqlType = TYPE_MAPPING.get(String.class);
+                }
+                addColumnSQL.append(sqlType);
+                // 添加注释
+                ApiModelProperty apiModelProperty = declaredField.getAnnotation(ApiModelProperty.class);
+                if (apiModelProperty != null) {
+                    addColumnSQL.append(String.format(" COMMENT '%s'", apiModelProperty.value()));
+                }
+                addColumnSQL.append(";");
+                columns.add(addColumnSQL.toString());
+            }
+        }
+
+        return columns;
+    }
+
+
+    /**
+     * 反射拆取字段
+     *
+     * @param tClass         泛型类
+     * @param includeColumns 只提取的字段，可以为空，设置后只返回该字段集合中的字段
+     * @param excludeColumns 排除的字段，可以为空，设置后返回的字段不包含集合中的字段
+     * @param <T>            泛型类
+     * @return 字段集合
+     */
+    public static <T> List<Field> getFields(Class<T> tClass, List<String> includeColumns, List<String> excludeColumns) {
+        List<Field> fieldList = new ArrayList<>();
+        Field[] fields = tClass.getDeclaredFields();
+        if (fields.length < 1) {
+            return fieldList;
+        }
+        fieldList = Arrays.stream(fields).filter(v -> {
+            // 如果不包含在字段中则直接过滤掉
+            if (includeColumns != null && !includeColumns.isEmpty() && !includeColumns.contains(v.getName())) {
+                return false;
+            }
+            // 如果在包含在排除字段中过滤掉
+            if (excludeColumns != null && !excludeColumns.isEmpty() && excludeColumns.contains(v.getName())) {
+                return false;
+            }
+            v.setAccessible(true);
+            return true;
+        }).collect(Collectors.toList());
+        return fieldList;
+    }
+
+    /**
+     * 根据List生成InsertSql
+     *
+     * @param list           集合元数据
+     * @param tClass         对象Class类
+     * @param excludeColumns 排除的字段
+     * @param <T>            泛型类
+     * @return List字符串sql
+     */
+    public static <T> List<String> genListInsertSql(List<T> list, Class<T> tClass, List<String> excludeColumns) {
+        return genListInsertSql(null, list, tClass, null, excludeColumns);
+    }
+
+    /**
+     * 根据List生成InsertSql
+     *
+     * @param tableName 表名
+     * @param list      集合元数据
+     * @param tClass    对象Class类
+     * @param <T>       泛型类
+     * @return List字符串sql
+     */
+    public static <T> List<String> genListInsertSql(String tableName, List<T> list, Class<T> tClass) {
+        return genListInsertSql(tableName, list, tClass, null, null);
+    }
+
+    /**
+     * 根据List生成InsertSql
+     *
+     * @param tableName      表名
+     * @param list           集合元数据
+     * @param tClass         对象Class类
+     * @param includeColumns 只需要使用的字段
+     * @param excludeColumns 排除的字段
+     * @param <T>            泛型类
+     * @return List字符串sql
+     */
+    public static <T> List<String> genListInsertSql(String tableName, List<T> list, Class<T> tClass, List<String> includeColumns, List<String> excludeColumns) {
+        List<String> sqlList = new ArrayList<>();
+        if (list == null || list.isEmpty()) {
+            return sqlList;
+        }
+
+        Map<String, String> columnMap = getEntitySQLColumnMap(tClass);
+        List<Field> fields = getFields(tClass, includeColumns, excludeColumns);
+        if (fields.isEmpty()) {
+            return sqlList;
+        }
+
+        // 获取表名
+        String tableNameStr = tableName == null ? getTableName(tClass) : tableName;
+
+        // 获取字段
+        List<String> sqlColumns = fields.stream().map(v -> columnMap.get(v.getName())).collect(Collectors.toList());
+        String sqlColumnsStr = String.join(",", sqlColumns);
+
+        for (T obj : list) {
+            // 获取Value字段List
+            List<String> valueList = fields.stream().map(v -> {
+                Object o = null;
+                try {
+                    o = v.get(obj);
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+                return getFieldValueStr(o);
+            }).collect(Collectors.toList());
+
+            String valueStr = String.join(",", valueList);
+            String sqlStr = String.format("insert into %s (%s) values(%s);", tableNameStr, sqlColumnsStr, valueStr);
+            sqlList.add(sqlStr);
+        }
+        return sqlList;
+    }
+
+    /**
+     * 将字段转为SQL字符串
+     *
+     * @param obj 根据Object提取的字段Filed对象
+     * @return sql字符串
+     */
+    public static String getFieldValueStr(Object obj) {
+        String val = "null";
+        if (obj == null) {
+            return val;
+        }
+        if (obj instanceof String || obj instanceof Character ) {
+            val = "'" + obj.toString() + "'";
+        } else if (obj instanceof Number) {
+            val = DECIMAL_FORMAT.format(obj);
+        } else if (obj instanceof Boolean) {
+            val = Boolean.TRUE.equals(obj) ? "1" : "0";
+        } else if (obj instanceof Date) {
+            val = "'" + DATE_TIME_FORMATTER.format((Date) obj) + "'";
+        } else if (obj instanceof LocalDateTime) {
+            val = "'" + LOCAL_DATE_TIME_FORMATTER.format((LocalDateTime) obj) + "'";
+        } else if (obj instanceof LocalDate) {
+            val = "'" + LOCAL_DATE_TIME_FORMATTER.format(((LocalDate) obj).atStartOfDay()) + "'";
+        } else {
+            throw  new IllegalArgumentException("不支持的数据类型:" + obj.getClass());
+        }
+        return val;
+    }
+
+    public static void main(String[] args) {
+        System.out.println(String.format("表名称:%s", getTableName(TestBean.class)));
+        System.out.println(String.format("字段:%s", String.join(",", getEntitySQLColumn(TestBean.class))));
+        System.out.println(String.format("新增字段SQL:\n%s", String.join("\n", getEntityAddColumnSQL(TestBean.class))));
+        getEntitySQLColumnMap(TestBean.class).forEach((k, v) -> {
+            System.out.println(String.format("字段映射:%s  -->  %s", k, v));
+        });
+
+        // 打印InsertSql
+        genListInsertSql(Arrays.asList(new TestBean(1, "BigKang", LocalDateTime.now()), new TestBean(2, "YellowKang", LocalDateTime.now())), TestBean.class, Arrays.asList("id")).forEach(System.out::println);
+    }
+
+    @Data
+    @TableName(value = "t_test_bean")
+    @ApiModel("字典信息")
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TestBean {
+
+        @TableId(value = "id", type = IdType.AUTO)
+        @ApiModelProperty("主键")
+        private Integer id;
+
+        @TableField("name")
+        @ApiModelProperty("名称")
+        private String name;
+
+        @TableField("create_time")
+        @ApiModelProperty("创建时间")
+        private LocalDateTime createTime;
+    }
+    
+}
+```
+
+## 自定义序列化器Json对象字符串互转
+
+​		示例对象,listData 以Json方式存储
+
+```java
+@Data
+// 设置自动映射
+@TableName(value = "****",autoResultMap = true)
+@ApiModel("案件医疗文件材料")
+public class MeituanCaseMedicalFile extends Model<MeituanCaseMedicalFile> {
+ 
+    @ApiModelProperty(value = "清单数据")
+    @TableField(value = "list_data", typeHandler = ListMedicalDataTypeHandler.class)
+    private List<MedicalListDataVo> listData;
+  
+}
+```
+
+​		自定义TypeHandler
+
+```java
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.sigreal.jiaanan.bean.vo.MedicalListDataVo;
+import org.apache.ibatis.type.BaseTypeHandler;
+import org.apache.ibatis.type.JdbcType;
+
+import java.sql.CallableStatement;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+public class ListMedicalDataTypeHandler extends BaseTypeHandler<List<MedicalListDataVo>> {
+    @Override
+    public void setNonNullParameter(PreparedStatement ps, int i, List<MedicalListDataVo> medicalListDataVos, JdbcType jdbcType) throws SQLException {
+        if (medicalListDataVos == null) {
+            ps.setString(i, null);
+            return;
+        }
+        ps.setString(i, JSON.toJSONString(medicalListDataVos));
+    }
+
+    @Override
+    public List<MedicalListDataVo> getNullableResult(ResultSet resultSet, String s) throws SQLException {
+        String json = resultSet.getString(s);
+        if (json == null) {
+            return null;
+        }
+        return JSONArray.parseArray(json, MedicalListDataVo.class);
+    }
+
+    @Override
+    public List<MedicalListDataVo> getNullableResult(ResultSet resultSet, int i) throws SQLException {
+        String json = resultSet.getString(i);
+        if (json == null) {
+            return null;
+        }
+        return JSONArray.parseArray(json, MedicalListDataVo.class);
+    }
+
+    @Override
+    public List<MedicalListDataVo> getNullableResult(CallableStatement callableStatement, int i) throws SQLException {
+        String json = callableStatement.getString(i);
+        if (json == null) {
+            return null;
+        }
+        return JSONArray.parseArray(json, MedicalListDataVo.class);
+    }
+}
+
+```
+
+## 手动注册Mapper不使用扫描包方式
+
+```java
+
+import jakarta.annotation.PostConstruct;
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.springframework.context.annotation.Configuration;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @author HuangKang
+ * @date 2023/11/20 14:54:51
+ * @describe MybatisPlus配置
+ */
+@Configuration
+public class MybatisPlusConfig {
+
+
+    // 在这个列表中添加所有需要注册的 Mapper 接口类
+    private static final List<Class<?>> MAPPER_INTERFACES = new ArrayList<>();
+
+    static {
+        // 预先添加所有需要注册的 Mapper 接口类
+        MAPPER_INTERFACES.add(UserLoginLogMapper.class);
+    }
+
+    private final SqlSessionFactory sqlSessionFactory;
+
+    public MybatisPlusConfig(SqlSessionFactory sqlSessionFactory) {
+        this.sqlSessionFactory = sqlSessionFactory;
+    }
+
+
+    /**
+     * 初始化并且注册Mapper
+     */
+    @PostConstruct
+    public void init() {
+        for (Class<?> mapperInterface : MAPPER_INTERFACES) {
+            sqlSessionFactory.getConfiguration().getMapperRegistry().addMapper(mapperInterface.getClass());
+        }
+    }
+}
+
+
+
+```
 
 # 配置方面
 

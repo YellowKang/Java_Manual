@@ -1932,15 +1932,22 @@ EOF
 # 执行
 kubectl apply -f ingress-tcp-services.yaml
 
-# 然后修改ingress，nodePort新增33306,使用31306代理到33306的mysql上
-
-
-  - name: tcp-33306
-    port: 31306
+# 然后修改ingress，将33306转发到mysql的3306上
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-mysql
+  namespace: default
+  labels:
+    name: nacos-mysql
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3306
     protocol: TCP
-    targetPort: 33306
-    nodePort: 31306
-
+    targetPort: 3306
+  selector:
+    name: nacos-mysql
 ```
 
 

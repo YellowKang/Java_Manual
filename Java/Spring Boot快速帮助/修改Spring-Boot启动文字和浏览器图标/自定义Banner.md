@@ -156,7 +156,7 @@ public class BannerPropertiesEventListener implements GenericApplicationListener
  * @Summarize 测试
  */
 @SpringBootApplication
-public class TestApplication extends BaseApplication {
+public class TestApplication{
     public static void main(String[] args) throws InterruptedException {
         SpringApplication application = new SpringApplication(TestApplication.class);
         BannerPropertiesEventListener bannerListener = new BannerPropertiesEventListener();

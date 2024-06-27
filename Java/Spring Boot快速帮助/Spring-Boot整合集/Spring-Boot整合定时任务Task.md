@@ -431,7 +431,103 @@ http://localhost:8080/test/setCron?cron=0/1 * * ? MON
 
 请求以下以下接口即可动态执行定时任务
 
+
+
+# 自定义线程池
+
+​		编写配置
+
+```yaml
+business:
+  thread:
+    pool:
+      corePoolSize: 2
+      maxPoolSize: 8
+      queueCapacity: 1000000
+      keepAliveTime: 60
 ```
 
+​		编写配置类
+
+```java
+
+import lombok.Getter;
+import lombok.Setter;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @author HuangKang
+ * @date 2023/8/11 15:25:18
+ * @describe 业务线程池配置
+ */
+@Getter
+@Setter
+@Configuration
+@ConfigurationProperties(prefix = "business.thread.pool")
+public class BusinessThreadPoolProperties {
+
+    /**
+     * 核心线程数 (默认: 取CPU线程数)
+     */
+    private Integer corePoolSize = Runtime.getRuntime().availableProcessors();
+
+    /**
+     * 最大核心线程数 (默认: 取CPU线程数 * 2 + 1)
+     */
+    private Integer maxPoolSize = Runtime.getRuntime().availableProcessors() * 2 + 1;
+
+    /**
+     * 线程存活时间 (默认: 60s)
+     */
+    private Integer keepAliveTime = 60;
+
+    /**
+     * 队列容量 (默认: 1000000)
+     */
+    private Integer queueCapacity =  1000000;
+
+}
+
+```
+
+​		编写Bean对象
+
+```java
+
+import com.sigreal.tpa.properties.BusinessThreadPoolProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @author HuangKang
+ * @date 2023/8/11 15:34:55
+ * @describe 业务线程池组件
+ */
+@Component
+public class BusinessThreadPool extends ThreadPoolExecutor {
+
+    /**
+     * 创建组件
+     *
+     * @param properties 注入配置信息
+     */
+    @Autowired
+    public BusinessThreadPool(BusinessThreadPoolProperties properties) {
+        super(properties.getCorePoolSize()
+                , properties.getMaxPoolSize()
+                , properties.getKeepAliveTime()
+                , TimeUnit.SECONDS
+                , new LinkedBlockingDeque<>(properties.getQueueCapacity())
+                , Executors.defaultThreadFactory()
+                , new AbortPolicy());
+    }
+
+}
 ```
 

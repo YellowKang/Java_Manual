@@ -4229,7 +4229,13 @@ sed -i "s#/data/nfs-share#/data/nfs/nacos#g"  ./deploy/nfs/deployment.yaml
 yum install -y nfs-utils
 ```
 
+## 内部服务转发端口
 
+​		将K8s的服务转发到本地端口
+
+```bash
+kubectl port-forward -n test service/upms-test 8083:80
+```
 
 # 问题排查
 

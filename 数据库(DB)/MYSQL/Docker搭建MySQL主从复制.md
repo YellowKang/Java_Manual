@@ -432,6 +432,9 @@ start slave;
 
 ```
 show slave status \G;
+
+
+ show  variables like '%gtid%';
 ```
 
 如果我们看到就表示成功了
@@ -565,6 +568,38 @@ select * from t_test_jpa;
 ​					1、请先重新查询binlog日志。因为重启之后他的日志会变，可能这一点导致不成功
 
 ​					2、同一局域网内，server-id不能重复否则搭建失败
+
+## 跳过异常
+
+
+
+```sh
+
+# 初始化配置文件
+cat > /mnt/rds-mysql-slave/conf/mysql.cnf << EOF
+[mysqld]
+character-set-server=utf8
+innodb_strict_mode=0
+## 设置server_id,注意要唯一
+server-id=218
+## 开启二进制日志功能，以备Slave作为其它Slave的Master时使用
+log-bin=mysql-slave-bin
+## relay_log配置中继日志
+relay_log=rds-mysql-relay-bin
+gtid_mode=ON
+enforce-gtid-consistency=1
+## 过滤指定的数据库下面的表
+replicate-wild-do-table=vehicle_damage_analyzer.%
+## 忽略重复key以及删除找不到数据异常
+slave-skip-errors=1032,1062
+[client]
+default-character-set=utf8
+[mysql]
+default-character-set=utf8
+EOF
+```
+
+
 
 
 

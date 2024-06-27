@@ -99,3 +99,60 @@ docker.io/twang2218/gitlab-ce-zh
 
 ```
 
+
+
+
+
+# K8s安装
+
+
+
+```sh
+# 部署目录定义
+export gitlabDpPath="/root/deploy/gitlab"
+mkdir -p $gitlabDpPath && cd $gitlabDpPath
+
+
+# 创建gitlab部署目录
+cat > gitlab-ssh-service.yaml << EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab
+spec:
+  ports:
+  - port: 443
+    targetPort: 443
+    name: https
+  - port: 80
+    targetPort: 80
+    name: http
+  selector:
+
+    app: gitlab
+EOF
+
+
+cat > gitlab-service.yaml << EOF
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab
+spec:
+  ports:
+  - port: 443
+    targetPort: 443
+    name: https
+  - port: 80
+    targetPort: 80
+    name: http
+  selector:
+
+    app: gitlab
+EOF
+
+cat > gitlab-deployment.yaml << EOF
+
+EOF
+```
+

@@ -85,7 +85,7 @@ public class ResourcesConfig implements WebMvcConfigurer {
 
 ```
 var xhr = new XMLHttpRequest();
-xhr.open('GET', 'http://localhost:8083/actuator');
+xhr.open('POST', 'http://localhost:8080/ews/user-terminal/api/product/searchCarBrand');
 xhr.send(null);
 xhr.onload = function(e) {
     var xhr = e.target;
