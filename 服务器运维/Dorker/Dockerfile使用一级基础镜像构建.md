@@ -363,6 +363,116 @@ COPY arthas-boot.jar /arthas-boot.jar
 
 ​		然后重新打包		
 
+## springboot-native原生镜像
+
+### 编译环境
+
+```sh
+cat << EOF > builder-graalvm17-maven-docker-file
+# 使用 Ubuntu 20.04 作为基础镜像
+FROM ubuntu:20.04
+ENV TZ=Asia/Shanghai
+# 安装基本依赖工具和 JDK 17（GraalVM）
+RUN apt-get update
+RUN	apt-get install -y curl
+RUN	apt-get install -y wget 
+RUN	apt-get install -y unzip 
+RUN	apt-get install -y build-essential
+RUN apt-get install -y zlib1g-dev
+RUN rm -rf /var/lib/apt/lists/*
+
+# 安装 GraalVM 17
+RUN curl -fsSL https://download.oracle.com/graalvm/17/latest/graalvm-jdk-17_linux-x64_bin.tar.gz -o /tmp/graalvm.tar.gz
+
+RUN	mkdir -p /opt/graalvm 
+RUN	tar -xzf /tmp/graalvm.tar.gz -C /opt/graalvm --strip-components=1
+RUN rm /tmp/graalvm.tar.gz
+
+# 设置环境变量
+ENV JAVA_HOME=/opt/graalvm
+ENV GRAALVM_HOME=/opt/graalvm
+ENV PATH=$JAVA_HOME/bin:$PATH
+
+# 安装 Maven
+RUN wget https://downloads.apache.org/maven/maven-3/3.9.5/binaries/apache-maven-3.9.5-bin.tar.gz -O /tmp/maven.tar.gz && \
+    tar -xzf /tmp/maven.tar.gz -C /opt && \
+    mv /opt/apache-maven-3.9.5 /opt/maven && \
+    rm /tmp/maven.tar.gz
+
+ENV MAVEN_HOME=/opt/maven
+ENV PATH=$MAVEN_HOME/bin:$PATH
+
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$JAVA_HOME/bin:/opt/graalvm/bin:/opt/maven/bin
+# 验证安装
+RUN java -version
+RUN mvn -version
+EOF
+
+docker build -f builder-graalvm17-maven-docker-file -t builder-graalvm17-maven .
+```
+
+### 项目编译
+
+```sh
+
+cat << EOF > builder-native-image
+
+# 第一阶段：使用 builder-graalvm17-maven 镜像进行构建
+FROM builder-graalvm17-maven AS builder
+
+# 设置工作目录
+WORKDIR /build
+ENV GRAALVM_HOME=/opt/graalvm
+# 复制本地项目到容器中
+COPY . .
+
+# 指定默认环境
+ARG SPRING_PROFILE=dev
+
+# 构建应用程序
+RUN mvn -DskipTests=true -Dspring.profiles.active=${SPRING_PROFILE} -Pnative native:compile -X
+
+RUN mkdir /runtime
+RUN cp ./target/boot3-native /runtime/application
+
+# 清理构建环境
+RUN rm -rf /build
+
+# 第二阶段：使用 UBI 最小镜像作为基础镜像，处理构建好的文件
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.9
+
+RUN microdnf install curl
+RUN microdnf install iputils
+RUN microdnf install nc
+
+# 安装必要的工具和依赖项
+RUN microdnf install curl iputils nc tzdata &&     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&     microdnf update && microdnf install -y sudo iputils hostname findutils less nano && microdnf clean all
+
+# 设置工作目录
+WORKDIR /work
+
+# 从第一阶段的 builder 阶段复制构建好的应用程序
+COPY --from=builder /runtime/application /work/application
+
+# 设置环境变量
+ENV SPRING_PROFILES_ACTIVE=${SPRING_PROFILE}
+
+# 暴露端口
+EXPOSE 8087
+
+# 设置容器用户
+USER root
+
+# 设置入口点
+ENTRYPOINT ["/work/application"]
+
+EOF
+
+
+# 编译打包镜像
+docker build --progress=plain -f builder-native-image -t native-image:boot3 --build-arg SPRING_PROFILE=prod 
+```
+
 
 
 # 构建带Ubantu的Jre镜像
