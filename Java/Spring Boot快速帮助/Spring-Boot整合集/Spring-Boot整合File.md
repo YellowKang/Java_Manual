@@ -377,6 +377,53 @@ MultipartFile resource [multipartFiles]
     }
 ```
 
+## 多文件下载（Zip压缩+纯内存）
+
+
+
+```java
+
+        // Set response headers for file download
+        response.setContentType("application/zip");
+        response.setCharacterEncoding("utf-8");
+        String repFileName = LocalDateTimeUtil.format(LocalDateTime.now(),"yyyy-MM-dd_HH_mm") + "文件材料";
+        try {
+            repFileName = URLEncoder.encode(repFileName + ".zip", String.valueOf(StandardCharsets.UTF_8));
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
+        response.setHeader("Content-disposition", "attachment;filename=" + repFileName);
+        response.setHeader("filename", repFileName);
+        response.setHeader("Access-Control-Expose-Headers", "Content-Disposition, Content-Length");
+
+        Map<String, byte[]> filesMap = new HashMap<>();
+
+
+				// 指定zip文件路径 以及字节数组
+        try (ZipOutputStream zipOutputStream = new ZipOutputStream(response.getOutputStream())) {
+            for (Map.Entry<String, byte[]> fileEntry : filesMap.entrySet()) {
+                String fileName = fileEntry.getKey();
+                byte[] fileContent = fileEntry.getValue();
+
+                if(fileContent == null){
+                    fileContent = new byte[0];
+                }
+                // Create a new ZIP entry for each file
+                ZipEntry zipEntry = new ZipEntry(fileName);
+                zipOutputStream.putNextEntry(zipEntry);
+
+                // Write the file content to the ZIP output stream
+                zipOutputStream.write(fileContent);
+                zipOutputStream.closeEntry();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new CustomSystemException("下载失败");
+        }
+```
+
+
+
 # SpringBoot配置MultipartFile
 
 ​		我们可以配置SpringBoot的MultipartFile上传属性，如下：
