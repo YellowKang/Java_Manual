@@ -272,6 +272,22 @@ spec:
           value: "true"
         - name: REGISTRY_STORAGE_DELETE_ENABLED
           value: "true"
+        - name: REGISTRY_STORAGE_S3_CHUNKSIZE
+          value: "5242880"
+        - name: REGISTRY_STORAGE_S3_MULTIPARTCOPYCHUNKSIZE
+          value: "33554432"
+        - name: REGISTRY_STORAGE_S3_MULTIPARTCOPYMAXCONCURRENCY
+          value: "100"
+        - name: REGISTRY_STORAGE_S3_MULTIPARTCOPYTHRESHOLDSIZE
+          value: "33554432"
+        - name: REGISTRY_STORAGE_MAINTENANCE_UPLOADPURGING_ENABLED
+          value: "true"
+        - name: REGISTRY_STORAGE_MAINTENANCE_UPLOADPURGING_AGE
+          value: "168h"
+        - name: REGISTRY_STORAGE_MAINTENANCE_UPLOADPURGING_INTERVAL
+          value: "24h"
+        - name: REGISTRY_STORAGE_MAINTENANCE_UPLOADPURGING_DRYCLEAN
+          value: "false"
         - name: REGISTRY_HTTP_TLS_CERTIFICATE
           value: /certs/tls.crt
         - name: REGISTRY_HTTP_TLS_KEY
@@ -423,5 +439,20 @@ sudo crictl pull registry.local:30500/mysql:5.7
 
 # 搜索镜像
 sudo crictl images | grep registry.local
+
+
+
+
+
+# 查询镜像tag
+curl -k https://registry.local:30500/v2/jd-llm/tags/list
+
+# 删除功能
+# 获取 digest
+curl -I -k -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+  https://registry.local:30500/v2/mysql/manifests/v19.2.0
+  
+# 删除sha256
+curl -k -X DELETE  https://registry.local:30500/v2/mysql/manifests/sha256:b420684f54516a682a567b26d2a5e4e63c6aaea3555017af38b8fa8fa5f043c0
 ```
 

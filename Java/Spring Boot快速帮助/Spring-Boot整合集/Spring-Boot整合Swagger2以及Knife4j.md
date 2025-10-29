@@ -661,3 +661,208 @@ spring:
       matching-strategy: ant_path_matcher
 ```
 
+# SpringBoot3.5集成
+
+## 引入依赖
+
+```xml
+		<dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+						<version>4.5.0</version>
+   	</dependency>
+```
+
+## 编写配置文件
+
+```yaml
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+```
+
+访问  http://localhost:8080/doc.html  即可
+
+## MVC适配
+
+```java
+
+import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.web.WebProperties;
+import org.springframework.boot.autoconfigure.web.servlet.WebMvcProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.Ordered;
+import org.springframework.stereotype.Component;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+/**
+ * @Author BigKang
+ * @Date 2020/10/10 2:37 下午
+ * @Motto 仰天大笑撸码去, 我辈岂是蓬蒿人
+ * @Summarize WebMvc配置
+ */
+@Component
+@AllArgsConstructor(onConstructor = @__(@Autowired))
+public class WebMvcConfig implements WebMvcConfigurer {
+
+    /**
+     * 资源配置注入
+     */
+    private final WebMvcProperties webMvcProperties;
+    private final WebProperties webProperties;
+
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+
+        registry.addResourceHandler(webMvcProperties.getStaticPathPattern())
+                .addResourceLocations(webProperties.getResources().getStaticLocations());
+
+        registry.addResourceHandler("/doc.html")
+                .addResourceLocations("classpath:/META-INF/resources/");
+
+        registry.addResourceHandler("/swagger-ui.html")
+                .addResourceLocations("classpath:/META-INF/resources/");
+
+        registry.addResourceHandler("/webjars/**")
+                .addResourceLocations("classpath:/META-INF/resources/webjars/");
+    }
+
+
+    /**
+     * 跨域配置
+     */
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        //对那些请求路径进行跨域处理
+        registry.addMapping("/**")
+                // 允许的请求头，默认允许所有的请求头
+                .allowedHeaders("*")
+                // 允许的方法，默认允许GET、POST、HEAD
+                .allowedMethods("*")
+                // 探测请求有效时间，单位秒
+                .maxAge(1800)
+                // 支持的域
+                .allowedOrigins("*");
+    }
+
+
+    @Bean
+    public FilterRegistrationBean<CorsFilter> corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        config.addAllowedOriginPattern("*");
+        config.addAllowedHeader("*");
+        config.addAllowedMethod("*");
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+        source.registerCorsConfiguration("/**", config);
+        FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
+        bean.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        return bean;
+    }
+}
+
+```
+
+## 新建实体
+
+```java
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+
+/**
+ * 用户(User)
+ *
+ * @Author BigKang
+ * @Time 2024-03-05 19:46:36
+ * @Summarize t_user 实体类
+ */
+
+@Getter
+@Setter
+@Schema(description = "用户")
+public class User {
+
+    @Schema(description = "ID")
+    private Long id;
+
+    @Schema(description = "用户ID")
+    private String userId;
+
+    @Schema(description = "用户名")
+    private String userName;
+
+    @Schema(description = "用户状态： 1、正常用户 2、禁言用户 3、封禁用户")
+    private Integer userStatus;
+
+    @Schema(description = "密码")
+    private String password;
+
+    @Schema(description = "邮箱")
+    private String email;
+
+    @Schema(description = "登录Token")
+    private String loginToken;
+
+    @Schema(description = "登录Token失效时间")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Shanghai")
+    private LocalDateTime loginTokenTimeout;
+
+    @Schema(description = "手机号码")
+    private String phoneNumber;
+
+}
+```
+
+## 新建Contoller
+
+```java
+
+import com.bigkang.test.testspringai.entity.User;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.AllArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@Tag(name = "用户(User)" + "控制器")
+@RequestMapping("/api/user")
+@AllArgsConstructor(onConstructor = @__(@Autowired))
+public class UserController {
+
+    @PostMapping("/createUser")
+    @Schema(description = "创建用户")
+    public User createUser(@RequestBody User user, HttpServletRequest httpServletRequest) {
+        return user;
+    }
+
+}
+
+```
+

@@ -878,70 +878,23 @@ transportMode: "NIO"
 
 ## 优雅的缓存方式
 
+### RCache
+
 ​		我们这里使用Redis以及分布式锁方式，并且采用缓存熔断的方式来进行缓存
 
 ​		首先创建一个CacheLoadException异常
 
-```java
-/**
- * @author HuangKang
- * @date 2022/5/13 10:25 上午
- * @describe 缓存加载异常
- */
-public class CacheLoadException extends RuntimeException {
-
-    /**
-     * 默认缓存异常信息
-     */
-    private static final String DEFAULT_CACHE_EXCEPTION_MESSAGE = "Key:%s load cache failure";
-
-    public CacheLoadException() {
-        super();
-    }
-
-    /**
-     * 带消息缓存加载异常
-     *
-     * @param key 异常的Key
-     */
-    public CacheLoadException(String key) {
-        super(String.format(DEFAULT_CACHE_EXCEPTION_MESSAGE,key));
-    }
-
-}
-
-```
-
 ​		然后新建一个缓存策略枚举
-
-```java
-/**
- * @author HuangKang
- * @date 2022/5/13 10:51 上午
- * @describe 缓存策略
- */
-public enum CacheStrategy {
-    /**
-     * 熔断
-     */
-    FUSING,
-    /**
-     * 抛出异常
-     */
-    EXCEPTION
-}
-
-```
 
 ​		最后新建一个CacheUtil，需要引入lombok，fastjson，以及redisson，可以自行修改
 
 ```java
 
-import com.alibaba.fastjson.JSON;
-import com.test.boot.utils.demo.redis.exception.CacheLoadException;
+import cn.hutool.json.JSONUtil;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.redisson.api.RAtomicLong;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -949,7 +902,9 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 /**
  * @author HuangKang
@@ -957,7 +912,8 @@ import java.util.concurrent.TimeUnit;
  * @describe Redis缓存工具
  */
 @Component
-public class RedisCacheUtil {
+@AllArgsConstructor(onConstructor = @__(@Autowired))
+public class RCache {
 
     /**
      * 锁前缀
@@ -989,23 +945,42 @@ public class RedisCacheUtil {
      */
     private static final Duration DEFAULT_CACHE_LOCK_TIME = Duration.ofSeconds(30);
 
+    /**
+     * 默认存在 Set时间（30秒）不可重复设置
+     */
+    private static final Duration DEFAULT_IF_ABSENT_TIME = Duration.ofSeconds(30);
 
-    @Autowired
-    public RedisCacheUtil(RedissonClient redissonClient, RedisOperations<String, String> redisOperations) {
-        this.redissonClient = redissonClient;
-        this.redisOperations = redisOperations;
-    }
 
     public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, T defaultVal) {
-        return getAndLoadCache(key, cacheLoader, tClass, DEFAULT_CACHE_TIME, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.FUSING, defaultVal);
+        return getAndLoadCache(key, cacheLoader,  (jsonStr) -> JSONUtil.toBean(jsonStr, tClass), DEFAULT_CACHE_TIME, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.FUSING, defaultVal);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Function<String, T> deserializer, T defaultVal) {
+        return getAndLoadCache(key, cacheLoader, deserializer, DEFAULT_CACHE_TIME, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.FUSING, defaultVal);
     }
 
     public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime, Duration cacheLockTime, T defaultVal) {
-        return getAndLoadCache(key, cacheLoader, tClass, cacheTime, cacheLockTime, CacheStrategy.FUSING, defaultVal);
+        return getAndLoadCache(key, cacheLoader,  (jsonStr) -> JSONUtil.toBean(jsonStr, tClass), cacheTime, cacheLockTime, CacheStrategy.FUSING, defaultVal);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Function<String, T> deserializer, Duration cacheTime, Duration cacheLockTime, T defaultVal) {
+        return getAndLoadCache(key, cacheLoader,  deserializer, cacheTime, cacheLockTime, CacheStrategy.FUSING, defaultVal);
     }
 
     public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass) {
         return getAndLoadCache(key, cacheLoader, tClass, DEFAULT_CACHE_TIME);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader,  Function<String, T> deserializer) {
+        return getAndLoadCache(key, cacheLoader, deserializer, DEFAULT_CACHE_TIME,DEFAULT_CACHE_LOCK_TIME,CacheStrategy.EXCEPTION, null);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, CacheStrategy cacheStrategy, T defaultVal) {
+        return getAndLoadCache(key, cacheLoader,  (jsonStr) -> JSONUtil.toBean(jsonStr, tClass), DEFAULT_CACHE_TIME, DEFAULT_CACHE_LOCK_TIME, cacheStrategy, defaultVal);
+    }
+
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, CacheStrategy cacheStrategy) {
+        return getAndLoadCache(key, cacheLoader,  (jsonStr) -> JSONUtil.toBean(jsonStr, tClass), DEFAULT_CACHE_TIME, DEFAULT_CACHE_LOCK_TIME, cacheStrategy, null);
     }
 
     public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime) {
@@ -1014,11 +989,11 @@ public class RedisCacheUtil {
 
     public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime, Duration cacheLockTime) {
         // 默认异常策略
-        return getAndLoadCache(key, cacheLoader, tClass, cacheTime, cacheLockTime, CacheStrategy.EXCEPTION, null);
+        return getAndLoadCache(key, cacheLoader,  (jsonStr) -> JSONUtil.toBean(jsonStr, tClass), cacheTime, cacheLockTime, CacheStrategy.EXCEPTION, null);
     }
 
     public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime, Duration cacheLockTime, CacheStrategy strategy) {
-        return getAndLoadCache(key, cacheLoader, tClass, cacheTime, cacheLockTime, strategy, null);
+        return getAndLoadCache(key, cacheLoader,  (jsonStr) -> JSONUtil.toBean(jsonStr, tClass), cacheTime, cacheLockTime, strategy, null);
     }
 
     /**
@@ -1026,14 +1001,14 @@ public class RedisCacheUtil {
      *
      * @param key           缓存Key
      * @param cacheLoader   缓存加载器
-     * @param tClass        缓存以及返回类型
+     * @param deserializer  序列化
      * @param cacheTime     缓存时间
      * @param cacheLockTime 缓存获取锁时间
      * @param defaultVal    默认值
      * @param <T>           泛型
      * @return 缓存数据
      */
-    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Class<T> tClass, Duration cacheTime, Duration cacheLockTime, CacheStrategy strategy, T defaultVal) {
+    public <T> T getAndLoadCache(String key, CacheLoader<T> cacheLoader, Function<String, T> deserializer, Duration cacheTime, Duration cacheLockTime, CacheStrategy strategy, T defaultVal) {
         // 获取缓存字符串
         CacheBody cacheBody = getCacheStr(key, strategy);
         T data = null;
@@ -1047,8 +1022,8 @@ public class RedisCacheUtil {
                 boolean getLock = rLock.tryLock(cacheLockTime.getSeconds(), TimeUnit.SECONDS);
                 // 获取锁失败，执行策略
                 if (!getLock) {
-                    // 熔断
-                    if (CacheStrategy.FUSING.equals(strategy)) {
+                    // 熔断 OR 异常熔断
+                    if (CacheStrategy.FUSING.equals(strategy) || CacheStrategy.FUSING_ERROR.equals(strategy)) {
                         return defaultVal;
                     }
                     // 异常
@@ -1071,6 +1046,12 @@ public class RedisCacheUtil {
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+            } catch (Exception e) {
+                if (CacheStrategy.FUSING_ERROR.equals(strategy)) {
+                    return defaultVal;
+                } else {
+                    throw e;
+                }
             } finally {
                 // 如果锁被当前线程持有
                 if (rLock.isHeldByCurrentThread()) {
@@ -1084,7 +1065,7 @@ public class RedisCacheUtil {
             return null;
         }
         if (cacheBody.cacheStr != null) {
-            data = JSON.parseObject(cacheBody.cacheStr, tClass);
+            data = deserializer.apply(cacheBody.cacheStr);
         }
         if (cacheBody.getFailure() && CacheStrategy.FUSING.equals(strategy)) {
             return defaultVal;
@@ -1124,7 +1105,7 @@ public class RedisCacheUtil {
      * @param cacheTime 缓存时间
      */
     public void setCacheStr(String key, Object cacheData, Duration cacheTime) {
-        redisOperations.opsForValue().set(key, JSON.toJSONString(cacheData), cacheTime);
+        redisOperations.opsForValue().set(key, JSONUtil.toJsonStr(cacheData), cacheTime);
     }
 
 
@@ -1148,16 +1129,378 @@ public class RedisCacheUtil {
 
         /**
          * 加载数据
+         *
          * @return 缓存加载前的
          */
         T loadData();
     }
 
+    public <T> T tryLock(String key, CacheLock<T> cacheLock, Class<T> tClass) {
+        return tryLock(key, cacheLock, tClass, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.EXCEPTION);
+    }
+
+    public <T> T tryLock(String key, CacheLock<T> cacheLock, Class<T> tClass, Duration cacheLockTime) {
+        return tryLock(key, cacheLock, tClass, cacheLockTime, CacheStrategy.EXCEPTION);
+    }
+
+
+    public <T> T tryLock(String key, CacheLock<T> cacheLock, Class<T> tClass, CacheStrategy strategy, T defaultVal) {
+        return tryLock(key, cacheLock, tClass, DEFAULT_CACHE_LOCK_TIME, strategy, defaultVal);
+    }
+
+    public <T> T tryLock(String key, CacheLock<T> cacheLock, Class<T> tClass, Duration cacheLockTime, CacheStrategy strategy) {
+        return tryLock(key, cacheLock, tClass, cacheLockTime, strategy, null);
+    }
+
+
+    /**
+     * 尝试获取锁
+     *
+     * @param key         定义的Key
+     * @param cacheLock   缓存方法
+     * @param tClass      返回类型
+     * @param tryLockTime 尝试获取锁时间
+     * @param strategy    策略 熔断 OR 异常熔断 OR 异常
+     * @param defaultVal
+     * @param <T>
+     * @return
+     */
+    public <T> T tryLock(String key, CacheLock<T> cacheLock, Class<T> tClass, Duration tryLockTime, CacheStrategy strategy, T defaultVal) {
+        T data = null;
+        // 如果没有缓存,并且获取Redis数据成功
+        // 创建Redis锁Key
+        RLock rLock = redissonClient.getLock(LOCK_PREFIX + key);
+        try {
+            // 使用TryLock获取
+            boolean getLock = rLock.tryLock(tryLockTime.getSeconds(), TimeUnit.SECONDS);
+            // 获取锁失败，执行策略
+            if (!getLock) {
+                // 熔断 OR 异常熔断
+                if (CacheStrategy.FUSING.equals(strategy) || CacheStrategy.FUSING_ERROR.equals(strategy)) {
+                    return defaultVal;
+                }
+                // 异常
+                else if (CacheStrategy.EXCEPTION.equals(strategy)) {
+                    throw new CacheLoadException(key);
+                }
+            }
+
+            // 还是没有获取到则加载数据(是否考虑load失败的情况的默认值)
+            data = cacheLock.lockData();
+            return data;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (Exception e) {
+            if (CacheStrategy.FUSING_ERROR.equals(strategy)) {
+                return defaultVal;
+            } else {
+                throw e;
+            }
+        } finally {
+            // 如果锁被当前线程持有
+            if (rLock.isHeldByCurrentThread()) {
+                // 删除锁
+                rLock.unlock();
+            }
+        }
+        return null;
+    }
+
+
+    public interface CacheLock<T> {
+
+        /**
+         * 加载数据
+         *
+         * @return 缓存加载前的
+         */
+        T lockData();
+    }
+
+    public Boolean setIfAbsent(String key) {
+        return this.setIfAbsent(key, DEFAULT_IF_ABSENT_TIME);
+    }
+
+    public Boolean setIfAbsent(String key, Duration timeout) {
+        return this.setIfAbsent(key, timeout.getSeconds(), TimeUnit.SECONDS);
+    }
+
+    public Boolean setIfAbsent(String key, long timeout, TimeUnit unit) {
+        RAtomicLong atomicLong = redissonClient.getAtomicLong(key);
+        boolean setIfAbsent = atomicLong.compareAndSet(0, 1);
+
+        if (setIfAbsent) {
+            atomicLong.expire(timeout, unit);
+        }
+        return setIfAbsent;
+    }
+
+
+    public <T> T getAndLoadCacheInMap(String cacheMapKey, String fieldKey,
+                                      CacheLoader<T> cacheLoader, Function<String, T> deserializer) {
+        return getAndLoadCacheInMap(cacheMapKey, fieldKey, cacheLoader, deserializer, DEFAULT_CACHE_TIME, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.EXCEPTION, null);
+    }
+
+    public <T> T getAndLoadCacheInMap(String cacheMapKey, String fieldKey,
+                                      CacheLoader<T> cacheLoader, Function<String, T> deserializer,
+                                      Duration cacheTime) {
+        return getAndLoadCacheInMap(cacheMapKey, fieldKey, cacheLoader, deserializer,
+                cacheTime, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.FUSING, null);
+    }
+
+    public <T> T getAndLoadCacheInMap(String cacheMapKey, String fieldKey,
+                                      CacheLoader<T> cacheLoader, Class<T> tClass) {
+        return getAndLoadCacheInMap(cacheMapKey, fieldKey, cacheLoader, (jsonStr) -> JSONUtil.toBean(jsonStr, tClass), DEFAULT_CACHE_TIME, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.EXCEPTION, null);
+    }
+
+    public <T> T getAndLoadCacheInMap(String cacheMapKey, String fieldKey,
+                                      CacheLoader<T> cacheLoader, Class<T> tClass, T defaultVal) {
+        return getAndLoadCacheInMap(cacheMapKey, fieldKey, cacheLoader, (jsonStr) -> JSONUtil.toBean(jsonStr, tClass), DEFAULT_CACHE_TIME, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.FUSING, defaultVal);
+    }
+
+    public <T> T getAndLoadCacheInMap(String cacheMapKey, String fieldKey,
+                                      CacheLoader<T> cacheLoader, Class<T> tClass,
+                                      Duration cacheTime) {
+        return getAndLoadCacheInMap(cacheMapKey, fieldKey, cacheLoader, (jsonStr) -> JSONUtil.toBean(jsonStr, tClass),
+                cacheTime, DEFAULT_CACHE_LOCK_TIME, CacheStrategy.FUSING, null);
+    }
+
+    /**
+     * 获取并加载缓存到Map结构
+     *
+     * @param cacheMapKey   Map缓存键
+     * @param fieldKey      字段键
+     * @param cacheLoader   数据加载器
+     * @param deserializer  反序列化
+     * @param cacheTime     缓存时间
+     * @param cacheLockTime 锁等待时间
+     * @param strategy      缓存策略
+     * @param defaultVal    默认值
+     * @return 缓存数据
+     */
+    public <T> T getAndLoadCacheInMap(String cacheMapKey, String fieldKey, CacheLoader<T> cacheLoader, Function<String, T> deserializer,
+                                      Duration cacheTime, Duration cacheLockTime, CacheStrategy strategy, T defaultVal) {
+        // 1. 尝试从Hash中获取缓存值
+        CachedValue cachedValue = getCachedValue(cacheMapKey, fieldKey, strategy);
+        T data = null;
+
+        // 检查是否存在有效缓存
+        if (cachedValue != null && cachedValue.getExpireTime() > System.currentTimeMillis()) {
+            return deserializer.apply(cachedValue.getData());
+        }
+
+        // 2. 缓存失效或不存在时的处理逻辑
+        if (!isCacheFailure(cacheMapKey, strategy)) { // 需要实现isCacheFailure方法判断Redis是否可用
+            String lockKey = LOCK_PREFIX + cacheMapKey + ":" + fieldKey;
+            RLock lock = redissonClient.getLock(lockKey);
+            try {
+                boolean acquired = lock.tryLock(cacheLockTime.getSeconds(), TimeUnit.SECONDS);
+                if (!acquired) {
+                    return handleLockFailure(strategy, defaultVal, cacheMapKey);
+                }
+
+                // 双重检查，防止并发重复加载
+                cachedValue = getCachedValue(cacheMapKey, fieldKey, strategy);
+                if (cachedValue != null && cachedValue.getExpireTime() > System.currentTimeMillis()) {
+                    return deserializer.apply(cachedValue.getData());
+                }
+
+                // 加载数据
+                data = cacheLoader.loadData();
+                setCacheInMap(cacheMapKey, fieldKey, data, cacheTime);
+                return data;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CacheLoadException(cacheMapKey + ":" + fieldKey);
+            } finally {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
+            }
+        }
+
+        // 3. 处理缓存失效后的降级逻辑
+        if (strategy == CacheStrategy.FUSING || strategy == CacheStrategy.FUSING_ERROR) {
+            return defaultVal;
+        }
+        throw new CacheLoadException(cacheMapKey + ":" + fieldKey);
+    }
+
+    /**
+     * 清空整个Map缓存
+     */
+    public void clearCacheMap(String cacheMapKey) {
+        redisOperations.delete(cacheMapKey);
+    }
+
+    // 辅助方法：获取缓存值
+    private CachedValue getCachedValue(String cacheMapKey, String fieldKey, CacheStrategy strategy) {
+        try {
+            String valueStr = (String) redisOperations.opsForHash().get(cacheMapKey, fieldKey);
+            return valueStr != null ? JSONUtil.toBean(valueStr, CachedValue.class) : null;
+        } catch (Exception e) {
+            if (strategy == CacheStrategy.EXCEPTION) {
+                throw new CacheLoadException("Cache access failed: " + cacheMapKey);
+            }
+            return null;
+        }
+    }
+
+    // 辅助方法：设置缓存到Map
+    private <T> void setCacheInMap(String cacheMapKey, String fieldKey, T data, Duration cacheTime) {
+        long expireTime = System.currentTimeMillis() + cacheTime.toMillis();
+        CachedValue value = new CachedValue(
+                data != null ? JSONUtil.toJsonStr(data) : DEFAULT_CACHE_NULL_VALUE,
+                expireTime
+        );
+        redisOperations.opsForHash().put(cacheMapKey, fieldKey, JSONUtil.toJsonStr(value));
+        // 设置整个Hash的过期时间（可选）
+        redisOperations.expire(cacheMapKey, cacheTime.getSeconds(), TimeUnit.SECONDS);
+    }
+
+    // 辅助方法：处理获取锁失败的情况
+    private <T> T handleLockFailure(CacheStrategy strategy, T defaultVal, String key) {
+        if (strategy == CacheStrategy.FUSING || strategy == CacheStrategy.FUSING_ERROR) {
+            return defaultVal;
+        }
+        throw new CacheLoadException("Failed to acquire lock for: " + key);
+    }
+
+    // 辅助方法：判断缓存是否失效
+    private boolean isCacheFailure(String key, CacheStrategy strategy) {
+        try {
+            // 执行一个轻量级的Redis操作来判断连接状态
+            redisOperations.hasKey(key);
+            return false;
+        } catch (Exception e) {
+            if (strategy == CacheStrategy.EXCEPTION) {
+                throw new CacheLoadException("Redis connection failed: " + key);
+            }
+            return true;
+        }
+    }
+
+
+    /**
+     * @author HuangKang
+     * @date 2022/5/13 10:51 上午
+     * @describe 缓存策略
+     */
+    public enum CacheStrategy {
+        /**
+         * 熔断,防止缓存击穿
+         */
+        FUSING,
+        /**
+         * 熔断异常,获取缓存时加载异常失败是否熔断
+         */
+        FUSING_ERROR,
+        /**
+         * 抛出异常，不论缓存击穿还是加载失败直接抛出异常
+         */
+        EXCEPTION
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class CachedValue {
+        private String data;
+        private long expireTime;
+    }
+
+
+    /**
+     * @author HuangKang
+     * @date 2022/5/13 10:25 上午
+     * @describe 缓存加载异常
+     */
+    public static class CacheLoadException extends RuntimeException {
+
+        /**
+         * 默认缓存异常信息
+         */
+        private static final String DEFAULT_CACHE_EXCEPTION_MESSAGE = "Key:%s load cache failure";
+
+        public CacheLoadException() {
+            super();
+        }
+
+        /**
+         * 带消息缓存加载异常
+         *
+         * @param key 异常的Key
+         */
+        public CacheLoadException(String key) {
+            super(String.format(DEFAULT_CACHE_EXCEPTION_MESSAGE, key));
+        }
+
+    }
+
+
+    /**
+     * 使用方式
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
+        RedissonClient redissonClient = null;
+        RedisOperations<String, String> redisOperations = null;
+        RCache rCache = new RCache(redissonClient, redisOperations);
+
+        // 使用默认缓存 30分钟，不带熔断直接异常
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class);
+
+        // 使用默认缓存 30分钟，不带熔断直接异常 并且自定义字符串反序列
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, str -> JSONUtil.toBean(str, CachedValue.class));
+
+        // 测试熔断Redis崩溃后返回默认数据
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class, CacheStrategy.FUSING, new CachedValue("testKeyFUSING", new Date().getTime()));
+
+
+        // 测试熔断异常，不论redis调用还是加载缓存报错全都熔断返回默认数据
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class, CacheStrategy.FUSING_ERROR, new CachedValue("testKeyFUSING_ERROR", new Date().getTime()));
+
+
+        // 使用 缓存 30分钟,并且获取缓存时间不超过30秒，不带熔断直接异常
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class, Duration.ofMinutes(30), Duration.ofSeconds(30));
+
+
+        // 使用默认缓存用Map存储 30分钟，不带熔断直接异常 ，其他使用相同
+        rCache.getAndLoadCacheInMap("testMapKey", "testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class);
+
+
+        // 使用默认缓存用Map存储 30分钟，不带熔断直接异常 ，其他使用相同,自定义序列化
+        rCache.getAndLoadCacheInMap("testMapKey", "testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, (str) -> JSONUtil.toBean(str, CachedValue.class));
+
+    }
 }
+
 
 ```
 
-​		使用方式
+### 使用方式
 
 ```java
         Boolean ex = false;
@@ -1178,6 +1521,66 @@ public class RedisCacheUtil {
                 return demo;
             }, Demo.class);
         }
+
+
+    /**
+     * 使用方式
+     *
+     * @param args
+     */
+    public static void main(String[] args) {
+        RedissonClient redissonClient = null;
+        RedisOperations<String, String> redisOperations = null;
+        RCache rCache = new RCache(redissonClient, redisOperations);
+
+        // 使用默认缓存 30分钟，不带熔断直接异常
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class);
+
+        // 使用默认缓存 30分钟，不带熔断直接异常 并且自定义字符串反序列
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, str -> JSONUtil.toBean(str, CachedValue.class));
+
+        // 测试熔断Redis崩溃后返回默认数据
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class, CacheStrategy.FUSING, new CachedValue("testKeyFUSING", new Date().getTime()));
+
+
+        // 测试熔断异常，不论redis调用还是加载缓存报错全都熔断返回默认数据
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class, CacheStrategy.FUSING_ERROR, new CachedValue("testKeyFUSING_ERROR", new Date().getTime()));
+
+
+        // 使用 缓存 30分钟,并且获取缓存时间不超过30秒，不带熔断直接异常
+        rCache.getAndLoadCache("testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class, Duration.ofMinutes(30), Duration.ofSeconds(30));
+
+
+        // 使用默认缓存用Map存储 30分钟，不带熔断直接异常 ，其他使用相同
+        rCache.getAndLoadCacheInMap("testMapKey", "testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, CachedValue.class);
+
+
+        // 使用默认缓存用Map存储 30分钟，不带熔断直接异常 ，其他使用相同,自定义序列化
+        rCache.getAndLoadCacheInMap("testMapKey", "testKey", () -> {
+            // 正产调用业务代码查询缓存
+            return new CachedValue("testKey", new Date().getTime());
+        }, (str) -> JSONUtil.toBean(str, CachedValue.class));
+
+    }
+
 ```
 
 
