@@ -110,6 +110,14 @@ public interface ChatModel {
 
 创建 的方法有很多种`UserMessage`，具体取决于内容。最简单的方法是`new UserMessage("Hi")`或`UserMessage.from("Hi")`。
 
+`UserMessage`不仅可以包含文本，还可以包含其他类型的内容。 `UserMessage`包含一个`List<Content> contents`。 `Content`是一个接口，具有以下实现：
+
+- `TextContent`
+- `ImageContent`
+- `AudioContent`
+- `VideoContent`
+- `PdfFileContent`
+
 ### 简单调用
 
 ​		引入Maven依赖
@@ -170,5 +178,174 @@ public interface ChatModel {
 如果你遇到Java编程中的任何问题，随时可以向我提问！我会尽力为你解答，并给出清晰、详细的解答。希望能在Java技术领域为你提供帮助！😊 🚀
 
 请问，你现在有具体的Java相关问题需要解答吗？请随时告诉我！
+```
+
+### 多模态
+
+​		调用VL图片识别（注意使用对应ChatModel每个支持类型不一样）
+
+```
+        OllamaChatModel ollamaChatModel = OllamaChatModel.builder()
+                .timeout(Duration.ofHours(1))
+                .baseUrl("http://localhost:11434")
+                .modelName("qwen2.5vl:32b")
+                .build();
+				UserMessage userMessage = UserMessage.from(
+                TextContent.from("描述一下这张图片这是一个什么东西 以及细节和特点以及类型")
+                ,
+                ImageContent.from("https://www.junanhome.com/maoshe/img/pic01.webp")
+        );
+        ChatResponse chat = ollamaChatModel.chat(userMessage);
+        System.out.println(chat.aiMessage().text());
+
+```
+
+
+
+## 聊天记忆（Chat Memory）
+
+​		手动维护和管理`ChatMessage`链表非常繁琐。因此，LangChain4j 提供了一个`ChatMemory`抽象层以及多个开箱即用的实现。
+
+`ChatMemory`可以作为独立的底层组件使用，也可以作为高级组件（如[AI 服务）](https://docs.langchain4j.dev/tutorials/ai-services)的一部分使用。
+
+`ChatMemory``ChatMessage`充当s（由 提供支持）的容器`List`，并具有以下附加功能：
+
+- 驱逐政策
+- 持久性
+- 特殊待遇`SystemMessage`
+- [对工具](https://docs.langchain4j.dev/tutorials/tools)消息的特殊处理
+
+### 自定义本地ChatMemory
+
+​		引入依赖
+
+```
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+            <version>1.8.0</version>
+        </dependency>
+```
+
+​		新建CustomChatMemoryStore
+
+```java
+
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class CustomChatMemoryStore implements ChatMemoryStore {
+
+    Map<String, List<ChatMessage>> map = new HashMap<>();
+
+    @Override
+    public List<ChatMessage> getMessages(Object o) {
+       return map.getOrDefault(o, List.of());
+    }
+
+    @Override
+    public void updateMessages(Object o, List<ChatMessage> list) {
+        map.put(o, list);
+    }
+
+    @Override
+    public void deleteMessages(Object o) {
+        map.remove(o);
+    }
+}
+```
+
+​			ChatMemory有两种方式应用 以及两种计算方式 MessageWindowChatMemory（消息窗口）TokenWindowChatMemory（Token窗口）
+
+- 和AiServices
+  - [聊天记录](https://github.com/langchain4j/langchain4j-examples/blob/main/other-examples/src/main/java/ServiceWithMemoryExample.java)
+  - [每个用户都有独立的聊天记录](https://github.com/langchain4j/langchain4j-examples/blob/main/other-examples/src/main/java/ServiceWithMemoryForEachUserExample.java)
+  - [持久聊天记忆](https://github.com/langchain4j/langchain4j-examples/blob/main/other-examples/src/main/java/ServiceWithPersistentMemoryExample.java)
+  - [每个用户的持久聊天记录](https://github.com/langchain4j/langchain4j-examples/blob/main/other-examples/src/main/java/ServiceWithPersistentMemoryForEachUserExample.java)
+- 带有Chain传统
+  - [使用对话链进行聊天记忆](https://github.com/langchain4j/langchain4j-examples/blob/main/other-examples/src/main/java/ChatMemoryExamples.java)
+  - [使用对话检索链的聊天记忆](https://github.com/langchain4j/langchain4j-examples/blob/main/other-examples/src/main/java/ChatWithDocumentsExamples.java)
+
+### AiServices
+
+​		使用AiServices方式进行带ID方式聊天记忆
+
+```java
+
+    interface Assistant {
+
+        String chat(@MemoryId Integer memoryId, @UserMessage String userMessage);
+    }
+
+    public static void main(String[] args) {
+
+        OpenAiChatModel model = OpenAiChatModel.builder()
+                .baseUrl("http://localhost:11434/v1") // Ollama端点需要带上v1
+                .apiKey("")                             // Ollama 本地不需要 key
+                .modelName("qwen2.5vl:32b")            // 本地模型名
+                .build();
+
+				// 定义 ChatMemoryProvider 设置消息条数
+        ChatMemoryProvider chatMemoryProvider = memoryId -> MessageWindowChatMemory.builder()
+                .id(memoryId)
+                .maxMessages(10)
+                .chatMemoryStore(new CustomChatMemoryStore())
+                .build();
+
+        // 定义AiService
+        Assistant assistant = AiServices.builder(Assistant.class)
+                .chatModel(model)
+                .chatMemoryProvider(chatMemoryProvider)
+                .build();
+
+        // 大概回答 你好！很高兴认识你，BigKang 😊 你今天有什么有趣的事情想分享吗？或者需要什么帮助呢？让我们一起聊聊！ 🚀
+        System.out.println(assistant.chat(1, "我是BigKang"));
+        // 大概回答 哇，你已经掌握了Java和MySQL！这对开发后端应用来说是一个非常棒的组合。Java和MySQL的组合在企业级应用、Web开发、数据库管理等方面都非常常用，尤其是在大型项目中。 
+        System.out.println(assistant.chat(1, "我会Java还有MySQL"));
+        // 大概回答 嘿，我刚才知道你叫BigKang，你提到自己掌握了**Java**和**MySQL**！这两项技能已经很厉害啦！让我来帮你总结一下：
+        System.out.println(assistant.chat(1, "请问我是谁我有什么技能"));
+
+    }
+```
+
+
+
+### 传统Chain调用
+
+```java
+
+        OpenAiChatModel model = OpenAiChatModel.builder()
+                .baseUrl("http://localhost:11434/v1") // Ollama端点需要带上v1
+                .apiKey("")                             // Ollama 本地不需要 key
+                .modelName("qwen2.5vl:32b")            // 本地模型名
+                .build();
+
+        ChatMemory chatMemory = MessageWindowChatMemory.builder()
+                .id("test")
+                .maxMessages(10)
+                .chatMemoryStore(new CustomChatMemoryStore())
+                .build();
+
+        // 添加消息
+        chatMemory.add(dev.langchain4j.data.message.UserMessage.userMessage("我是BigKang"));
+        // 每次调用携带 回答 你好，BigKang！很高兴见到你！有什么我可以帮助你的吗？无论是技术问题、创意灵感，还是其他方面的需求，欢迎随时告诉我。让我们一起探讨和解决问题！ 👨‍💻😊
+        System.out.println(model.chat(chatMemory.messages()).aiMessage().text());
+
+
+        // 添加消息
+        chatMemory.add(dev.langchain4j.data.message.UserMessage.userMessage("我会Java还有MySQL"));
+        // 每次调用携带 回答 你对Java和MySQL的具体使用场景感兴趣，还是有某个具体的问题想讨论呢？
+        System.out.println(model.chat(chatMemory.messages()).aiMessage().text());
+
+
+        // 添加消息
+        chatMemory.add(dev.langchain4j.data.message.UserMessage.userMessage("请问我是谁我有什么技能"));
+        // 每次调用携带 回答 你好，BigKang！看到你提到自己会Java和MySQL，让我为你总结一下你的技能和可能的身份背景
+        System.out.println(model.chat(chatMemory.messages()).aiMessage().text());
+
 ```
 
