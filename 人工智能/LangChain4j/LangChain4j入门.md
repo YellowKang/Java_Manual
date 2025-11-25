@@ -349,3 +349,285 @@ public class CustomChatMemoryStore implements ChatMemoryStore {
 
 ```
 
+### 持久化
+
+​		直接继承ChatMemoryStore然后在处理的时候都调用存库就行
+
+```
+
+import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.store.memory.chat.ChatMemoryStore;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class CustomChatMemoryStore implements ChatMemoryStore {
+
+    @Override
+    public List<ChatMessage> getMessages(Object o) {
+       // 调用查询DB
+    }
+
+    @Override
+    public void updateMessages(Object o, List<ChatMessage> list) {
+       // 调用更新DB
+    }
+
+    @Override
+    public void deleteMessages(Object o) {
+       // 调用删除
+    }
+}
+```
+
+
+
+## 模型参数（Model Parameters）
+
+简单来说就是可以设置模型的各种参数
+
+官方解释：[官网地址](https://docs.langchain4j.dev/tutorials/model-parameters/)
+
+​		根据您选择的型号和供应商，您可以调整众多参数，这些参数将定义：
+
+- 该模型的输出结果：生成内容（文本、图像）的创造性或确定性水平、生成内容的数量等。
+- 连接性：基本 URL、授权密钥、超时、重试、日志记录等。
+
+通常情况下，您可以在模型提供商的网站上找到所有参数及其含义。例如，OpenAI API 的参数可以在https://platform.openai.com/docs/api-reference/chat （最新版本）找到，其中包括以下选项：
+
+我们可以使用构建器模式设置模型的每个可用参数，如下所示：
+
+```java
+OpenAiChatModel model = OpenAiChatModel.builder()
+        .apiKey(System.getenv("OPENAI_API_KEY"))
+        .modelName("gpt-4o-mini")
+        .temperature(0.3)
+        .timeout(ofSeconds(60))
+        .logRequests(true)
+        .logResponses(true)
+        .build();
+```
+
+[如果您使用的是我们的Spring Boot starter](https://github.com/langchain4j/langchain4j-spring)之一，则可以`application.properties`按如下方式在文件中配置模型参数：
+
+```text
+langchain4j.open-ai.chat-model.api-key=${OPENAI_API_KEY}
+langchain4j.open-ai.chat-model.model-name=gpt-4-1106-preview
+...
+```
+
+[您可以在这里](https://github.com/langchain4j/langchain4j-spring/blob/main/langchain4j-open-ai-spring-boot-starter/src/main/java/dev/langchain4j/openai/spring/AutoConfig.java)找到所有支持的属性列表 。
+
+有关 Spring Boot 集成的更多信息，请点击[此处](https://docs.langchain4j.dev/tutorials/spring-boot-integration)查看。
+
+## 响应流（Response Streaming）
+
+​		LLM（层级记忆）每次生成一个词元，因此许多 LLM 提供商提供了一种逐词元流式传输响应的方法，而无需等待整个文本生成完毕。这显著改善了用户体验，因为用户无需等待未知的时间，几乎可以立即开始阅读响应。
+
+​		对于 ` `ChatModel`and``LanguageModel`接口，还有对应的 `StreamingChatModel``and``StreamingLanguageModel`接口。这些接口具有类似的 API，但可以流式传输响应。它们接受接口的实现`StreamingChatResponseHandler`作为参数。
+
+```java
+public interface StreamingChatResponseHandler {
+
+  	// 当生成下一个部分文本响应时，会调用 `get_response_text`onPartialResponse(String) 或 ` onPartialResponse(PartialResponse, PartialResponseContext)get_response_text` 方法（您可以实现其中任何一种方法）。根据 LLM 提供程序的不同，部分响应文本可以包含一个或多个令牌。例如，您可以在令牌可用时立即将其直接发送到 UI。
+    default void onPartialResponse(String partialResponse) {}
+    default void onPartialResponse(PartialResponse partialResponse, PartialResponseContext context) {}
+
+  	// 当生成下一个部分思考/推理文本时，会调用 `get()`onPartialThinking(PartialThinking) 或onPartialThinking(PartialThinking, PartialThinkingContext)`get()` 方法（您可以实现其中任何一种方法）。根据 LLM 提供程序的不同，部分思考文本可以包含一个或多个词元。
+    default void onPartialThinking(PartialThinking partialThinking) {}
+    default void onPartialThinking(PartialThinking partialThinking, PartialThinkingContext context) {}
+
+  	// 当生成下一个部分工具调用时：将调用onPartialToolCall(PartialToolCall) 或（您可以实现这两个方法中的任何一个）。onPartialToolCall(PartialToolCall, PartialToolCallContext)
+    default void onPartialToolCall(PartialToolCall partialToolCall) {}
+    default void onPartialToolCall(PartialToolCall partialToolCall, PartialToolCallContext context) {}
+
+  	// 当 LLM 完成单个工具调用的流式传输时：onCompleteToolCall(CompleteToolCall)将被调用。
+    default void onCompleteToolCall(CompleteToolCall completeToolCall) {}
+
+  	// 当 LLM 完成生成后，onCompleteResponse(ChatResponse)将调用该函数。该ChatResponse对象包含完整的响应（AiMessage）以及ChatResponseMetadata。
+    void onCompleteResponse(ChatResponse completeResponse);
+
+  	// 当发生错误时：onError(Throwable error)会调用。
+    void onError(Throwable error);
+}
+```
+
+### 测试流式输出
+
+​		以下是如何使用以下方式实现流式传输的示例`StreamingChatModel`：
+
+​		会输出如下信息：
+
+```
+AI输出结果: **********
+AI思考推理: null
+AI消息属性: {}
+完结状态原因: STOP
+LLM参数生成完成。
+```
+
+```java
+
+				// 必须采用各个模型的StreamingChatModel才能使用流式输出
+        OpenAiStreamingChatModel model = OpenAiStreamingChatModel.builder()
+                .baseUrl("http://localhost:11434/v1") // Ollama端点需要带上v1
+                .apiKey("")                             // Ollama 本地不需要 key
+                .modelName("qwen2.5vl:32b")            // 本地模型名
+                .build();
+
+        model.chat("你是什么模型你有什么功能", new StreamingChatResponseHandler() {
+
+            @Override
+            public void onPartialResponse(String partialResponse) {
+                // 模型的回答会流式输出
+                System.out.print(partialResponse);
+            }
+
+            @Override
+            public void onPartialThinking(PartialThinking partialThinking) {
+                // 推理/思考 文本
+                String text = partialThinking.text();
+                // 如果生成了下部分的思考/或者推理时会调用
+                System.out.println("触发思考/推理: " + partialThinking);
+            }
+
+            @Override
+            public void onPartialToolCall(PartialToolCall partialToolCall) {
+                // 工具名、工具调用id、工具调用参数、工具调用参数索引下标
+                String name = partialToolCall.name();
+                String id = partialToolCall.id();
+                String partialArguments = partialToolCall.partialArguments();
+                int index = partialToolCall.index();
+
+
+                // 当生成下一个部分工具调用时会触发这个方法
+                System.out.println("生成触发工具类调用: " + partialToolCall);
+            }
+
+            @Override
+            public void onCompleteToolCall(CompleteToolCall completeToolCall) {
+                // 工具调用参数索引下标
+                int index = completeToolCall.index();
+                // 工具的执行请求信息
+                ToolExecutionRequest toolRequest = completeToolCall.toolExecutionRequest();
+
+                // 工具调用id、工具名、工具调用参数
+                String id = toolRequest.id();
+                String name = toolRequest.name();
+                String arguments = toolRequest.arguments();
+
+                System.out.println("完成单个工具调用: " + completeToolCall);
+            }
+
+            @Override
+            public void onCompleteResponse(ChatResponse completeResponse) {
+
+                // AI信息 包含内容
+                AiMessage aiMessage = completeResponse.aiMessage();
+
+                System.out.println("AI输出结果: " + aiMessage.text());
+                System.out.println("AI思考推理: " + aiMessage.thinking());
+
+                // 是否包含工具调用
+                if (aiMessage.hasToolExecutionRequests()) {
+                    System.out.println("AI工具调用: " + aiMessage.toolExecutionRequests());
+                }
+
+
+                System.out.println("AI消息属性: " + aiMessage.attributes());
+
+
+                // 完结状态原因  STOP(停止),LENGTH(长度限制),TOOL_EXECUTION(工具异常),CONTENT_FILTER(上下文异常),OTHER(其他);
+                FinishReason finishReason = completeResponse.finishReason();
+                System.out.println("完结状态原因: " + finishReason);
+                System.out.println("LLM参数生成完成。");
+            }
+
+            @Override
+            public void onError(Throwable error) {
+                System.out.println("LLM参数生成异常: " + error.getMessage());
+            }
+        });
+
+        try {
+            Thread.sleep(30000L);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+
+```
+
+### 流媒体
+
+如果您想取消流媒体播放，可以通过以下方式之一进行操作：
+
+- `onPartialResponse(PartialResponse, PartialResponseContext)`
+- `onPartialThinking(PartialThinking, PartialThinkingContext)`
+- `onPartialToolCall(PartialToolCall, PartialToolCallContext)`
+
+上下文对象包含`StreamingHandle`可用于取消流式传输的参数：
+
+```java
+model.chat(userMessage, new StreamingChatResponseHandler() {
+
+    @Override
+    public void onPartialResponse(PartialResponse partialResponse, PartialResponseContext context) {
+        process(partialResponse);
+        if (shouldCancel()) {
+            context.streamingHandle().cancel();
+        }
+    }
+
+    @Override
+    public void onCompleteResponse(ChatResponse completeResponse) {
+        System.out.println("onCompleteResponse: " + completeResponse);
+    }
+
+    @Override
+    public void onError(Throwable error) {
+        error.printStackTrace();
+    }
+});
+```
+
+
+
+当`StreamingHandle.cancel()`调用此方法时，LangChain4j 将关闭连接并停止流传输。一旦`StreamingHandle.cancel()`调用此方法，`StreamingChatResponseHandler`将不再接收任何回调。
+
+## 人工智能服务（AI Services）
+
+​		到目前为止，我们一直在介绍底层组件，例如 `ChatModel`, `ChatMessage`, `ChatMemory`,  等。在这个层面上工作非常灵活，赋予你完全的自由，但也迫使你编写大量样板代码。由于基于 LLM 的应用程序通常需要多个组件协同工作（例如，提示模板、聊天内存、LLM、输出解析器、RAG 组件：嵌入模型和存储），并且通常涉及多个交互，因此协调所有这些组件变得更加繁琐。
+
+​		我们希望您专注于业务逻辑，而不是底层实现细节。因此，LangChain4j 目前提供了两个高级概念来帮助您：AI Services 和 Chains。
+
+​		Chains（旧版） 的概念源自 Python 的 LangChain（在 LCEL 引入之前）。其理念是为`Chain`每个常见用例（例如聊天机器人、RAG 等）创建一个 Chain。Chain 将多个底层组件组合在一起，并协调它们之间的交互。Chain 的主要问题在于，如果需要进行自定义，它们会显得过于僵化。LangChain4j 目前仅实现了两个 Chain (`ConversationalChain` 和 `ConversationalRetrievalChain`)，并且我们暂时没有添加更多 Chain 的计划。
+
+​		我们提出了一种名为 AI Services 的全新解决方案，该方案专为 Java 而设计。其理念是将与 LLM 和其他组件交互的复杂性隐藏在一个简单的 API 之后。
+
+​		这种方法与 Spring Data JPA 或 Retrofit 非常相似：您以声明式的方式定义一个包含所需 API 的接口，LangChain4j 提供一个实现该接口的对象（代理）。您可以将 AI 服务视为应用程序服务层的一个组件。它提供*AI*服务，因此得名。
+
+AI 服务处理最常见的操作：
+
+- 格式化输入到 LLM
+- 解析 LLM 输出
+
+它们还支持更高级的功能：
+
+- Chat memory（聊天记忆）
+- Tools（工具）
+- RAG（增强搜索）
+
+AI 服务可用于构建有状态的聊天机器人，以促进双向交互，以及自动化每次对 LLM 的调用都是独立的流程。
+
+我们先来看一个最简单的AI服务。之后，我们将探讨更复杂的例子。
+
+​				
+
+## 代理\人工智能体（Agents\Agentic AI）
+
+​		本节介绍如何使用该`langchain4j-agentic`模块构建智能体人工智能应用程序。请注意，整个模块目前仍处于实验阶段，未来版本可能会有所更改。
+
+​		简单来说 langchain4j-agentic模块用于构建人工智能体，但是整个模块更新迭代很快还在实验中
+
+​		尽管目前尚无普遍认可的人工智能代理定义，但一些新兴模式展示了如何协调和整合多种人工智能服务的功能，从而创建能够完成更复杂任务的人工智能应用。这些模式通常被称为“代理系统”或“代理人工智能”。它们通常涉及使用大型语言模型（LLM）来协调任务执行、管理工具使用以及维护交互上下文。
